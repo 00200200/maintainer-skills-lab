@@ -19,7 +19,10 @@ HERE = Path(__file__).resolve().parent
 def prepare(project):
     owner = project / "skills/mkl-training-demo/SKILL.md"
     owner.parent.mkdir(parents=True)
-    owner.write_text("Check https://docs.example.org/training before changing smoke_run.\n")
+    owner.write_text(
+        "Check https://docs.example.org/training before changing smoke_run.\n"
+        "During smoke_run, verify that a checkpoint file is created.\n"
+    )
     (project / "agents").mkdir()
     (project / "agents/mkl-demo-investigator.toml").write_text('skills = ["mkl-training-demo"]\n')
     (project / "skill-watch.toml").write_text(

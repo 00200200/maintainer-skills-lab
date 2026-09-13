@@ -158,6 +158,29 @@ comparison is available through the CLI's `--json` output. Source text remains
 untrusted evidence. No tool accepts arbitrary URLs, executes source content,
 writes files, or approves a new baseline. Restart after changing the configuration.
 
+## Review the affected instructions
+
+The [Review source change skill](../skills/mkl-review-source-change/SKILL.md)
+turns the diff and owner files into a review: which claim needs updating, which
+instructions remain valid, and which decisions need more evidence. The
+[source reviewer agent](../agents/mkl-source-reviewer.toml) also includes fix
+verification for cases where a candidate behavioral fix and reproduction exist.
+
+After installing the skill or agent in your client, try:
+
+> Use mkl-review-source-change to review the changed training source against its
+> owner instructions. Check version applicability and the complete relevant diff.
+> Return proposed corrections and validation gaps; preserve the saved baseline.
+
+Supply your real source ID, diff, and owner files. With an already connected MCP
+server, the workflow can list configured sources and check the requested ID. It
+also accepts a supplied diff without MCP. The skill does not install the server
+or grant it access to owner files; the client needs its normal project access.
+
+A changed source may leave all owner instructions valid. Review completion does
+not automatically edit files or accept the new baseline. [Worked review, no-change,
+and incomplete-evidence scenarios →](../examples/skill-watch/review.md)
+
 ## Evidence and limits
 
 Run the actual MCP integration check without a client subscription or LLM:

@@ -23,7 +23,7 @@
 
 **Make stiff drafts readable. Debug code and ML training with reproducible evidence.**
 
-15 skills and 5 agent profiles for **Codex, Claude Code, Cursor, and Grok Bot**.
+16 skills and 6 agent profiles for **Codex, Claude Code, Cursor, and Grok Bot**.
 The workflows share one Markdown source, with generated versions for each client.
 Start with one skill, or get the full library with its agents.
 
@@ -71,13 +71,15 @@ Grok Bot uses [manual setup recipes](grok-bot/README.md).
 | Fix a bug with evidence | [Reproduce bug](skills/mkl-reproduce-bug/SKILL.md) → [Verify fix](skills/mkl-verify-fix/SKILL.md) | An observed failure and a comparable check of the fix |
 | Debug a training run | [Debug ML training](skills/mkl-debug-ml-training/SKILL.md) | Focused PyTorch, Lightning, and TensorFlow/Keras diagnostics with a [runnable example](examples/ml-training/README.md) |
 | Review a pull request | [Review PR](skills/mkl-review-pr/SKILL.md) | Actionable findings with locations and consequences |
+| Review changed reference docs | [Review source change](skills/mkl-review-source-change/SKILL.md) | Supported instruction updates, unaffected claims, and gaps that need evidence |
 | Explain your project | [Write README](skills/mkl-write-readme/SKILL.md) | An introduction and quickstart grounded in the actual repository |
 | Work in Polish and English | [Localize PL ↔ EN](skills/mkl-localize-pl-en/SKILL.md) | Natural wording with commands, placeholders, and meaning preserved |
 
-**[Browse all 15 skills and 5 agents →](providers/README.md)**
+**[Browse all 16 skills and 6 agents →](providers/README.md)**
 Includes tutorials, UX copy, launch posts, maintainer replies, issue triage,
-regression tests, and releases. The five agent profiles combine these workflows
-for bug investigation, ML training diagnosis, PR review, release editing, and writing.
+regression tests, and releases. The six agent profiles combine these workflows
+for bug investigation, ML training diagnosis, PR review, source-change review,
+release editing, and writing.
 
 ## Catch outdated agent instructions
 
@@ -100,6 +102,16 @@ python3 examples/skill-watch/run.py
 Checks preserve the saved baseline. Accepting a new source version is explicit.
 A changed page is a signal to review the instructions, not proof that they are
 wrong. [Watch real sources and connect through MCP →](docs/skill-watch.md)
+
+Use [Review source change](skills/mkl-review-source-change/SKILL.md) with the diff
+and affected files, or let the [source reviewer](agents/mkl-source-reviewer.toml)
+assess them together:
+
+> Use mkl-review-source-change to review this documentation diff against the
+> affected skills. Identify supported corrections and instructions that remain
+> valid. Flag missing evidence; return a review before making edits.
+
+It also works with a supplied diff, without MCP. [Worked review and acceptance cases →](examples/skill-watch/review.md)
 
 ## Debug a loss that looks wrong
 
