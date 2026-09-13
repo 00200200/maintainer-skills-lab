@@ -24,7 +24,7 @@ independent live-client evaluation is claimed.
 | Codex agents | Standalone `.codex/agents/*.toml` | TOML parsing and embedded-workflow tests | Not yet evaluated |
 | Claude Code | `.claude/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
 | Cursor | `.cursor/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
-| OpenCode | `.opencode/skills/` and `.opencode/agents/*.md` with `mode: subagent` | Source/export, propagation, installer and archive tests; [setup](opencode.md) | Not yet evaluated |
+| OpenCode | `.opencode/skills/` and `.opencode/agents/*.md` with `mode: subagent` | Source/export, propagation, installer and archive tests; [client check](../examples/opencode/README.md) | 1.18.30 discovery and configuration loading checked on macOS arm64; model outcomes not evaluated |
 | Grok Bot (SpaceXAI) | Markdown recipe for each skill and agent, plus first-task guides | Source propagation and embedded-workflow tests; documented manual setup | Not yet evaluated in a live Bot |
 
 The suite runs locally without API keys. CI targets Linux and macOS on Python
