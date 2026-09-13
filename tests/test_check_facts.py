@@ -28,6 +28,15 @@ class FactCheckTests(unittest.TestCase):
         edit = re.search(r'^One suitable edit: "(.+)"$', skill, re.M)[1]
         self.assertEqual(changes(source, edit), [])
 
+    def test_polish_reference_examples_match_their_stated_checker_results(self):
+        notes = (ROOT / "skills/mkl-humanize/references/pl.md").read_text(encoding="utf-8")
+        pairs = re.findall(r"Source: „(.+?)”\n\nOne suitable edit: „(.+?)”", notes, re.S)
+        self.assertEqual(len(pairs), 2)
+        release, reply = (changes(source, edit) for source, edit in pairs)
+        self.assertEqual(release, [])
+        # The reply drops the filler "Nie da się ukryć", as the notes explain.
+        self.assertEqual(reply, [("negation", "dropped", "nie")])
+
     def test_overclaiming_rewrite_loses_numbers_and_limits(self):
         source = (
             "In our 20-file fixture on Linux, a repeated install wrote 0 files. We have not "

@@ -103,6 +103,16 @@ Acceptance: the exact `{max_mb}` token is preserved and `MB` is not converted to
 behavior. A layout check must use representative rendered values, not just the
 literal placeholder. ICU plural messages need separate Polish branch review.
 
+## Polish drafts
+
+For Polish text the skill reads [`references/pl.md`](../../skills/mkl-humanize/references/pl.md):
+stock openers („Z ogromną przyjemnością informujemy”), calques from English
+(„jest w stanie”, „wspierać Windows”, „dokonać instalacji”), one consistent form of
+address, and the negation and hedge words that change a claim when dropped. Its two
+worked examples (a release note and a maintainer reply) show restrained edits that keep
+every request and caveat. The file is authored guidance, not a measured result; a
+fluent reader should review published edits.
+
 ## No unnecessary rewrite
 
 Request: humanize "Run `kit --dry-run` to preview changes."
