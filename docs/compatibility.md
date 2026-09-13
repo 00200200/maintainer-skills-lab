@@ -15,6 +15,7 @@ independent live-client evaluation is claimed.
 
 | Surface | Format | Current evidence | Live-client status |
 | --- | --- | --- | --- |
+| Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for three targets; see recorded check below | Installer integration only; clients not invoked |
 | Git pre-commit hook | Executable shell entry and Python staged-export checker | Actual commit, alternate-index, and partial-staging tests | Git integration only; no client lifecycle hook installed |
 | Codex skills | `SKILL.md` under `.agents/skills/` | Export and installer tests | Not yet evaluated |
 | Codex agents | Standalone `.codex/agents/*.toml` | TOML parsing and embedded-workflow tests | Not yet evaluated |
@@ -25,6 +26,41 @@ independent live-client evaluation is claimed.
 The suite runs locally without API keys. CI targets Linux and macOS on Python
 3.11 and 3.13. Windows has not been tested; do not infer support from Python
 compatibility alone.
+
+## Skills CLI installation check
+
+Checked **2026-09-13** on **macOS 26.6.2 arm64**, with **Node.js 24.19.0** and
+**Vercel Skills CLI 1.5.26**. The public repository's default branch was at
+[`b4ba52d`](https://github.com/00200200/maintainer-skills-lab/commit/b4ba52de87ff5251cbf0ab7632bad0771ec95150).
+No coding client or model was invoked.
+
+The CLI's `add ... --list` discovered all **14 source skills** without writing
+files into its disposable project directory. In three separate empty projects,
+the following commands were run with `AGENT` replaced by `codex`, `claude-code`,
+and `cursor`:
+
+```sh
+DISABLE_TELEMETRY=1 npx --yes skills@1.5.26 add 00200200/maintainer-skills-lab --skill mkl-humanize --agent AGENT --copy --yes --json
+DISABLE_TELEMETRY=1 npx --yes skills@1.5.26 list --agent AGENT --json
+DISABLE_TELEMETRY=1 npx --yes skills@1.5.26 remove mkl-humanize --yes
+```
+
+Every target produced exactly one regular `SKILL.md`, byte-for-byte identical to
+`skills/mkl-humanize/SKILL.md`, plus `skills-lock.json`. The installed paths are
+listed in the [installation guide](install.md#one-skill-with-the-skills-cli).
+The installed skill's SHA-256 was
+`b06fd6512cbbe11af6dbe6c3b78db133e80e3b096eccfd41d31f9c498a1d4ae6`.
+The CLI listed the selected skill, and removal deleted its files while preserving
+an unrelated sentinel file. Telemetry was disabled for these checks.
+
+One preliminary `remove mkl-humanize --agent codex --yes` reported success but
+retained the shared skill directory. The documented removal command omits the
+agent filter and was verified on all three targets. A shared directory can also
+be used by other clients; this is not evidence of isolated client discovery.
+
+These are recorded installer checks, separate from the network-free Python CI
+suite. They do not establish client loading, writing quality, Windows support,
+or protection for locally edited files in the third-party CLI.
 
 ## Known limits
 
