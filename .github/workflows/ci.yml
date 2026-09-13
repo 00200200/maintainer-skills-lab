@@ -8,6 +8,33 @@ permissions:
   contents: read
 
 jobs:
+  opencode-discovery:
+    name: OpenCode 1.18.30 discovery (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the pinned Linux client into runner temporary storage
+        run: >-
+          npm install --prefix "$RUNNER_TEMP/opencode-client"
+          --ignore-scripts --no-audit --no-fund opencode-linux-x64@1.18.30
+      - name: Check client discovery without starting a model session
+        shell: bash
+        run: |
+          python examples/opencode/check.py \
+            --opencode "$RUNNER_TEMP/opencode-client/node_modules/opencode-linux-x64/bin/opencode" \
+            | tee "$RUNNER_TEMP/opencode-discovery.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opencode-discovery-linux
+          path: ${{ runner.temp }}/opencode-discovery.json
+          if-no-files-found: error
   checks:
     runs-on: ${{ matrix.os }}
     strategy:

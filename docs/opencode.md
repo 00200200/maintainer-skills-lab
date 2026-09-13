@@ -61,7 +61,9 @@ OpenCode exports in its impact report, and the builder produces an OpenCode ZIP.
 OpenCode 1.18.30 discovery and configuration loading were checked on macOS arm64:
 all 16 skill bodies and six agent prompts matched, and selected installation and
 skill removal were reflected in client diagnostics.
-[Repeat the optional client check and inspect the recorded result](../examples/opencode/README.md).
+A separate Linux CI job runs the same discovery assertions against the pinned
+client and publishes a result artifact.
+[Repeat the client check and inspect the recorded result](../examples/opencode/README.md).
 
 Model invocation, output quality and permission enforcement remain unevaluated.
 No API key or paid model call was used. No OpenCode lifecycle hook is installed.
