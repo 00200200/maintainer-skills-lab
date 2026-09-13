@@ -1,6 +1,6 @@
 {
   "files": {
-    "README.md": "ab34fc78c6377b0358f337cbf8176b993183132885f3b39b8968b0abdb4006e1",
+    "README.md": "f06547077173a85fee051da4e2555b920081a12bbe86ad7d0dfd30af3a49cfb5",
     "claude/.claude/agents/mkl-bug-investigator.md": "2f630f02120ac05504c1c49cbbc854efd10ead980fb987954de1d9ce7fea15d5",
     "claude/.claude/agents/mkl-ml-investigator.md": "d658fee5da21d9ddad2cae6bf0e7a538ba69785e44c0bc091c320c9da743a5b7",
     "claude/.claude/agents/mkl-pr-reviewer.md": "228990b51a11a2e6b7e422dd5c701eeb697b25509028edf0fb2c67ae7e108020",
@@ -95,7 +95,30 @@
     "grok-bot/skills/mkl-write-readme.md": "d80a6647eb14ae58ae7954f2328ddfe4b68739e994fbe9fac3bd5a4e7f84a7f1",
     "grok-bot/skills/mkl-write-regression.md": "32007eb44d5f24a27ae9b64264ef76f1f4285354ec87b9ead26d91091442296d",
     "grok-bot/skills/mkl-write-tutorial.md": "9a0a150b07f33b8cfe2d466daaec0501cabf2a17b95500404bb30a1b2c036df9",
-    "grok-bot/skills/mkl-write-ux-copy.md": "6530ef30ac77a9099e4f81fa2da36c3263460d6f10a948a2dc268a0688b38124"
+    "grok-bot/skills/mkl-write-ux-copy.md": "6530ef30ac77a9099e4f81fa2da36c3263460d6f10a948a2dc268a0688b38124",
+    "opencode/.opencode/agents/mkl-bug-investigator.md": "7fdacd3eb3cbeb967673de5df0bb8e72ed9b44751283ffb93e9c84d7979c59a3",
+    "opencode/.opencode/agents/mkl-ml-investigator.md": "aace1dac7107df0f807a4f57ffbd27fc7c53d4f59e5e7daa560e9367a50db309",
+    "opencode/.opencode/agents/mkl-pr-reviewer.md": "436464d55b01682443cad612741bfca1e8b1e97010b31ae92900c96c4434bea7",
+    "opencode/.opencode/agents/mkl-release-editor.md": "a46c61590cd121770f7129ff59955ec410d0f9e9f3625291f668634634778880",
+    "opencode/.opencode/agents/mkl-source-reviewer.md": "062dfda615b715e7cc43db8913081f0a3788fadaf37d0db5628a31387c2d4050",
+    "opencode/.opencode/agents/mkl-writing-editor.md": "ccf6c53842a59c26c318908d0ebd3dc57d8b7b9ac3bad48b4852d9af3b621b9d",
+    "opencode/.opencode/skills/mkl-debug-ml-training/SKILL.md": "bd88eb1957e931fcc90454af5f1edfb3e7572277fbc0aee3e40d4110a3f6faa8",
+    "opencode/.opencode/skills/mkl-humanize/SKILL.md": "b06fd6512cbbe11af6dbe6c3b78db133e80e3b096eccfd41d31f9c498a1d4ae6",
+    "opencode/.opencode/skills/mkl-localize-pl-en/SKILL.md": "6d248402f082bcd90ceee8e821c0b9e245ba7099d5b932332f7989d4c93db7e3",
+    "opencode/.opencode/skills/mkl-match-voice/SKILL.md": "a4be8d13d9e94ab578ff7d6408c1375a618403cf5f15e7717b77307f04db43b8",
+    "opencode/.opencode/skills/mkl-prepare-release/SKILL.md": "479d0d635b4190af45b1c5c66abab322aa0f14f6964cfbf8411a112fbb3051ae",
+    "opencode/.opencode/skills/mkl-reproduce-bug/SKILL.md": "b7599f1536f87513fed52d519c1e8473e7a5794d871215b46f2af1cc3aaffd8c",
+    "opencode/.opencode/skills/mkl-review-pr/SKILL.md": "ee1c1bea326ffdcaa16ea18d91b786c1ad79ca82aadece598fb3f1b4b0142262",
+    "opencode/.opencode/skills/mkl-review-source-change/SKILL.md": "0db1277f986fd08df3fb25108ddeccac1d4fb79837abb689036d4fdfb16300b4",
+    "opencode/.opencode/skills/mkl-triage-issue/SKILL.md": "2e099dd8780c67a39d7a0aa4d2d83a6e4213e9f007772e22df08cab8889aae88",
+    "opencode/.opencode/skills/mkl-verify-fix/SKILL.md": "386bc539697fa45fd09508a74f3c7b361c9d03c4731451897f18fc69501b9fc2",
+    "opencode/.opencode/skills/mkl-write-launch-post/SKILL.md": "0d339c0a70494d219860be8a7e85e7bd8942b072070aee106e084d933980f00f",
+    "opencode/.opencode/skills/mkl-write-maintainer-reply/SKILL.md": "bc6af851208db40569098e173abbe2a26d57996daa3645f1e8eea765ca25620a",
+    "opencode/.opencode/skills/mkl-write-readme/SKILL.md": "e5cd9be8a5827d4174f096cf9385e643882fefe0ba1b3f96fc2c418c9ba7beaa",
+    "opencode/.opencode/skills/mkl-write-regression/SKILL.md": "173b1a4b9e1b113af455f3d4097693fe5f1a432ddd24c89ce76aada23850ecca",
+    "opencode/.opencode/skills/mkl-write-tutorial/SKILL.md": "85abeaef798928a70dfa1727e675540e7c0d1af3254aefa9a0bb03f0512c1e2c",
+    "opencode/.opencode/skills/mkl-write-ux-copy/SKILL.md": "69eb7b51642117fd6b77587134e915eb13d3bfd6e62dbbc4f2c52b56b8bd6eb5",
+    "opencode/README.md": "97c6d8b7b926c740e3d3ae5130fdd6468f1d757a935f8f9d4f0304a4286eb9a1"
   },
   "schema_version": 1
 }

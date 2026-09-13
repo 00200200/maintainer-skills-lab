@@ -23,7 +23,7 @@
 
 **Make stiff drafts readable. Debug code and ML training with reproducible evidence.**
 
-16 skills and 6 agent profiles for **Codex, Claude Code, Cursor, and Grok Bot**.
+16 skills and 6 agent profiles for **Codex, Claude Code, Cursor, OpenCode, and Grok Bot**.
 The workflows share one Markdown source, with generated versions for each client.
 Start with one skill, or get the full library with its agents.
 
@@ -62,6 +62,9 @@ Claude Code and Cursor. [Installation, removal, and recorded checks →](docs/in
 Prefer Python? [Install just Humanizer with Python 3.11+](docs/install.md#one-or-more-skills-with-python)
 using `--skill mkl-humanize`, with no Node.js dependency. You can also
 [install the full library](#start-in-a-minute) or [get a ZIP](https://github.com/00200200/maintainer-skills-lab/releases).
+For **OpenCode**, use the Python installer with `--target opencode`.
+[OpenCode setup and invocation →](docs/opencode.md)
+
 Grok Bot uses [manual setup recipes](grok-bot/README.md).
 
 ## Find your next useful skill
@@ -126,7 +129,7 @@ errors, NaNs, missing gradients, and reproducibility problems in **PyTorch,
 Lightning, and TensorFlow/Keras**. The
 [ML investigator agent](agents/mkl-ml-investigator.toml) combines it with fix
 verification. These frameworks are the subject of the task; use the skill in
-your existing Codex, Claude Code, Cursor, or Grok Bot setup.
+your existing Codex, Claude Code, Cursor, OpenCode, or Grok Bot setup.
 
 > Use mkl-debug-ml-training to investigate this training failure. Keep the
 > current framework and compare one fixed batch before and after the proposed fix.
@@ -149,15 +152,15 @@ python3 tools/kit.py install --target codex --project /path/to/your/repo --dry-r
 python3 tools/kit.py install --target codex --project /path/to/your/repo
 ```
 
-Use `--target claude` or `--target cursor` for the other coding clients. The installer
+Use `--target claude`, `--target cursor`, or `--target opencode` for the other coding clients. The installer
 adds the full library for one target, preserves unrelated files, and refuses
 conflicting local edits. Start with one installation method and target per project;
 mixed-client discovery is an [untested limitation](docs/compatibility.md).
 [Updates, removal, and ZIPs →](docs/install.md)
 
-## One source, four versions
+## One source, five versions
 
-![Animated illustration of one Markdown source generating Codex, Claude Code, Cursor, and Grok Bot versions. Grok Bot requires manual setup.](assets/workflow.gif)
+![One source generates five client versions; Grok Bot uses manual recipes.](assets/providers.svg)
 
 ```sh
 python3 tools/kit.py sync
@@ -170,6 +173,7 @@ providers/
 ├── codex/.agents/skills/mkl-humanize/SKILL.md
 ├── claude/.claude/skills/mkl-humanize/SKILL.md
 ├── cursor/.cursor/skills/mkl-humanize/SKILL.md
+├── opencode/.opencode/skills/mkl-humanize/SKILL.md
 └── grok-bot/skills/mkl-humanize.md
 ```
 
@@ -182,6 +186,7 @@ agents. CI checks that the checked-in copies match their source.
 | Codex | [Skills + native agents](providers/codex/README.md) | Project-local installation |
 | Claude Code | [Skills + native agents](providers/claude/README.md) | Project-local installation |
 | Cursor | [Skills + native agents](providers/cursor/README.md) | Project-local installation |
+| OpenCode | [Skills + native subagents](providers/opencode/README.md) | Project-local installation |
 | Grok Bot (SpaceXAI) | [Skill + agent recipes](providers/grok-bot/README.md) | Set up in the Bot, try a task, then save the workflow as a skill |
 
 Grok Bot recipes follow the [official x.ai documentation](https://docs.x.ai/grok-bot/skills-routines-and-automations).
@@ -221,7 +226,7 @@ processes. [Inspect the fixture and its limits →](examples/bugfix/README.md)
 
 **Preview status:** source/export checks and tool/fixture tests are automated.
 Humanizer installation and removal with Skills CLI 1.5.26 were checked for all
-three coding-client targets. Live-client discovery, writing quality, and Grok Bot
+three original coding-client targets (Codex, Claude Code, Cursor). Live-client discovery, writing quality, and Grok Bot
 execution have not yet been evaluated. Native agents inherit model and execution policy from the host.
 [Compatibility matrix](docs/compatibility.md) · [Evaluation guide](evals/README.md)
 
@@ -256,7 +261,7 @@ python3 examples/bugfix/run.py
 python3 tools/kit.py build
 ```
 
-Builds produce four deterministic ZIPs in `dist/`. CI checks Python 3.11 and 3.13
+Builds produce five deterministic ZIPs in `dist/`. CI checks Python 3.11 and 3.13
 on Linux and macOS and uploads archives as run artifacts. Check the linked run
 for the revision you intend to use. The checker validates this repository's
 small authoring format; it is not a general YAML validator or a live-model benchmark.
@@ -269,4 +274,4 @@ small authoring format; it is not a general YAML validator or a live-model bench
 same problem space. This library's writing workflows and worked examples are authored here.
 
 [MIT](LICENSE). Independent community project; not affiliated with or endorsed
-by OpenAI, Anthropic, Cursor, or SpaceXAI/xAI.
+by OpenAI, Anthropic, Cursor, OpenCode, or SpaceXAI/xAI.

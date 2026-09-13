@@ -19,6 +19,7 @@ TARGETS = {
     "codex": (".agents/skills", ".codex/agents", ".toml"),
     "claude": (".claude/skills", ".claude/agents", ".md"),
     "cursor": (".cursor/skills", ".cursor/agents", ".md"),
+    "opencode": (".opencode/skills", ".opencode/agents", ".md"),
 }
 EXPORT_TARGETS = (*TARGETS, "grok-bot")
 NAME = re.compile(r"mkl-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
@@ -177,6 +178,13 @@ def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
                 )
                 + "\n"
             )
+        elif target == "opencode":
+            content = (
+                "---\n"
+                f"description: {json.dumps(agent['description'], ensure_ascii=False)}\n"
+                'mode: "subagent"\n'
+                "---\n\n" + body + "\n"
+            )
         else:
             content = (
                 "---\n"
@@ -211,6 +219,18 @@ def provider_instructions(target: str) -> str:
         "to select more. Other skills and native agents are preserved. Use the same "
         "selection with `uninstall` to remove only unchanged files owned for those skills.\n\n"
         "Live-client discovery and task outcomes have not yet been evaluated.\n"
+        + (
+            "\nOpenCode derives agent names from filenames; agents use `mode: subagent`. "
+            "Try `@mkl-writing-editor` with a draft after installing the full library. "
+            "For a skill-only install, ask OpenCode to load `mkl-humanize` using its skill tool. "
+            "Model and permissions remain controlled by your OpenCode configuration. "
+            "No config file or plugin is installed. Avoid duplicate skill names in "
+            "`.agents/skills/` and `.claude/skills/`, which OpenCode can also discover.\n\n"
+            "References: [skills](https://opencode.ai/docs/skills), "
+            "[agents](https://opencode.ai/docs/agents).\n"
+            if target == "opencode"
+            else ""
+        )
     )
 
 
@@ -236,7 +256,7 @@ def provider_files(root: Path = ROOT) -> dict[str, bytes]:
         "",
         " | ".join(f"[{target}]({target}/README.md)" for target in EXPORT_TARGETS),
         "",
-        "Codex, Claude Code, and Cursor get native files. Grok Bot (SpaceXAI) gets",
+        "Codex, Claude Code, Cursor, and OpenCode get native files. Grok Bot (SpaceXAI) gets",
         "a Markdown setup recipe for every skill and agent. Format checks do not",
         "establish live-client behavior.",
     ]
@@ -245,8 +265,8 @@ def provider_files(root: Path = ROOT) -> dict[str, bytes]:
             "",
             f"## {kind.title()}",
             "",
-            "| Source | Codex | Claude Code | Cursor | Grok Bot |",
-            "| --- | --- | --- | --- | --- |",
+            "| Source | Codex | Claude Code | Cursor | OpenCode | Grok Bot |",
+            "| --- | --- | --- | --- | --- | --- |",
         ]
         for name in items:
             source = f"skills/{name}/SKILL.md" if kind == "skills" else f"agents/{name}.toml"

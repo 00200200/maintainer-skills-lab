@@ -23,6 +23,7 @@ PROVIDERS = {
     "codex": (".agents/skills", ".codex/agents", ".toml"),
     "claude": (".claude/skills", ".claude/agents", ".md"),
     "cursor": (".cursor/skills", ".cursor/agents", ".md"),
+    "opencode": (".opencode/skills", ".opencode/agents", ".md"),
     "grok-bot": ("skills", "agents", ".md"),
 }
 

@@ -30,7 +30,7 @@ sample input and the desired result helps establish the scope.
 
 3. Make its scope distinct from existing workflows. Preserve facts, code, and
    user intent. State missing inputs instead of filling them with invented evidence.
-4. Run `python3 tools/kit.py sync`. This generates the Codex, Claude Code, Cursor,
+4. Run `python3 tools/kit.py sync`. This generates the Codex, Claude Code, Cursor, OpenCode,
    and Grok Bot files and adds links to the provider catalogue.
 5. Run the checks below, then include the source and generated files in one PR.
 

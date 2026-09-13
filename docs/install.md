@@ -71,7 +71,7 @@ python3 tools/kit.py install --target codex --project /existing/project --skill 
 python3 tools/kit.py install --target codex --project /existing/project --skill mkl-humanize
 ```
 
-Use `--target claude` or `--target cursor` for the other coding clients. The
+Use `--target claude`, `--target cursor`, or `--target opencode` for the other coding clients. The
 selection copies the whole skill directory, including supporting resources,
 and records only newly owned files. It preserves other skills, native agents,
 client settings, and files managed by another installer. Conflicting edits in
@@ -118,6 +118,7 @@ python3 tools/kit.py install --target codex --project /existing/project
 | `codex` | `.agents/skills/mkl-*/` | `.codex/agents/mkl-*.toml` |
 | `claude` | `.claude/skills/mkl-*/` | `.claude/agents/mkl-*.md` |
 | `cursor` | `.cursor/skills/mkl-*/` | `.cursor/agents/mkl-*.md` |
+| `opencode` | `.opencode/skills/mkl-*/` | `.opencode/agents/mkl-*.md` |
 
 Without `--skill`, this installer adds the full library for one target. Global
 installation and automatic changes to client
@@ -181,7 +182,7 @@ Without `--skill`, removal covers all files owned for that target. Add one or mo
 ## Archives
 
 Download a client ZIP from [GitHub Releases](https://github.com/00200200/maintainer-skills-lab/releases).
-Preview releases include the four bundles and `SHA256SUMS.txt`; the release notes
+Preview releases list their bundles and `SHA256SUMS.txt`; the release notes
 identify their source revision and verification. To build them from a clone:
 
 ```sh
