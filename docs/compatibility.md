@@ -17,6 +17,7 @@ independent live-client evaluation is claimed.
 | --- | --- | --- | --- |
 | Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for three targets; see recorded check below | Installer integration only; clients not invoked |
 | Git pre-commit hook | Executable shell entry and Python staged-export checker | Actual commit, alternate-index, and partial-staging tests | Git integration only; no client lifecycle hook installed |
+| Skill Watch | Local CLI and optional MCP stdio server | Offline change fixture, retrieval/state tests, actual SDK client-to-server stdio calls; [usage and limits](skill-watch.md) | Protocol integration only; individual client apps not evaluated |
 | ML training example | Python CPU fixture with selectable PyTorch, Lightning, or TensorFlow/Keras execution | Three local framework runs plus framework-independent oracle tests; [versions and results](../examples/ml-training/README.md#recorded-cpu-check) | Fixture execution only; ML skill and agent not independently evaluated |
 | Codex skills | `SKILL.md` under `.agents/skills/` | Export and installer tests | Not yet evaluated |
 | Codex agents | Standalone `.codex/agents/*.toml` | TOML parsing and embedded-workflow tests | Not yet evaluated |

@@ -1,0 +1,34 @@
+version = 1
+
+# Explicitly chosen public references for the ML training workflow.
+# Source text is reviewed as evidence, never executed as instructions.
+
+[[sources]]
+id = "pytorch-reproducibility"
+url = "https://docs.pytorch.org/docs/stable/notes/randomness.html"
+start = "Completely reproducible results are not guaranteed"
+end = "Controlling sources of randomness"
+owners = ["skills/mkl-debug-ml-training/SKILL.md"]
+
+[[sources]]
+id = "lightning-smoke-test"
+# Official documentation source avoids the JavaScript-only rendered page.
+url = "https://raw.githubusercontent.com/Lightning-AI/pytorch-lightning/master/docs/source-pytorch/debug/debugging_basic.rst"
+start = "Run all your model code once quickly"
+end = "Shorten the epoch length"
+owners = ["skills/mkl-debug-ml-training/SKILL.md"]
+
+[[sources]]
+id = "keras-eager-debugging"
+url = "https://keras.io/examples/keras_recipes/debugging_tips/"
+start = "The fit() method is fast:"
+end = "Here's a basic example:"
+owners = ["skills/mkl-debug-ml-training/SKILL.md"]
+
+[[sources]]
+id = "tensorflow-determinism"
+# The API page exceeds the response budget; watch its official docstring source.
+url = "https://raw.githubusercontent.com/tensorflow/tensorflow/master/tensorflow/python/framework/config.py"
+start = "def enable_op_determinism():"
+end = "  ## Determinism and tf.data"
+owners = ["skills/mkl-debug-ml-training/SKILL.md"]
