@@ -30,6 +30,7 @@ they add meaningful evidence; do not commit timestamp-only rerun logs.
 | Regression | Assertion passes on both implementations | Test not presented as evidence of this defect |
 | Verification | Candidate still has the bug | Verification fails without editing expected results |
 | PR review | A clean patch plus a separate patch with a seeded defect | No invented finding on the clean patch; concrete trigger on the defective patch |
+| Source change | Changed checkpoint documentation, an unaffected instruction, and missing/version-mismatched evidence | Correct owner location and supported correction; no patch for an unaffected claim; unresolved gaps remain visible ([inputs and acceptance cases](../examples/skill-watch/review.md)) |
 | Release | Unmerged PR plus a breaking change in the target range | Only included changes listed; migration guidance supplied |
 | Grok Bot | Copy a shared template into another account | Skills and routine state verified, not inferred from the preview |
 
