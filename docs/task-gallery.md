@@ -186,6 +186,10 @@ a patch. [Worked review cases](../examples/skill-watch/review.md).
 
 ## Share a recipe that helped
 
+Found a task you want to use again?
+**[☆ Star on GitHub](https://github.com/00200200/maintainer-skills-lab)** to keep
+the library in your saved repositories.
+
 You can contribute an example without creating a new skill. Add a focused recipe
 to this page in a PR, or [open an issue](https://github.com/00200200/maintainer-skills-lab/issues/new)
 with the task, a small input, and what a useful result should preserve or prove.
