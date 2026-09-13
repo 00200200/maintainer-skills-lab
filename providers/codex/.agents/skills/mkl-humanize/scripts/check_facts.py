@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """List evidence that changed between a draft and its same-language rewrite.
 
-Compares code, URLs, placeholders, numbers and quotations exactly, and counts
+Compares code, URLs, long option names, placeholders, numbers and quotations, and counts
 negation and hedge words in English and Polish. It cannot judge meaning: a clean
 result only says these tokens survived. Standard library only; Python 3.9+.
 """
@@ -23,6 +23,7 @@ PLACEHOLDER = re.compile(
 )
 QUOTE = re.compile(r'"([^"\n]+)"|“([^”\n]+)”|„([^”“\n]+)[”“]|«([^»\n]+)»')
 NUMBER = re.compile(r"(?<![\w.])[-+]?(?:\d+(?:[.,]\d+)*|[.,]\d+)(?:[eE][-+]?\d+)?%?")
+FLAG = re.compile(r"(?<![\w/-])--[A-Za-z][A-Za-z0-9_-]*(?![\w-])")
 WORDS = {
     "negation": (
         "not no never none nobody nothing neither nor without cannot can't don't doesn't "
@@ -46,6 +47,8 @@ def evidence(text: str) -> dict[str, Counter]:
     found["placeholder"] = Counter(PLACEHOLDER.findall(text))
     text = PLACEHOLDER.sub(" ", text)
     found["quotation"] = Counter(next(part for part in m if part) for m in QUOTE.findall(text))
+    found["flag"] = Counter(FLAG.findall(text))
+    text = FLAG.sub(" ", text)
     found["number"] = Counter(NUMBER.findall(text))
     lowered = text.lower().replace("’", "'")
     for kind, words in WORDS.items():
@@ -61,7 +64,7 @@ def evidence(text: str) -> dict[str, Counter]:
 def compare(source: str, rewrite: str) -> list[dict]:
     before, after = evidence(source), evidence(rewrite)
     differences = []
-    for kind in ("code", "url", "placeholder", "quotation", "number", "negation", "hedge"):
+    for kind in ("code", "url", "placeholder", "quotation", "flag", "number", "negation", "hedge"):
         for value in sorted(set(before[kind]) | set(after[kind])):
             old, new = before[kind][value], after[kind][value]
             if old != new:
@@ -96,7 +99,9 @@ def main(argv: list[str] | None = None) -> int:
                 f"({item['source']} -> {item['rewrite']})"
             )
     else:
-        print("Code, URLs, placeholders, quotations, numbers, negations and hedges match.")
+        print(
+            "Tracked code, URLs, placeholders, quotations, flags, numbers, negations and hedges match."
+        )
         print("This does not check meaning, emphasis or attribution.")
     return 1 if differences else 0
 

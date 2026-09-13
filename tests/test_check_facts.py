@@ -102,6 +102,32 @@ class FactCheckTests(unittest.TestCase):
             [("negation", "dropped", "cannot")],
         )
 
+    def test_plain_long_options_are_preserved_and_changes_are_reported(self):
+        self.assertEqual(
+            changes("Run installer --dry-run.", "Run installer --force."),
+            [("flag", "dropped", "--dry-run"), ("flag", "added", "--force")],
+        )
+        self.assertEqual(changes("Try --dry-run.", "Use --dry-run to preview."), [])
+        self.assertEqual(
+            changes("Set --limit=20.", "Set --limit=30."),
+            [("number", "dropped", "20"), ("number", "added", "30")],
+        )
+        self.assertEqual(
+            changes("Pass --dry-run twice: --dry-run.", "Pass --dry-run twice."),
+            [("flag", "dropped", "--dry-run")],
+        )
+
+    def test_long_options_do_not_double_count_code_urls_or_prose_words(self):
+        self.assertEqual(
+            changes("Use `--dry-run`.", "Use `--force`."),
+            [("code", "dropped", "`--dry-run`"), ("code", "added", "`--force`")],
+        )
+        evidence = check_facts.evidence(
+            "Read https://example.org/--flag and `--code`. word--suffix ---rule /--path"
+        )
+        self.assertEqual(evidence["flag"], {})
+        self.assertEqual(check_facts.evidence("Use --only --no-cache.")["hedge"], {})
+
     def test_cli_exit_status_and_json(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
