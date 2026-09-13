@@ -22,7 +22,7 @@ PLACEHOLDER = re.compile(
     r"\{\{[^{}\n]+\}\}|\{[\w.:-]+\}|%\(\w+\)[sdifr]|%[sdif]|\$\{\w+\}|\$[A-Z_][A-Z0-9_]*"
 )
 QUOTE = re.compile(r'"([^"\n]+)"|“([^”\n]+)”|„([^”“\n]+)[”“]|«([^»\n]+)»')
-NUMBER = re.compile(r"(?<![\w.])[-+]?\d+(?:[.,]\d+)*%?")
+NUMBER = re.compile(r"(?<![\w.])[-+]?(?:\d+(?:[.,]\d+)*|[.,]\d+)(?:[eE][-+]?\d+)?%?")
 WORDS = {
     "negation": (
         "not no never none nobody nothing neither nor without cannot can't don't doesn't "

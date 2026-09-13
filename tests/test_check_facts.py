@@ -77,6 +77,21 @@ class FactCheckTests(unittest.TestCase):
             [("negation", "dropped", "nie"), ("hedge", "dropped", "prawdopodobnie")],
         )
 
+    def test_scientific_and_leading_decimal_changes_are_reported(self):
+        for before, after in (
+            ("1e3", "1e6"),
+            ("1.5E-3", "1.5E+3"),
+            (".5", ".8"),
+            ("-.5", ".5"),
+            ("0,5", "0,8"),
+        ):
+            with self.subTest(before=before, after=after):
+                self.assertCountEqual(
+                    changes(f"Value: {before}.", f"Value: {after}."),
+                    [("number", "dropped", before), ("number", "added", after)],
+                )
+                self.assertEqual(changes(f"Value: {before}.", f"The value is {before}."), [])
+
     def test_word_boundaries_and_apostrophes(self):
         self.assertEqual(
             changes("We don’t cache notable files.", "We don't cache notable files."), []
