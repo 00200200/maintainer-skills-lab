@@ -1,0 +1,40 @@
+name: Validate library
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Lint the Python implementation
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.11'
+        run: |
+          python -m pip install ruff==0.16.7
+          python -m ruff check tools tests examples
+          python -m ruff format --check tools tests examples
+      - name: Validate source and exports
+        run: python tools/kit.py check
+      - name: Run installation and example tests
+        run: python -m unittest discover -s tests -v
+      - name: Run the regression example
+        run: python examples/bugfix/run.py --json
+      - name: Build all client bundles
+        run: python tools/kit.py build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: client-bundles-${{ matrix.os }}-${{ matrix.python }}
+          path: dist/*.zip
