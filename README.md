@@ -129,8 +129,8 @@ or a live-model benchmark. [Evaluation guide](evals/README.md).
 ## Contribute
 
 A minimal reproduction, a failing fixture, or a reported client incompatibility
-is especially useful. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
-[roadmap](ROADMAP.md). Include the client version and steps when reporting an
+is especially useful. Read [CONTRIBUTING.md](CONTRIBUTING.md).
+Include the client version and steps when reporting an
 integration problem.
 
 If the library helps your workflow, a star makes it easier to find again.
