@@ -1,0 +1,55 @@
+name: Suggest a skill or agent
+description: Bring a real task, a small example, and the result you want.
+title: "[Workflow]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a workflow that could help another maintainer? Start here.
+        An idea and an example are enough; you do not need a finished implementation.
+        Please search existing issues first and remove private data from examples.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What would you like to contribute?
+      options:
+        - A new skill
+        - An agent that combines skills
+        - An improvement to an existing workflow
+    validations:
+      required: true
+  - type: textarea
+    id: job
+    attributes:
+      label: What job should this help with?
+      description: Describe who needs it and when they would use it.
+      placeholder: "When preparing a release, I need to…"
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Small example and useful result
+      description: Include a sample input, the output you want, and how you would check it.
+      placeholder: |
+        Input:
+        Expected result:
+        A result would be wrong if:
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Where would you use it?
+      multiple: true
+      options:
+        - Codex
+        - Claude Code
+        - Cursor
+        - Grok Bot (SpaceXAI)
+        - Unsure / shared workflow
+  - type: textarea
+    id: existing
+    attributes:
+      label: Related workflows or prior attempts
+      description: Link an existing skill or explain what you tried. Optional.

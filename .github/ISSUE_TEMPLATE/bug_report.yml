@@ -1,0 +1,37 @@
+name: Report a bug or client mismatch
+description: Help reproduce an installation, export, or workflow problem.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying the library. A small reproduction helps us fix the right thing.
+        Remove API keys, account details, private code, and unrelated logs before posting.
+  - type: input
+    id: environment
+    attributes:
+      label: Client, version, and operating system
+      placeholder: "Codex / Claude Code / Cursor / Grok Bot + version, OS, Python version if relevant"
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Repository revision and affected workflow
+      description: A commit SHA, archive name, or link; include the skill or agent name if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How can we reproduce it?
+      description: Include the exact command or prompt and the smallest shareable input.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected result and actual result
+      description: Include relevant output. Distinguish a file check from a run in the actual client.
+    validations:
+      required: true

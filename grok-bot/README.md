@@ -1,30 +1,39 @@
-# Grok Bot recipes
+# Grok Bot workflows
 
-These are setup instructions for **Grok Bot by Cursor**, separate from GroqCloud
-and Grok Build. They are not a machine-importable Bot manifest.
+Set up maintainer and writing workflows in **Grok Bot (SpaceXAI)**, using the
+[official x.ai guide](https://docs.x.ai/grok-bot/overview).
+These are human-readable instructions for the Bot app.
+
+Every library skill and agent has a generated Markdown recipe in the
+[provider catalogue](https://github.com/00200200/maintainer-skills-lab/tree/main/providers). From the repository root,
+open `providers/grok-bot/skills/` or `providers/grok-bot/agents/` to pick one.
+The archive includes those directories alongside this guide.
+
+For a complete first task and an optional recurring routine, use:
 
 | Recipe | First useful result |
 | --- | --- |
 | [Issue Scout](issue-scout.md) | Evidence-backed issue summary and missing information |
 | [Release Reporter](release-reporter.md) | Release draft containing only changes in a specified range |
 
-## Set up one recipe
+## Set up a workflow
 
-1. Create a Bot in Grok Bot and paste the recipe's name, title, and profile.
-2. Give it the first task using public or deliberately provided sample inputs.
-3. Compare its result with the recipe's acceptance checks.
-4. Once that run works, use the save-skill prompt and check that the skill is
-   enabled for the Bot and visible in the `/` menu.
-5. If wanted, create the proposed routine in Grok Bot, with your chosen scope
-   and timezone. Keep it inactive until a manual run has passed.
+1. Create a Bot with the intended name, job, and description, or open an existing Bot.
+2. Give it the workflow and a concrete first task with the necessary input and access.
+3. Compare the actual result with the workflow's acceptance checks.
+4. Once it works, ask the Bot to save the validated method as a named skill.
+5. In **Settings → Plugins → Yours**, check that the skill is enabled for this Bot.
+   Invoke saved skills from the `/` menu.
+6. If useful, ask the Bot to create a routine with an explicit owner, schedule,
+   timezone, input, output, and approval boundary. Test before enabling recurrence.
 
-Files installed for Cursor IDE do not automatically configure a cloud Bot.
-Use the Bot's supported skill and routine controls. Public Bot templates are
-another distribution option, but this preview does not include an imported-and-
-verified public template. Test a copy on a separate account before advertising
-such a template as working.
+An agent recipe embeds its dependent skill instructions. It does not automatically
+create a Bot, connect an account, or grant access. Supply any referenced supporting
+files from the canonical source when giving the Bot its task. Cursor IDE exports
+are a separate installation surface.
 
-Status: **documented setup recipes; not yet tested in Grok Bot**.
+Status: **source/export checks only; no live Grok Bot evaluation recorded**.
 
-Source: [Work with Grok Bot](https://cursor.com/docs/grok-bot/work), checked
-2026-09-13. Product capabilities and UI can change.
+References, checked 2026-09-13:
+[Get started](https://docs.x.ai/grok-bot/get-started) ·
+[Skills, routines, and automations](https://docs.x.ai/grok-bot/skills-routines-and-automations).

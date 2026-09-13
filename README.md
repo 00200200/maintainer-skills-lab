@@ -1,56 +1,125 @@
+<p align="center">
+  <img src="assets/hero.svg" alt="Maintainer Skills Lab — Useful skills. One shared source." width="1200">
+</p>
+
+<p align="center">
+  <a href="https://github.com/00200200/maintainer-skills-lab/actions/workflows/ci.yml"><img src="https://github.com/00200200/maintainer-skills-lab/actions/workflows/ci.yml/badge.svg" alt="Validate library"></a>
+  <a href="https://github.com/00200200/maintainer-skills-lab/stargazers"><img src="https://img.shields.io/github/stars/00200200/maintainer-skills-lab?style=flat&amp;color=bced85&amp;label=stars" alt="GitHub stars"></a>
+  <a href="https://github.com/00200200/maintainer-skills-lab/forks"><img src="https://img.shields.io/github/forks/00200200/maintainer-skills-lab?style=flat&amp;color=83d2e9" alt="GitHub forks"></a>
+  <a href="https://github.com/00200200/maintainer-skills-lab/issues"><img src="https://img.shields.io/github/issues/00200200/maintainer-skills-lab?style=flat&amp;color=e9b293" alt="Open issues"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-bced85" alt="License: MIT"></a>
+</p>
+
+<p align="center">
+  <a href="providers/README.md"><b>Explore the skills</b></a> ·
+  <a href="#start-in-a-minute">Install</a> ·
+  <a href="grok-bot/README.md">Grok Bot</a> ·
+  <a href="CONTRIBUTING.md">Add your own</a>
+</p>
+
 # Maintainer Skills Lab
 
-[![Validate library](https://github.com/00200200/maintainer-skills-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/00200200/maintainer-skills-lab/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+**Turn a vague issue into a reproduction. Turn a wordy draft into something worth reading.**
 
-**Investigate bugs, verify fixes, and write project docs people can use.**
+Practical skills and focused agents for **Codex, Claude Code, Cursor, and Grok Bot**.
+Write the instructions once in Markdown; generate the client versions together.
+Start with a workflow you actually need, read what it does, and make it yours.
 
-Fourteen practical skills, four focused agent profiles, and native bundles
-for **Codex, Claude Code, and Cursor**, plus **Groq API** prompt templates.
-Includes two **Grok Bot** setup recipes.
-Shared instructions stay in one source; client-specific formats are generated.
+## Find your first useful skill
 
-**Browse provider files:** [Codex](providers/codex/README.md) ·
-[Claude Code](providers/claude/README.md) · [Cursor](providers/cursor/README.md) ·
-[Groq](providers/groq/README.md) · [Grok Bot](providers/grok-bot/README.md).
+| You want to… | Start here | What you get |
+| --- | --- | --- |
+| Make a draft sound natural | [Humanizer](skills/mkl-humanize/SKILL.md) | Clearer prose with the author's facts and intent intact |
+| Keep a consistent writing voice | [Match voice](skills/mkl-match-voice/SKILL.md) | An edit grounded in supplied writing samples |
+| Fix a bug with evidence | [Reproduce bug](skills/mkl-reproduce-bug/SKILL.md) → [Verify fix](skills/mkl-verify-fix/SKILL.md) | An observed failure and a comparable check of the fix |
+| Review a pull request | [Review PR](skills/mkl-review-pr/SKILL.md) | Actionable findings with locations and consequences |
+| Explain your project | [Write README](skills/mkl-write-readme/SKILL.md) | An introduction and quickstart grounded in the actual repository |
+| Work in Polish and English | [Localize PL ↔ EN](skills/mkl-localize-pl-en/SKILL.md) | Natural wording with commands, placeholders, and meaning preserved |
 
-> **Preview:** source/export checks and the bundled regression example are tested.
-> Live-client behavior and Grok Bot template imports have not been evaluated yet.
-> See the [compatibility matrix](docs/compatibility.md).
+**[Browse every skill and agent →](providers/README.md)**
+Includes tutorials, UX copy, launch posts, maintainer replies, issue triage,
+regression tests, and releases. The four agent profiles combine these workflows
+for bug investigation, PR review, release editing, and writing.
 
-## Write once, use across providers
+### A small taste
 
-Edit a skill in Markdown, then regenerate its provider files:
+Give the Humanizer this draft:
+
+> We are thrilled to announce that you can now leverage `--dry-run` to preview
+> changes. Windows has not been tested yet.
+
+One possible edit:
+
+> Use `--dry-run` to preview changes. We haven't tested Windows yet.
+
+The command and limitation survive the edit. This is an authored illustration;
+see [more writing examples](examples/writing/README.md) for prompts and acceptance checks.
+
+## One source, four versions
+
+![Animated illustration of one Markdown source generating Codex, Claude Code, Cursor, and Grok Bot versions. Grok Bot requires manual setup.](assets/workflow.gif)
 
 ```sh
 python3 tools/kit.py sync
 ```
 
-For example, editing `skills/mkl-humanize/SKILL.md` updates:
+Editing `skills/mkl-humanize/SKILL.md` generates:
 
 ```text
 providers/
 ├── codex/.agents/skills/mkl-humanize/SKILL.md
 ├── claude/.claude/skills/mkl-humanize/SKILL.md
 ├── cursor/.cursor/skills/mkl-humanize/SKILL.md
-└── groq/skills/mkl-humanize.json
+└── grok-bot/skills/mkl-humanize.md
 ```
 
-The [provider catalogue](providers/README.md) links each skill and agent to its
-source and provider versions. Agent sources in `agents/*.toml` hold metadata,
-Markdown instructions, and skill dependencies. The generator embeds those
-dependencies into each native agent or Groq prompt, so a shared skill change
-also updates agents that use it.
+Agent definitions in `agents/*.toml` combine shared skills. Their generated
+versions embed the workflows they need, so a source edit also updates dependent
+agents. CI checks that the checked-in copies match their source.
 
-CI checks these folders against the source. Provider files, installation, and
-ZIP bundles use the same exporter. Groq templates supply instructions to an
-application through its API; they do not install a coding agent or provide tools.
+| Client | Get the files | How to use them |
+| --- | --- | --- |
+| Codex | [Skills + native agents](providers/codex/README.md) | Project-local installation |
+| Claude Code | [Skills + native agents](providers/claude/README.md) | Project-local installation |
+| Cursor | [Skills + native agents](providers/cursor/README.md) | Project-local installation |
+| Grok Bot (SpaceXAI) | [Skill + agent recipes](providers/grok-bot/README.md) | Set up in the Bot, try a task, then save the workflow as a skill |
 
-## Try the example — no API key required
+Grok Bot recipes follow the [official x.ai documentation](https://docs.x.ai/grok-bot/skills-routines-and-automations).
+They are Markdown instructions for manual setup; copying them does not create a Bot.
+[Issue Scout and Release Reporter](grok-bot/README.md) include first-task prompts and optional routines.
+
+## Start in a minute
+
+**Python 3.11+**, with no third-party dependencies for the library tools.
 
 ```sh
 git clone https://github.com/00200200/maintainer-skills-lab.git
 cd maintainer-skills-lab
+
+# The destination must be an existing project. Inspect changes first.
+python3 tools/kit.py install --target codex --project /path/to/your/repo --dry-run
+python3 tools/kit.py install --target codex --project /path/to/your/repo
+```
+
+Use `--target claude` or `--target cursor` for the other coding clients. The installer
+adds the full library for one target, preserves unrelated files, and refuses
+conflicting local edits. For just one workflow, copy its folder from the
+[provider catalogue](providers/README.md). [Updates, removal, and ZIPs →](docs/install.md)
+
+Once your client discovers the skills, try:
+
+> Use mkl-humanize to improve this draft. Preserve its facts, code, and limitations.
+> Explain any edit that changes the emphasis.
+
+Explicit invocation uses `$mkl-humanize` in Codex CLI or `/mkl-humanize` in
+Claude Code and Cursor. Start with one target per project; mixed-client discovery
+is an [untested limitation](docs/compatibility.md).
+
+## Check the evidence
+
+Run a complete local regression example without a model or API key:
+
+```sh
 python3 examples/bugfix/run.py
 ```
 
@@ -61,121 +130,62 @@ Verified for this fixture: True
 This checks the bundled example, not agent performance.
 ```
 
-The [example](examples/bugfix/README.md) runs the same independent test against
-two implementations in fresh Python processes. It separates assertion failures
-from environment errors and records source/test hashes in its JSON report.
+The same independent test runs against both implementations in fresh Python
+processes. [Inspect the fixture and its limits →](examples/bugfix/README.md)
 
-## Install in a project
+**Preview status:** source/export checks and tool/fixture tests are automated.
+Live-client discovery, writing quality, and Grok Bot execution have not yet been
+evaluated. Native agents inherit model and execution policy from the host.
+[Compatibility matrix](docs/compatibility.md) · [Evaluation guide](evals/README.md)
 
-Requires **Python 3.11+**. No third-party Python dependencies.
+## Bring your own workflow
 
-```sh
-# Inspect planned changes first. The project directory must already exist.
-python3 tools/kit.py install --target codex --project /path/to/your/repo --dry-run
-python3 tools/kit.py install --target codex --project /path/to/your/repo
-```
+Built a skill that saves you time? Bring the use case and a small example.
+You can contribute without implementing a whole agent or understanding every provider.
 
-Use `--target claude` or `--target cursor` for the other coding clients.
-Start with one target per project; mixed-client discovery is a [known limitation](docs/compatibility.md).
+- **[Suggest a skill or agent](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml)** — describe the job, input, and useful result.
+- **[Report a bug or client mismatch](https://github.com/00200200/maintainer-skills-lab/issues/new?template=bug_report.yml)** — share the smallest reproduction and the client version.
+- **[Open a pull request](CONTRIBUTING.md)** — add one source skill, run `sync`, and include a worked example.
 
-The installer preserves unrelated files and client settings, refuses conflicting
-local edits and symlinked destinations, and records only the files it owns.
-An identical pre-existing file remains yours. See [installation](docs/install.md)
-for updates, removal, and archive installation.
+A good first contribution is a clearer example, a reproducible compatibility
+report, or a small improvement to a workflow you used. **[Contribution guide →](CONTRIBUTING.md)**
 
-Once your client discovers the skills, try this in a disposable example project:
+If a skill earns a place in your workflow, **star the repository** to find it again.
+To hear about changes, use GitHub's **Watch → Custom → Releases**.
 
-> Use mkl-reproduce-bug and mkl-write-regression to investigate issue.md.
-> Establish the failure before changing the implementation. Then propose the
-> smallest fix and use mkl-verify-fix to check it. Do not publish anything.
+## Community, in numbers
 
-Explicit invocation uses `$mkl-reproduce-bug` in Codex CLI and
-`/mkl-reproduce-bug` in Claude Code or Cursor. Restart the client if its discovery
-list has not refreshed. This preview ships local/project files; it is not a
-published ChatGPT, Claude, or Cursor marketplace plugin.
+[![GitHub stars and forks, 14-day views and unique visitors, and a star-history snapshot.](assets/community.svg)](https://github.com/00200200/maintainer-skills-lab/stargazers)
 
-## Pick a workflow
+Badges above refresh through Shields and GitHub and may be cached. This chart is a
+dated snapshot of GitHub data, refreshed alongside substantive changes. Views and
+unique visitors cover GitHub's returned **14-day window**. The star chart groups
+**current** stargazers by their original star date; removed stars are excluded.
+[Aggregate data](assets/community.json) · [How it is generated](assets/README.md)
 
-### Maintain code
-
-| Skill | Useful result |
-| --- | --- |
-| [Triage issue](skills/mkl-triage-issue/SKILL.md) | Evidence, missing information, and a next action |
-| [Reproduce bug](skills/mkl-reproduce-bug/SKILL.md) | A minimal reproduction with observed output |
-| [Write regression](skills/mkl-write-regression/SKILL.md) | An assertion that catches the original defect |
-| [Verify fix](skills/mkl-verify-fix/SKILL.md) | Comparable baseline and candidate evidence |
-| [Review PR](skills/mkl-review-pr/SKILL.md) | Actionable findings with locations and consequences |
-| [Prepare release](skills/mkl-prepare-release/SKILL.md) | Accurate release notes and migration guidance |
-
-### Write and communicate
-
-| Skill | Useful result |
-| --- | --- |
-| [Humanizer](skills/mkl-humanize/SKILL.md) | Natural prose that preserves the author's facts and intent |
-| [Match voice](skills/mkl-match-voice/SKILL.md) | A draft adapted to supplied writing samples |
-| [Write README](skills/mkl-write-readme/SKILL.md) | Project introduction and quickstart grounded in repository evidence |
-| [Write tutorial](skills/mkl-write-tutorial/SKILL.md) | A guided outcome with prerequisites and verifiable checkpoints |
-| [Write launch post](skills/mkl-write-launch-post/SKILL.md) | A factual announcement or development update ready for review |
-| [Write UX copy](skills/mkl-write-ux-copy/SKILL.md) | Clear labels, errors, and empty states with intact placeholders |
-| [Localize PL ↔ EN](skills/mkl-localize-pl-en/SKILL.md) | Natural Polish/English with technical tokens and meaning preserved |
-| [Write maintainer reply](skills/mkl-write-maintainer-reply/SKILL.md) | A respectful issue or PR reply with a concrete next action |
-
-Try this after installing a bundle:
-
-> Use mkl-humanize to improve this Polish update. Keep the command and limitation:
-> „Z przyjemnością informujemy o możliwości podglądu zmian za pomocą `--dry-run`.
-> Windows nie został jeszcze przetestowany.”
-
-One possible edit: „Użyj `--dry-run`, żeby podejrzeć zmiany. Nie sprawdziliśmy
-jeszcze obsługi Windows.”
-
-Every writing skill includes an inspectable worked example. See the
-[writing examples](examples/writing/README.md) for ready-to-use prompts and
-acceptance scenarios. These are authored illustrations; writing quality and
-live-client invocation have not yet been evaluated.
-
-Agent profiles: **mkl-bug-investigator**, **mkl-pr-reviewer**,
-**mkl-release-editor**, and **mkl-writing-editor**. Each exported agent embeds the workflows it needs;
-it does not require another skill to be implicitly loaded. Models and execution
-permissions inherit from the host session.
-
-For Grok Bot, start with [Issue Scout or Release Reporter](grok-bot/README.md).
-These are human-readable setup recipes, not automatic Bot imports.
-
-## Check or build the library
+<details>
+<summary><b>Develop and build locally</b></summary>
 
 ```sh
 python3 tools/kit.py list
 python3 tools/kit.py check
 python3 tools/kit.py sync --check
 python3 -m unittest discover -s tests -v
+python3 examples/bugfix/run.py
 python3 tools/kit.py build
 ```
 
-Builds produce five deterministic ZIP archives under `dist/`. CI checks Python
-3.11 and 3.13 on Linux and macOS and exposes the archives as run artifacts.
-Check the linked run before treating any particular revision as verified.
+Builds produce four deterministic ZIPs in `dist/`. CI checks Python 3.11 and 3.13
+on Linux and macOS and uploads archives as run artifacts. Check the linked run
+for the revision you intend to use. The checker validates this repository's
+small authoring format; it is not a general YAML validator or a live-model benchmark.
 
-`check` validates this repository's deliberately small authoring format and
-generates exports in memory. It is not a general YAML linter, a security audit,
-or a live-model benchmark. [Evaluation guide](evals/README.md).
+</details>
 
-## Contribute
+## Credits and license
 
-A minimal reproduction, a failing fixture, or a reported client incompatibility
-is especially useful. Read [CONTRIBUTING.md](CONTRIBUTING.md).
-Include the client version and steps when reporting an
-integration problem.
+[blader/humanizer](https://github.com/blader/humanizer) is a related project in the
+same problem space. This library's writing workflows and worked examples are authored here.
 
-If the library helps your workflow, a star makes it easier to find again.
-
-## Related project
-
-[blader/humanizer](https://github.com/blader/humanizer) is a general-purpose
-humanization skill worth exploring. The writing workflows here are independently
-authored for project maintenance, documentation, and Polish/English communication.
-
-## License
-
-MIT. Independent community project; not affiliated with or endorsed by OpenAI,
-Anthropic, Cursor, xAI, or Groq.
+[MIT](LICENSE). Independent community project; not affiliated with or endorsed
+by OpenAI, Anthropic, Cursor, or SpaceXAI/xAI.

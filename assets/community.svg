@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="410" viewBox="0 0 1200 410" role="img" aria-labelledby="title desc">
+<title id="title">Maintainer Skills Lab community statistics</title>
+<desc id="desc">GitHub snapshot: 1 stars, 0 forks, 0 views and 0 unique visitors in the returned 14-day window. Star chart groups current stargazers by date starred; removed stars are excluded.</desc>
+<rect width="1200" height="410" rx="24" fill="#101923"/>
+<g font-family="Arial,Helvetica,sans-serif">
+<text x="40" y="40" font-size="13" fill="#bced85" >COMMUNITY / LIVE BADGES ABOVE · SNAPSHOT BELOW</text>
+<text x="1160" y="40" font-size="14" fill="#a9b9c8" text-anchor="end">2026-09-13 UTC</text>
+<text x="40" y="80" font-size="12" fill="#a9b9c8" >STARS</text>
+<text x="40" y="130" font-size="44" fill="#eef4f8" font-weight="700">1</text>
+<text x="326" y="80" font-size="12" fill="#a9b9c8" >FORKS</text>
+<text x="326" y="130" font-size="44" fill="#eef4f8" font-weight="700">0</text>
+<text x="612" y="80" font-size="12" fill="#a9b9c8" >VIEWS · 14 DAYS</text>
+<text x="612" y="130" font-size="44" fill="#eef4f8" font-weight="700">0</text>
+<text x="898" y="80" font-size="12" fill="#a9b9c8" >UNIQUE VISITORS · 14 DAYS</text>
+<text x="898" y="130" font-size="44" fill="#eef4f8" font-weight="700">0</text>
+<path d="M40 159H1160" stroke="#2a3949"/>
+<text x="40" y="191" font-size="13" fill="#bced85" >STAR HISTORY</text>
+<text x="1160" y="191" font-size="13" fill="#a9b9c8" text-anchor="end">Current stargazers, grouped by date starred</text>
+<path d="M70 307H1160" stroke="#223140"/>
+<path d="M70 263.0H1160" stroke="#223140"/>
+<path d="M70 219H1160" stroke="#223140"/>
+<text x="40" y="224" font-size="12" fill="#a9b9c8" >1</text>
+<text x="40" y="312" font-size="12" fill="#a9b9c8" >0</text>
+<circle cx="70.0" cy="219.0" r="5" fill="#bced85"/>
+<text x="1160" y="270" font-size="16" fill="#a9b9c8" text-anchor="end">The beginning. Each dot comes from GitHub.</text>
+<text x="70" y="335" font-size="12" fill="#a9b9c8" >2026-09-13</text>
+<text x="40" y="380" font-size="13" fill="#a9b9c8" >Views: 2026-08-31 to 2026-09-13 UTC.</text>
+<text x="1160" y="380" font-size="13" fill="#a9b9c8" text-anchor="end">Source: GitHub API · Removed stars are excluded</text>
+</g></svg>

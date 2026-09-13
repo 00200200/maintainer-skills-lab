@@ -19,8 +19,7 @@ independent live-client evaluation is claimed.
 | Codex agents | Standalone `.codex/agents/*.toml` | TOML parsing and embedded-workflow tests | Not yet evaluated |
 | Claude Code | `.claude/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
 | Cursor | `.cursor/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
-| Groq API | JSON `messages` templates for skills and composed agent instructions | JSON parsing, complete-prompt, and source propagation tests | No live API requests evaluated |
-| Grok Bot | Role, first-task, save-skill, and routine instructions | Setup recipes based on documentation | Not yet evaluated; no verified share template |
+| Grok Bot (SpaceXAI) | Markdown recipe for each skill and agent, plus first-task guides | Source propagation and embedded-workflow tests; documented manual setup | Not yet evaluated in a live Bot |
 
 The suite runs locally without API keys. CI targets Linux and macOS on Python
 3.11 and 3.13. Windows has not been tested; do not infer support from Python
@@ -40,9 +39,9 @@ compatibility alone.
   supported Bot UI rather than assuming local files create cloud resources.
 - No marketplace plugin or general ChatGPT/Claude web-chat compatibility is
   claimed by this local-file release.
-- Groq exports carry instruction text only. The consuming application supplies
-  the model, credentials, task context, supporting resources, tools, and execution
-  policy. These are not an autonomous runtime or an automatic skill-discovery format.
+- Grok Bot recipes contain workflow instructions. Required access, supporting files,
+  and saved skills are configured in the Bot app. Regenerating a Markdown file does
+  not update an existing cloud Bot or its routines.
 
 ## Primary format references
 
@@ -55,6 +54,5 @@ Checked 2026-09-13; these are documentation references, not live-run evidence:
 - [Claude Code subagents](https://code.claude.com/docs/en/sub-agents)
 - [Cursor skills](https://cursor.com/docs/skills)
 - [Cursor subagents](https://cursor.com/docs/subagents)
-- [Grok Bot workflows](https://cursor.com/docs/grok-bot/work)
-- [Groq text generation](https://console.groq.com/docs/text-chat)
-- [Groq API reference](https://console.groq.com/docs/api-reference)
+- [Grok Bot overview](https://docs.x.ai/grok-bot/overview)
+- [Grok Bot skills and routines](https://docs.x.ai/grok-bot/skills-routines-and-automations)
