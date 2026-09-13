@@ -59,8 +59,9 @@ Then ask your client:
 Explicit invocation uses `$mkl-humanize` in Codex CLI or `/mkl-humanize` in
 Claude Code and Cursor. [Installation, removal, and recorded checks →](docs/install.md#one-skill-with-the-skills-cli)
 
-Prefer Python or downloadable files? [Install the full library](#start-in-a-minute)
-or [get a ZIP](https://github.com/00200200/maintainer-skills-lab/releases).
+Prefer Python? [Install just Humanizer with Python 3.11+](docs/install.md#one-or-more-skills-with-python)
+using `--skill mkl-humanize`, with no Node.js dependency. You can also
+[install the full library](#start-in-a-minute) or [get a ZIP](https://github.com/00200200/maintainer-skills-lab/releases).
 Grok Bot uses [manual setup recipes](grok-bot/README.md).
 
 ## Find your next useful skill

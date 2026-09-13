@@ -463,5 +463,212 @@ class InstallationTests(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
 
 
+class SelectedInstallationTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name) / "source"
+        self.project = Path(temporary.name) / "project"
+        self.root.mkdir()
+        self.project.mkdir()
+        copy_library(self.root)
+
+    def test_one_skill_includes_resources_without_installing_agents_for_each_target(self):
+        resource = self.root / "skills/mkl-humanize/references/style.txt"
+        resource.parent.mkdir()
+        resource.write_text("A supporting reference")
+        for target, (skill_dir, agent_dir, _) in kit.TARGETS.items():
+            with self.subTest(target=target):
+                result = kit.install(target, self.project, self.root, skill_names=["mkl-humanize"])
+                expected = {
+                    f"{skill_dir}/mkl-humanize/{part}"
+                    for part in ("SKILL.md", "references/style.txt")
+                }
+                self.assertEqual(set(result["written"]), expected)
+                self.assertFalse((self.project / agent_dir).exists())
+                manifest = json.loads(
+                    (self.project / f".maintainer-skills-lab/{target}.json").read_text()
+                )
+                self.assertEqual(set(manifest["files"]), expected)
+                kit.uninstall(target, self.project, skill_names=["mkl-humanize"])
+                self.assertEqual(list(self.project.iterdir()), [])
+
+    def test_adding_a_skill_preserves_other_owned_edits_and_hashes(self):
+        kit.install("codex", self.project, self.root, skill_names=["mkl-humanize"])
+        first = self.project / ".agents/skills/mkl-humanize/SKILL.md"
+        first.write_text("My local Humanizer changes")
+        mtime = first.stat().st_mtime_ns
+        _, before = kit.installed_state(self.project, "codex")
+        result = kit.install("codex", self.project, self.root, skill_names=["mkl-match-voice"])
+        self.assertEqual(result["removed"], [])
+        self.assertEqual(result["written"], [".agents/skills/mkl-match-voice/SKILL.md"])
+        self.assertEqual(first.read_text(), "My local Humanizer changes")
+        self.assertEqual(first.stat().st_mtime_ns, mtime)
+        _, after = kit.installed_state(self.project, "codex")
+        self.assertTrue(before.items() <= after.items())
+        # Retaining an old hash must not hide these edits from a later full operation.
+        with self.assertRaisesRegex(kit.KitError, "Locally modified"):
+            kit.uninstall("codex", self.project)
+
+    def test_selected_update_removes_obsolete_resources_but_preserves_agent_and_other_skills(self):
+        resource = self.root / "skills/mkl-humanize/old.txt"
+        resource.write_text("An obsolete resource")
+        kit.install("claude", self.project, self.root)
+        source = self.root / "skills/mkl-humanize/SKILL.md"
+        source.write_text(source.read_text() + "\nA new writing constraint.\n")
+        resource.unlink()
+        other = self.project / ".claude/skills/mkl-match-voice/SKILL.md"
+        other.write_text("Local voice guidance")
+        before = snapshot(self.project)
+        result = kit.install("claude", self.project, self.root, skill_names=["mkl-humanize"])
+        self.assertEqual(result["removed"], [".claude/skills/mkl-humanize/old.txt"])
+        self.assertEqual(result["written"], [".claude/skills/mkl-humanize/SKILL.md"])
+        after = snapshot(self.project)
+        for name, data in before.items():
+            if not name.startswith((".claude/skills/mkl-humanize/", ".maintainer-skills-lab/")):
+                self.assertEqual(after[name], data, name)
+        self.assertEqual(
+            (self.project / ".claude/skills/mkl-humanize/SKILL.md").read_bytes(),
+            source.read_bytes(),
+        )
+
+    def test_selected_dry_runs_and_repeated_install_preserve_files_and_mtimes(self):
+        names = ["mkl-humanize", "mkl-match-voice", "mkl-humanize"]
+        result = kit.install("cursor", self.project, self.root, dry_run=True, skill_names=names)
+        self.assertEqual(len(result["written"]), 2)
+        self.assertEqual(result["selected_skills"], ["mkl-humanize", "mkl-match-voice"])
+        self.assertEqual(list(self.project.iterdir()), [])
+        kit.install("cursor", self.project, self.root, skill_names=names)
+        before = snapshot(self.project)
+        mtimes = {
+            path: path.stat().st_mtime_ns for path in self.project.rglob("*") if path.is_file()
+        }
+        result = kit.install("cursor", self.project, self.root, skill_names=names)
+        self.assertEqual(result["written"], [])
+        self.assertFalse(result["manifest_changed"])
+        preview = kit.uninstall("cursor", self.project, dry_run=True, skill_names=["mkl-humanize"])
+        self.assertEqual(preview["removed"], [".cursor/skills/mkl-humanize/SKILL.md"])
+        self.assertEqual(snapshot(self.project), before)
+        self.assertEqual({path: path.stat().st_mtime_ns for path in mtimes}, mtimes)
+
+    def test_selected_conflict_prevents_all_writes(self):
+        conflict = self.project / ".agents/skills/mkl-match-voice/SKILL.md"
+        conflict.parent.mkdir(parents=True)
+        conflict.write_text("An unowned skill")
+        before = snapshot(self.project)
+        with self.assertRaisesRegex(kit.KitError, "conflicts"):
+            kit.install(
+                "codex", self.project, self.root, skill_names=["mkl-humanize", "mkl-match-voice"]
+            )
+        self.assertEqual(snapshot(self.project), before)
+        self.assertFalse((self.project / ".maintainer-skills-lab").exists())
+
+    def test_selected_modified_file_and_obsolete_resource_block_changes(self):
+        source = self.root / "skills/mkl-humanize/old.txt"
+        source.write_text("Original")
+        kit.install("codex", self.project, self.root, skill_names=["mkl-humanize"])
+        (self.project / ".agents/skills/mkl-humanize/old.txt").write_text("Local edits")
+        source.unlink()
+        before = snapshot(self.project)
+        for action in (kit.install, kit.uninstall):
+            with (
+                self.subTest(action=action.__name__),
+                self.assertRaisesRegex(kit.KitError, "refusing removal"),
+            ):
+                if action is kit.install:
+                    action("codex", self.project, self.root, skill_names=["mkl-humanize"])
+                else:
+                    action("codex", self.project, skill_names=["mkl-humanize"])
+            self.assertEqual(snapshot(self.project), before)
+
+    def test_selected_uninstall_preserves_other_workflows_and_can_remove_retired_skill(self):
+        similar = self.root / "skills/mkl-humanize-extra/SKILL.md"
+        similar.parent.mkdir()
+        similar.write_text(
+            '---\nname: "mkl-humanize-extra"\ndescription: "Adjacent name fixture"\n---\nKeep me.\n'
+        )
+        kit.install("codex", self.project, self.root)
+        shutil.rmtree(self.root / "skills/mkl-humanize")
+        other = self.project / ".agents/skills/mkl-match-voice/SKILL.md"
+        other.write_text("Local voice edits")
+        before = snapshot(self.project)
+        result = kit.uninstall("codex", self.project, skill_names=["mkl-humanize"])
+        self.assertEqual(result["removed"], [".agents/skills/mkl-humanize/SKILL.md"])
+        after = snapshot(self.project)
+        for name, data in before.items():
+            if name not in (
+                ".agents/skills/mkl-humanize/SKILL.md",
+                ".maintainer-skills-lab/codex.json",
+            ):
+                self.assertEqual(after[name], data, name)
+        _, owned = kit.installed_state(self.project, "codex")
+        self.assertNotIn(".agents/skills/mkl-humanize/SKILL.md", owned)
+        self.assertIn(".agents/skills/mkl-humanize-extra/SKILL.md", owned)
+        self.assertTrue(any(name.startswith(".codex/agents/") for name in owned))
+        again = kit.uninstall("codex", self.project, skill_names=["mkl-humanize"])
+        self.assertEqual(again["removed"], [])
+        self.assertFalse(again["manifest_changed"])
+        self.assertEqual(snapshot(self.project), after)
+
+    def test_selected_identical_unmanaged_file_is_not_adopted_or_removed(self):
+        destination = self.project / ".cursor/skills/mkl-humanize/SKILL.md"
+        destination.parent.mkdir(parents=True)
+        destination.write_bytes((self.root / "skills/mkl-humanize/SKILL.md").read_bytes())
+        before = snapshot(self.project)
+        result = kit.install("cursor", self.project, self.root, skill_names=["mkl-humanize"])
+        self.assertEqual(result["identical_unmanaged"], [".cursor/skills/mkl-humanize/SKILL.md"])
+        kit.uninstall("cursor", self.project, skill_names=["mkl-humanize"])
+        self.assertEqual(snapshot(self.project), before)
+
+    def test_invalid_and_unknown_selections_make_no_changes(self):
+        for names in (
+            [],
+            ["../escape"],
+            ["mkl-humanize/../../escape"],
+            ["humanize"],
+            ["mkl-missing"],
+        ):
+            with self.subTest(names=names), self.assertRaises(kit.KitError):
+                kit.install("codex", self.project, self.root, skill_names=names)
+            self.assertEqual(list(self.project.iterdir()), [])
+        with self.assertRaises(kit.KitError):
+            kit.uninstall("codex", self.project, skill_names=["../escape"])
+
+    def test_full_install_after_selection_expands_to_complete_library(self):
+        kit.install("claude", self.project, self.root, skill_names=["mkl-humanize"])
+        kit.install("claude", self.project, self.root)
+        installed = snapshot(self.project)
+        installed.pop(".maintainer-skills-lab/claude.json")
+        self.assertEqual(installed, kit.export_files("claude", self.root))
+        kit.uninstall("claude", self.project)
+        self.assertEqual(list(self.project.iterdir()), [])
+
+    def test_cli_can_install_two_skills_then_remove_just_one(self):
+        def run(action, *options):
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "tools/kit.py"),
+                    action,
+                    "--target",
+                    "codex",
+                    "--project",
+                    str(self.project),
+                    *options,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(result.stdout)
+
+        run("install", "--skill", "mkl-humanize", "--skill", "mkl-match-voice")
+        result = run("uninstall", "--skill", "mkl-humanize")
+        self.assertEqual(result["removed"], [".agents/skills/mkl-humanize/SKILL.md"])
+        self.assertTrue((self.project / ".agents/skills/mkl-match-voice/SKILL.md").exists())
+        self.assertFalse((self.project / ".codex/agents").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

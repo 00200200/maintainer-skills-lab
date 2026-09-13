@@ -206,7 +206,10 @@ def provider_instructions(target: str) -> str:
         "```sh\n"
         f"python3 tools/kit.py install --target {target} --project /existing/project\n"
         "```\n\n"
-        "The installer reads the canonical source and installs the full library. "
+        "The installer reads the canonical source and installs the full library by default. "
+        "Add `--skill mkl-humanize` to install or update only that skill; repeat `--skill` "
+        "to select more. Other skills and native agents are preserved. Use the same "
+        "selection with `uninstall` to remove only unchanged files owned for those skills.\n\n"
         "Live-client discovery and task outcomes have not yet been evaluated.\n"
     )
 
@@ -429,14 +432,49 @@ def atomic_write(path: Path, data: bytes) -> None:
             temporary.unlink(missing_ok=True)
 
 
-def install(target: str, project: Path, root: Path = ROOT, dry_run: bool = False) -> dict:
+def skill_prefixes(target: str, skill_names: list[str] | None) -> tuple[str, ...] | None:
+    if skill_names is None:
+        return None
+    if not skill_names or any(
+        not isinstance(name, str) or not NAME.fullmatch(name) for name in skill_names
+    ):
+        raise KitError("Select at least one valid mkl-* skill name")
+    return tuple(f"{TARGETS[target][0]}/{name}/" for name in sorted(set(skill_names)))
+
+
+def manifest_bytes(target: str, owned: dict[str, str]) -> bytes:
+    state = {"schema_version": 1, "target": target, "files": owned}
+    return (json.dumps(state, indent=2, sort_keys=True) + "\n").encode()
+
+
+def install(
+    target: str,
+    project: Path,
+    root: Path = ROOT,
+    dry_run: bool = False,
+    *,
+    skill_names: list[str] | None = None,
+) -> dict:
     project = project.resolve()
     if not project.is_dir():
         raise KitError(f"Project directory does not exist: {project}")
+    prefixes = skill_prefixes(target, skill_names)
     desired = export_files(target, root)
+    if prefixes is not None:
+        for prefix in prefixes:
+            if prefix + "SKILL.md" not in desired:
+                raise KitError(f"Unknown source skill: {prefix.split('/')[-2]}")
+        desired = {name: data for name, data in desired.items() if name.startswith(prefixes)}
     manifest_path, old = installed_state(project, target)
-    owned, writes, removals, retained = {}, {}, [], []
-    # Preflight every path before creating directories or changing files.
+    # Keep other workflows' ownership hashes, even when their local files were edited.
+    owned = {
+        name: sha
+        for name, sha in old.items()
+        if prefixes is not None and not name.startswith(prefixes)
+    }
+    old = {name: sha for name, sha in old.items() if name not in owned}
+    writes, removals, retained = {}, [], []
+    # Preflight every selected path before creating directories or changing files.
     for relative in sorted(set(desired) | set(old)):
         if not managed_path(relative, target):
             raise KitError(f"Invalid installation path: {relative}")
@@ -463,8 +501,7 @@ def install(target: str, project: Path, root: Path = ROOT, dry_run: bool = False
             owned[relative] = wanted
         else:
             raise KitError(f"Existing or locally modified file conflicts: {relative}")
-    state = {"schema_version": 1, "target": target, "files": owned}
-    state_bytes = (json.dumps(state, indent=2, sort_keys=True) + "\n").encode()
+    state_bytes = manifest_bytes(target, owned)
     manifest_changed = (bool(owned) or manifest_path.exists()) and (
         not manifest_path.exists() or manifest_path.read_bytes() != state_bytes
     )
@@ -477,6 +514,7 @@ def install(target: str, project: Path, root: Path = ROOT, dry_run: bool = False
             atomic_write(manifest_path, state_bytes)
     return {
         "target": target,
+        "selected_skills": sorted(set(skill_names)) if skill_names is not None else None,
         "project": str(project),
         "dry_run": dry_run,
         "written": sorted(writes),
@@ -486,23 +524,39 @@ def install(target: str, project: Path, root: Path = ROOT, dry_run: bool = False
     }
 
 
-def uninstall(target: str, project: Path, dry_run: bool = False) -> dict:
+def uninstall(
+    target: str,
+    project: Path,
+    dry_run: bool = False,
+    *,
+    skill_names: list[str] | None = None,
+) -> dict:
     project = project.resolve()
     if not project.is_dir():
         raise KitError(f"Project directory does not exist: {project}")
+    prefixes = skill_prefixes(target, skill_names)
     manifest_path, old = installed_state(project, target)
+    kept = {}
     removals = []
     for relative, checksum in old.items():
+        if prefixes is not None and not relative.startswith(prefixes):
+            kept[relative] = checksum
+            continue
         path = checked_path(project, relative)
         current = current_digest(path)
         if current is not None and current != checksum:
             raise KitError(f"Locally modified, refusing removal: {relative}")
         if current is not None:
             removals.append(relative)
+    manifest_changed = manifest_path.exists() and (prefixes is None or kept != old)
     if not dry_run:
         for relative in removals:
             checked_path(project, relative).unlink()
-        manifest_path.unlink(missing_ok=True)
+        if manifest_changed:
+            if kept:
+                atomic_write(manifest_path, manifest_bytes(target, kept))
+            else:
+                manifest_path.unlink()
         # Remove only now-empty directories below our known installation roots.
         for relative in removals:
             directory = (project / relative).parent
@@ -516,7 +570,13 @@ def uninstall(target: str, project: Path, dry_run: bool = False) -> dict:
             manifest_path.parent.rmdir()
         except OSError:
             pass
-    return {"target": target, "dry_run": dry_run, "removed": sorted(removals)}
+    return {
+        "target": target,
+        "selected_skills": sorted(set(skill_names)) if skill_names is not None else None,
+        "dry_run": dry_run,
+        "removed": sorted(removals),
+        "manifest_changed": manifest_changed,
+    }
 
 
 def build(target: str, output: Path, root: Path = ROOT) -> Path:
@@ -556,6 +616,13 @@ def main(argv: list[str] | None = None) -> int:
         action_parser.add_argument("--target", choices=TARGETS, required=True)
         action_parser.add_argument("--project", type=Path, required=True)
         action_parser.add_argument("--dry-run", action="store_true")
+        action_parser.add_argument(
+            "--skill",
+            dest="skill_names",
+            action="append",
+            metavar="NAME",
+            help="Limit changes to this skill; repeat to select more. Other workflows are preserved.",
+        )
     args = parser.parse_args(argv)
     try:
         if args.command == "list":
@@ -599,9 +666,26 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
         elif args.command == "install":
-            print(json.dumps(install(args.target, args.project, dry_run=args.dry_run), indent=2))
+            print(
+                json.dumps(
+                    install(
+                        args.target,
+                        args.project,
+                        dry_run=args.dry_run,
+                        skill_names=args.skill_names,
+                    ),
+                    indent=2,
+                )
+            )
         else:
-            print(json.dumps(uninstall(args.target, args.project, args.dry_run), indent=2))
+            print(
+                json.dumps(
+                    uninstall(
+                        args.target, args.project, args.dry_run, skill_names=args.skill_names
+                    ),
+                    indent=2,
+                )
+            )
     except (KitError, OSError, ValueError) as exc:
         print(f"kit: {exc}", file=sys.stderr)
         return 2
