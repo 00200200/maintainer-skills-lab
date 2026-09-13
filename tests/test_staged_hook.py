@@ -18,6 +18,8 @@ class StagedHookTests(unittest.TestCase):
         # A test repo must not inherit the calling hook's repository or alternate index.
         self.env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
         self.env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
+        # The hook finds Python on PATH; prefer the interpreter running these tests.
+        self.env["PATH"] = os.pathsep.join((str(Path(sys.executable).parent), os.environ["PATH"]))
         for name in ("skills", "agents", "grok-bot", "providers", "hooks"):
             shutil.copytree(ROOT / name, self.root / name)
         (self.root / "tools").mkdir()
@@ -51,6 +53,14 @@ class StagedHookTests(unittest.TestCase):
         return self.run_command(
             [sys.executable, "-B", "tools/check_staged.py"], check=False, env=env
         )
+
+    def old_python3(self):
+        directory = tempfile.TemporaryDirectory(prefix="mkl hook python ")
+        self.addCleanup(directory.cleanup)
+        python3 = Path(directory.name) / "python3"
+        python3.write_text("#!/bin/sh\necho 'Python 3.9.6' >&2\nexit 1\n")
+        python3.chmod(0o755)
+        return Path(directory.name)
 
     def edit_source(self):
         path = self.root / "skills/mkl-humanize/SKILL.md"
@@ -87,6 +97,24 @@ class StagedHookTests(unittest.TestCase):
         self.git("add", "providers")
         self.git("commit", "-qm", "Complete fixture")
         self.assertNotEqual(self.git("rev-parse", "HEAD"), head)
+
+    def test_hook_skips_old_python3_for_a_versioned_interpreter(self):
+        shims = self.old_python3()
+        (shims / "python3.11").symlink_to(sys.executable)
+        env = {**self.env, "PATH": os.pathsep.join((str(shims), self.env["PATH"]))}
+        head = self.git("rev-parse", "HEAD")
+        self.edit_source()
+        self.sync()
+        self.git("add", "skills", "providers")
+        result = self.run_command(["git", "commit", "-qm", "Synced fixture"], check=False, env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(self.git("rev-parse", "HEAD"), head)
+
+    def test_hook_explains_missing_python_311(self):
+        env = {**self.env, "PATH": str(self.old_python3())}
+        result = self.run_command(["/bin/sh", "hooks/pre-commit"], check=False, env=env)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(b"needs Python 3.11 or newer", result.stderr)
 
     def test_unstaged_broken_source_does_not_override_valid_staged_content(self):
         path = self.edit_source()

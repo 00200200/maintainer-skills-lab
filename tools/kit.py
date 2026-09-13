@@ -10,9 +10,16 @@ import os
 import re
 import sys
 import tempfile
-import tomllib
 import zipfile
 from pathlib import Path, PurePosixPath
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # New in Python 3.11; older interpreters would show a traceback.
+    sys.exit(
+        f"Maintainer Skills Lab needs Python 3.11 or newer; this is {sys.version.split()[0]}.\n"
+        f"Run it with a newer interpreter, for example: python3.13 {sys.argv[0]}"
+    )
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
