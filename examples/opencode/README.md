@@ -1,8 +1,9 @@
 # OpenCode discovery check
 
-This optional integration check uses the actual **OpenCode 1.18.30** diagnostic
-commands. It does not start a model session, install the CLI, or join the default
-network-free unit suite.
+This integration check uses the actual **OpenCode 1.18.30** diagnostic commands.
+It is optional locally and runs in a separate Linux CI job. It does not start a
+model session or join the default network-free unit suite. The script requires
+an existing CLI; CI downloads its pinned Linux package separately.
 
 Install the pinned version using an [official installation method](https://opencode.ai/docs/).
 With that executable available, run from this repository:
@@ -61,4 +62,21 @@ no global installation was used. Source exports were from commit
 }
 ```
 
-No Windows, Linux or OpenCode V2 discovery run is claimed by this record.
+This local record does not establish Windows, Linux or OpenCode V2 discovery.
+Linux execution is tracked separately by the CI job below.
+
+## Continuous integration
+
+The `OpenCode 1.18.30 discovery (Linux)` job in
+[Validate library](../../.github/workflows/ci.yml) runs this same script on pushes
+and pull requests, using Python 3.11 and the `opencode-linux-x64@1.18.30` npm
+package. Installation stays under the runner's temporary directory, disables
+package lifecycle scripts, and does not modify the repository or install a
+model provider. The job has a ten-minute limit.
+
+A nonzero diagnostic or assertion result fails the job. A successful run uploads
+`opencode-discovery-linux`, containing the version, skill/agent counts and
+assertion summary. Inspect the run for the exact commit being evaluated. No
+API credentials are supplied, and no model session or paid API call is started.
+The macOS result above remains a separately recorded local run; the standard
+Python matrix does not imply OpenCode execution on every platform.
