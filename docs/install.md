@@ -2,7 +2,7 @@
 
 | You need | Installation method |
 | --- | --- |
-| One skill, such as Humanizer | [Skills CLI](#one-skill-with-the-skills-cli), with Node.js and Git |
+| One or more selected skills | [Python installer](#one-or-more-skills-with-python) from a clone, or [Skills CLI](#one-skill-with-the-skills-cli) with Node.js and Git |
 | Every skill and native agent for one coding client | [Python installer](#full-library-with-python), with ownership-aware updates and removal |
 | Files to inspect and copy, or Grok Bot recipes | [Release ZIPs](#archives) |
 
@@ -58,6 +58,51 @@ The upstream CLI documents anonymous usage telemetry. Set `DISABLE_TELEMETRY=1`
 when running it to opt out; this also disables its security-audit requests.
 [Recorded installation checks and limits →](compatibility.md#skills-cli-installation-check)
 
+## One or more skills with Python
+
+Use a source clone with **Python 3.11+**. No Node.js, model API key, or third-party
+Python package is needed. From the clone, select a skill and an existing destination
+project:
+
+```sh
+git clone https://github.com/00200200/maintainer-skills-lab.git
+cd maintainer-skills-lab
+python3 tools/kit.py install --target codex --project /existing/project --skill mkl-humanize --dry-run
+python3 tools/kit.py install --target codex --project /existing/project --skill mkl-humanize
+```
+
+Use `--target claude` or `--target cursor` for the other coding clients. The
+selection copies the whole skill directory, including supporting resources,
+and records only newly owned files. It preserves other skills, native agents,
+client settings, and files managed by another installer. Conflicting edits in
+the selected skill stop the operation before files are written.
+
+Repeat the option to add or update several skills:
+
+```sh
+python3 tools/kit.py install --target codex --project /existing/project --skill mkl-humanize --skill mkl-match-voice
+```
+
+Adding another selection keeps earlier installed workflows. To update a selected
+skill later, update the source clone and rerun the command **with the same
+`--skill` option**. Omitting it installs or updates the complete library.
+
+Selected updates preserve the existing native agent files, which contain embedded
+copies of their workflows. Use a full-library update when you also want to refresh
+those agents. Selection does not silently rewrite them.
+
+Remove only a selected skill with the same ownership protection:
+
+```sh
+python3 tools/kit.py uninstall --target codex --project /existing/project --skill mkl-humanize --dry-run
+python3 tools/kit.py uninstall --target codex --project /existing/project --skill mkl-humanize
+```
+
+Other skills and agents stay installed. Only unchanged files owned by this
+installer are removed; unowned files remain. Local edits to a selected owned file
+block removal. A retired skill can still be removed even if its source is no
+longer in the current library. Grok Bot continues to use manual recipes.
+
 ## Full library with Python
 
 Run `tools/kit.py` from a clone with Python 3.11+. The tool has no runtime
@@ -74,8 +119,8 @@ python3 tools/kit.py install --target codex --project /existing/project
 | `claude` | `.claude/skills/mkl-*/` | `.claude/agents/mkl-*.md` |
 | `cursor` | `.cursor/skills/mkl-*/` | `.cursor/agents/mkl-*.md` |
 
-This installer adds the full library for one target. Use the Skills CLI or manual
-copies for one skill. Global installation and automatic changes to client
+Without `--skill`, this installer adds the full library for one target. Global
+installation and automatic changes to client
 configuration files are outside this preview.
 
 ## Browse or copy one workflow
@@ -103,14 +148,16 @@ requires reviewing and updating the saved skill in the Bot; `sync` updates files
 ## Python installer updates
 
 Update the source clone to the revision you intend to use, inspect its changes,
-and rerun `install`. The manifest at `.maintainer-skills-lab/<target>.json`
+and rerun `install`, keeping any `--skill` selection you want to limit the update
+to. The manifest at `.maintainer-skills-lab/<target>.json`
 contains SHA-256 hashes of owned files. The installer updates or removes a
 previously installed file only if its current content still matches the manifest.
 It never adopts an identical pre-existing unowned file. Keep the manifest with
 the installed files if you want future update and uninstall protection.
 
 An unchanged install leaves files and their modification times unchanged. All
-content and path conflicts are checked before writes begin. Individual file
+content and path conflicts within the selected scope are checked before writes
+begin. Individual file
 replacements are atomic; the whole multi-file installation is not a transaction.
 Avoid concurrently editing or running two installers on the destination.
 
@@ -127,6 +174,9 @@ python3 tools/kit.py uninstall --target codex --project /existing/project
 Only unchanged owned files are removed. Unrelated files and identical files that
 predated installation remain in place. Local modifications stop uninstall so
 you can preserve them first. Missing owned files are tolerated.
+
+Without `--skill`, removal covers all files owned for that target. Add one or more
+`--skill NAME` options to preserve the other installed workflows.
 
 ## Archives
 
