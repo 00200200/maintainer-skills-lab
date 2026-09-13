@@ -11,6 +11,26 @@ Search existing issues and the [catalogue](providers/README.md) before starting.
 For a small fix, a PR is welcome directly. For a larger workflow, an issue with
 sample input and the desired result helps establish the scope.
 
+## Contribute a task recipe
+
+Start with an existing skill and a task you can explain with a small example.
+You do not need a new agent or integration to contribute to the
+[task gallery](docs/task-gallery.md).
+
+Include a descriptive task title, a link to its canonical skill, the required
+input, a prompt people can copy, and observable acceptance criteria. Explain
+one meaningful failure case, such as a changed technical token or an unsupported
+claim. Prefer a self-contained example; clearly mark any placeholders.
+
+Label authored examples separately from recorded client runs. For a client run,
+include the client/version, supplied input, observed output, and limitations.
+Do not submit private material or present an expected result as a measured one.
+Keep attribution for any reused material and check that its license permits reuse.
+
+Submit one focused PR, with your authorship preserved in Git history. A gallery
+edit does not need regenerated provider files unless the canonical skill also
+changes. Check relative links and confirm the prompt fits the linked skill.
+
 ## Add a skill once
 
 1. Fork the repository and create a branch for one coherent change.
