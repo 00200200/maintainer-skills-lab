@@ -57,6 +57,9 @@ manifest protections below do not apply to CLI-managed files.
 The upstream CLI documents anonymous usage telemetry. Set `DISABLE_TELEMETRY=1`
 when running it to opt out; this also disables its security-audit requests.
 [Recorded installation checks and limits →](compatibility.md#skills-cli-installation-check)
+The optional [resource diagnostic](../examples/skills-cli/README.md) verifies
+that Humanizer installs with its checker, runs it, and removes the skill while
+preserving unrelated files in disposable projects.
 
 ## One or more skills with Python
 
