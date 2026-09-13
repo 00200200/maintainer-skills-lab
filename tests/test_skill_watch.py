@@ -215,6 +215,58 @@ class WatchTests(unittest.TestCase):
             self.watch.save(state, raw)
         self.assertEqual(self.watch.baseline()[0], newer)
 
+    def test_accumulated_source_history_cannot_write_an_unreadable_baseline(self):
+        self.watch.snapshot()
+        state, raw = self.watch.baseline()
+        entry = copy.deepcopy(state["sources"]["training"])
+        entry["text"] = "😀" * wf.MAX_TEXT
+        entry["sha256"] = sw.digest(entry["text"])
+        # Removed sources remain in the baseline across configuration changes.
+        state["sources"].update({f"retired-{index}": entry for index in range(26)})
+        before = self.watch.state.read_bytes()
+        mtime = self.watch.state.stat().st_mtime_ns
+        with self.assertRaisesRegex(sw.WatchError, "Baseline exceeds"):
+            self.watch.save(state, raw)
+        self.assertEqual(self.watch.state.read_bytes(), before)
+        self.assertEqual(self.watch.state.stat().st_mtime_ns, mtime)
+        self.assertEqual(self.watch.check()["status"], "unchanged")
+        self.assertEqual(list(self.watch.state.parent.iterdir()), [self.watch.state])
+
+    def test_oversized_snapshot_and_accept_preserve_state(self):
+        with patch.object(sw, "MAX_BASELINE_BYTES", 1):
+            with self.assertRaisesRegex(sw.WatchError, "Baseline exceeds"):
+                self.watch.snapshot()
+        self.assertFalse(self.watch.state.parent.exists())
+        self.watch.snapshot()
+        before = self.watch.state.read_bytes()
+        mtime = self.watch.state.stat().st_mtime_ns
+        self.changed()
+        self.watch.sources["second"] = {**self.watch.sources["training"], "id": "second"}
+        current = self.watch.capture("second")
+        with patch.object(sw, "MAX_BASELINE_BYTES", len(before)):
+            with self.assertRaisesRegex(sw.WatchError, "Baseline exceeds"):
+                self.watch.accept("second", current["sha256"])
+        self.assertEqual(self.watch.state.read_bytes(), before)
+        self.assertEqual(self.watch.state.stat().st_mtime_ns, mtime)
+        self.assertEqual(list(self.watch.state.parent.iterdir()), [self.watch.state])
+
+    def test_baseline_limit_counts_utf8_bytes_including_json_and_newline(self):
+        entry = self.watch.capture("training")
+        entry["text"] = 'Zażółć 😀 "quoted"'
+        entry["sha256"] = sw.digest(entry["text"])
+        state = {"version": 1, "sources": {"training": entry}}
+        serialized = json.dumps(state, indent=2, ensure_ascii=False) + "\n"
+        encoded = serialized.encode("utf-8")
+        self.assertGreater(len(encoded), len(serialized))
+        with patch.object(sw, "MAX_BASELINE_BYTES", len(encoded) - 1):
+            with self.assertRaisesRegex(sw.WatchError, "Baseline exceeds"):
+                self.watch.save(state, None)
+        self.assertFalse(self.watch.state.parent.exists())
+        with patch.object(sw, "MAX_BASELINE_BYTES", len(encoded)):
+            self.watch.save(state, None)
+            self.assertEqual(self.watch.baseline()[0], state)
+        self.assertEqual(self.watch.state.read_bytes(), encoded)
+
     def test_paths_cannot_escape_project_or_follow_symlinks(self):
         for path in ("../outside", "/tmp/outside", ".git/config"):
             with self.subTest(path=path), self.assertRaises(sw.WatchError):
