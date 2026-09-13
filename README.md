@@ -11,50 +11,91 @@
 </p>
 
 <p align="center">
+  <a href="#try-humanizer"><b>Try Humanizer</b></a> ·
   <a href="providers/README.md"><b>Explore the skills</b></a> ·
-  <a href="#start-in-a-minute">Install</a> ·
+  <a href="https://github.com/00200200/maintainer-skills-lab/releases">Download ZIPs</a> ·
   <a href="grok-bot/README.md">Grok Bot</a> ·
-  <a href="hooks/README.md">Hooks</a> ·
-  <a href="CONTRIBUTING.md">Add your own</a>
+  <a href="hooks/README.md">Hooks</a>
 </p>
 
 # Maintainer Skills Lab
 
-**Turn a vague issue into a reproduction. Turn a wordy draft into something worth reading.**
+**Make stiff drafts readable. Give your coding agent a repeatable way to investigate bugs and review PRs.**
 
-Practical skills and focused agents for **Codex, Claude Code, Cursor, and Grok Bot**.
-Write the instructions once in Markdown; generate the client versions together.
-Start with a workflow you actually need, read what it does, and make it yours.
+14 skills and 4 agent profiles for **Codex, Claude Code, Cursor, and Grok Bot**.
+The workflows share one Markdown source, with generated versions for each client.
+Start with one skill, or get the full library with its agents.
 
-## Find your first useful skill
+## Try Humanizer
+
+The [Humanizer skill](skills/mkl-humanize/SKILL.md) edits a draft in its original
+language, keeping facts, code, quotations, and meaningful caveats intact.
+
+| Before | One possible edit |
+| --- | --- |
+| We are thrilled to announce that you can now leverage `--dry-run` to preview changes. Windows has not been tested yet. | Use `--dry-run` to preview changes. We haven't tested Windows yet. |
+
+This is an authored illustration. [More examples and acceptance checks →](examples/writing/README.md)
+
+### Install one skill
+
+With **Node.js 22.20.0+ and Git**, run this in the project where you want to use it:
+
+```sh
+npx skills@1.5.26 add 00200200/maintainer-skills-lab --skill mkl-humanize --agent codex --copy
+```
+
+For **Claude Code**, replace `--agent codex` with `--agent claude-code`.
+For **Cursor**, use `--agent cursor`. This uses the third-party
+[Vercel Skills CLI](https://github.com/vercel-labs/skills) to install one skill
+locally in the current project. Read the linked skill before installing it.
+
+Then ask your client:
+
+> Use mkl-humanize to improve this draft. Preserve its facts, code, and limitations.
+> Explain any edit that changes the emphasis.
+
+Explicit invocation uses `$mkl-humanize` in Codex CLI or `/mkl-humanize` in
+Claude Code and Cursor. [Installation, removal, and recorded checks →](docs/install.md#one-skill-with-the-skills-cli)
+
+Prefer Python or downloadable files? [Install the full library](#start-in-a-minute)
+or [get a ZIP](https://github.com/00200200/maintainer-skills-lab/releases).
+Grok Bot uses [manual setup recipes](grok-bot/README.md).
+
+## Find your next useful skill
 
 | You want to… | Start here | What you get |
 | --- | --- | --- |
-| Make a draft sound natural | [Humanizer](skills/mkl-humanize/SKILL.md) | Clearer prose with the author's facts and intent intact |
 | Keep a consistent writing voice | [Match voice](skills/mkl-match-voice/SKILL.md) | An edit grounded in supplied writing samples |
 | Fix a bug with evidence | [Reproduce bug](skills/mkl-reproduce-bug/SKILL.md) → [Verify fix](skills/mkl-verify-fix/SKILL.md) | An observed failure and a comparable check of the fix |
 | Review a pull request | [Review PR](skills/mkl-review-pr/SKILL.md) | Actionable findings with locations and consequences |
 | Explain your project | [Write README](skills/mkl-write-readme/SKILL.md) | An introduction and quickstart grounded in the actual repository |
 | Work in Polish and English | [Localize PL ↔ EN](skills/mkl-localize-pl-en/SKILL.md) | Natural wording with commands, placeholders, and meaning preserved |
 
-**[Browse every skill and agent →](providers/README.md)**
+**[Browse all 14 skills and 4 agents →](providers/README.md)**
 Includes tutorials, UX copy, launch posts, maintainer replies, issue triage,
 regression tests, and releases. The four agent profiles combine these workflows
 for bug investigation, PR review, release editing, and writing.
 
-### A small taste
+## Start in a minute
 
-Give the Humanizer this draft:
+Get the **full library and native agents** with Python 3.11+. The library tools
+have no third-party dependencies.
 
-> We are thrilled to announce that you can now leverage `--dry-run` to preview
-> changes. Windows has not been tested yet.
+```sh
+git clone https://github.com/00200200/maintainer-skills-lab.git
+cd maintainer-skills-lab
 
-One possible edit:
+# The destination must be an existing project. Inspect changes first.
+python3 tools/kit.py install --target codex --project /path/to/your/repo --dry-run
+python3 tools/kit.py install --target codex --project /path/to/your/repo
+```
 
-> Use `--dry-run` to preview changes. We haven't tested Windows yet.
-
-The command and limitation survive the edit. This is an authored illustration;
-see [more writing examples](examples/writing/README.md) for prompts and acceptance checks.
+Use `--target claude` or `--target cursor` for the other coding clients. The installer
+adds the full library for one target, preserves unrelated files, and refuses
+conflicting local edits. Start with one installation method and target per project;
+mixed-client discovery is an [untested limitation](docs/compatibility.md).
+[Updates, removal, and ZIPs →](docs/install.md)
 
 ## One source, four versions
 
@@ -102,33 +143,6 @@ python3 -B tools/check_staged.py
 
 For contributors to this library and its forks. [Setup, examples, and limits →](hooks/README.md)
 
-## Start in a minute
-
-**Python 3.11+**, with no third-party dependencies for the library tools.
-
-```sh
-git clone https://github.com/00200200/maintainer-skills-lab.git
-cd maintainer-skills-lab
-
-# The destination must be an existing project. Inspect changes first.
-python3 tools/kit.py install --target codex --project /path/to/your/repo --dry-run
-python3 tools/kit.py install --target codex --project /path/to/your/repo
-```
-
-Use `--target claude` or `--target cursor` for the other coding clients. The installer
-adds the full library for one target, preserves unrelated files, and refuses
-conflicting local edits. For just one workflow, copy its folder from the
-[provider catalogue](providers/README.md). [Updates, removal, and ZIPs →](docs/install.md)
-
-Once your client discovers the skills, try:
-
-> Use mkl-humanize to improve this draft. Preserve its facts, code, and limitations.
-> Explain any edit that changes the emphasis.
-
-Explicit invocation uses `$mkl-humanize` in Codex CLI or `/mkl-humanize` in
-Claude Code and Cursor. Start with one target per project; mixed-client discovery
-is an [untested limitation](docs/compatibility.md).
-
 ## Check the evidence
 
 Run a complete local regression example without a model or API key:
@@ -148,21 +162,16 @@ The same independent test runs against both implementations in fresh Python
 processes. [Inspect the fixture and its limits →](examples/bugfix/README.md)
 
 **Preview status:** source/export checks and tool/fixture tests are automated.
-Live-client discovery, writing quality, and Grok Bot execution have not yet been
-evaluated. Native agents inherit model and execution policy from the host.
+Humanizer installation and removal with Skills CLI 1.5.26 were checked for all
+three coding-client targets. Live-client discovery, writing quality, and Grok Bot
+execution have not yet been evaluated. Native agents inherit model and execution policy from the host.
 [Compatibility matrix](docs/compatibility.md) · [Evaluation guide](evals/README.md)
 
-## Bring your own workflow
+## Make it useful for you
 
-Built a skill that saves you time? Bring the use case and a small example.
-You can contribute without implementing a whole agent or understanding every provider.
-
-- **[Suggest a skill, agent, or hook](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml)** — describe the job, input, and useful result.
-- **[Report a bug or client mismatch](https://github.com/00200200/maintainer-skills-lab/issues/new?template=bug_report.yml)** — share the smallest reproduction and the client version.
-- **[Open a pull request](CONTRIBUTING.md)** — add one source skill, run `sync`, and include a worked example.
-
-A good first contribution is a clearer example, a reproducible compatibility
-report, or a small improvement to a workflow you used. **[Contribution guide →](CONTRIBUTING.md)**
+Missing a workflow or found a rough edge? [Open an issue](https://github.com/00200200/maintainer-skills-lab/issues/new)
+with the task and a small example. To contribute a skill, edit one source and
+generate the client versions: [contribution guide](CONTRIBUTING.md).
 
 If a skill earns a place in your workflow, **star the repository** to find it again.
 To hear about changes, use GitHub's **Watch → Custom → Releases**.

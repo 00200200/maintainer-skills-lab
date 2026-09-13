@@ -1,5 +1,65 @@
 # Installation and updates
 
+| You need | Installation method |
+| --- | --- |
+| One skill, such as Humanizer | [Skills CLI](#one-skill-with-the-skills-cli), with Node.js and Git |
+| Every skill and native agent for one coding client | [Python installer](#full-library-with-python), with ownership-aware updates and removal |
+| Files to inspect and copy, or Grok Bot recipes | [Release ZIPs](#archives) |
+
+Choose one method per project. The Skills CLI and Python installer track files
+separately and have different update/removal behavior; use the same tool that
+installed a workflow to manage it.
+
+## One skill with the Skills CLI
+
+Requires **Node.js 22.20.0+ and Git**. From your destination project directory:
+
+```sh
+npx skills@1.5.26 add 00200200/maintainer-skills-lab --skill mkl-humanize --agent codex --copy
+```
+
+Read the [skill source](../skills/mkl-humanize/SKILL.md) first. This command uses
+the third-party [Vercel Skills CLI](https://github.com/vercel-labs/skills), pinned
+to the version checked here. It downloads the selected skill from the repository's
+default branch; pinning the CLI does not pin the skill revision.
+
+| Client | CLI option | Installed skill path with this CLI version |
+| --- | --- | --- |
+| Codex | `--agent codex` | `.agents/skills/mkl-humanize/SKILL.md` |
+| Claude Code | `--agent claude-code` | `.claude/skills/mkl-humanize/SKILL.md` |
+| Cursor | `--agent cursor` | `.agents/skills/mkl-humanize/SKILL.md` |
+
+`--copy` creates regular files in the current project. The CLI also writes
+`skills-lock.json`. Cursor uses the CLI's shared `.agents/skills` path; the Python
+installer below uses `.cursor/skills`. Neither command configures a live client
+or installs Grok Bot recipes. Native agent profiles are available through the
+Python installer and release ZIPs.
+
+Discover another skill before selecting it:
+
+```sh
+npx skills@1.5.26 add 00200200/maintainer-skills-lab --list
+npx skills@1.5.26 list --agent codex
+```
+
+To remove the selected skill from the project:
+
+```sh
+npx skills@1.5.26 remove mkl-humanize
+```
+
+Removal without `--agent` cleans up that named skill across the project's client
+directories, including shared copies. Preserve any edits you want to keep before
+removal or replacement. With this CLI version, agent-filtered removal can retain
+the shared copy if another detected client uses it. The Python installer's
+manifest protections below do not apply to CLI-managed files.
+
+The upstream CLI documents anonymous usage telemetry. Set `DISABLE_TELEMETRY=1`
+when running it to opt out; this also disables its security-audit requests.
+[Recorded installation checks and limits →](compatibility.md#skills-cli-installation-check)
+
+## Full library with Python
+
 Run `tools/kit.py` from a clone with Python 3.11+. The tool has no runtime
 dependencies and does not call model APIs or create GitHub changes.
 
@@ -14,8 +74,8 @@ python3 tools/kit.py install --target codex --project /existing/project
 | `claude` | `.claude/skills/mkl-*/` | `.claude/agents/mkl-*.md` |
 | `cursor` | `.cursor/skills/mkl-*/` | `.cursor/agents/mkl-*.md` |
 
-This preview installs the full library for one target. Per-skill selection is
-not implemented yet. Global installation and automatic changes to client
+This installer adds the full library for one target. Use the Skills CLI or manual
+copies for one skill. Global installation and automatic changes to client
 configuration files are outside this preview.
 
 ## Browse or copy one workflow
@@ -40,7 +100,7 @@ project installation target for Grok Bot; `build --target grok-bot` produces an
 archive with every workflow recipe and the first-task guides. A source update
 requires reviewing and updating the saved skill in the Bot; `sync` updates files only.
 
-## Updates
+## Python installer updates
 
 Update the source clone to the revision you intend to use, inspect its changes,
 and rerun `install`. The manifest at `.maintainer-skills-lab/<target>.json`
@@ -57,7 +117,7 @@ Avoid concurrently editing or running two installers on the destination.
 If a file conflicts, preserve your edits outside the installation path and
 resolve the conflict deliberately. There is no force-overwrite flag.
 
-## Removal
+## Python installer removal
 
 ```sh
 python3 tools/kit.py uninstall --target codex --project /existing/project --dry-run
@@ -69,6 +129,10 @@ predated installation remain in place. Local modifications stop uninstall so
 you can preserve them first. Missing owned files are tolerated.
 
 ## Archives
+
+Download a client ZIP from [GitHub Releases](https://github.com/00200200/maintainer-skills-lab/releases).
+Preview releases include the four bundles and `SHA256SUMS.txt`; the release notes
+identify their source revision and verification. To build them from a clone:
 
 ```sh
 python3 tools/kit.py build --target all
