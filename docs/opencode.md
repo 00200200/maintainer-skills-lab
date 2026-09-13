@@ -58,6 +58,10 @@ source-to-agent propagation, installation and removal. It checks agent metadata
 without adding model or permission settings. Skill Watch includes existing
 OpenCode exports in its impact report, and the builder produces an OpenCode ZIP.
 
-These are format, tool and fixture checks. OpenCode discovery, invocation and
-model output have not been evaluated in a live client. No API key or paid model
-call was used for these checks. No OpenCode lifecycle hook is installed.
+OpenCode 1.18.30 discovery and configuration loading were checked on macOS arm64:
+all 16 skill bodies and six agent prompts matched, and selected installation and
+skill removal were reflected in client diagnostics.
+[Repeat the optional client check and inspect the recorded result](../examples/opencode/README.md).
+
+Model invocation, output quality and permission enforcement remain unevaluated.
+No API key or paid model call was used. No OpenCode lifecycle hook is installed.

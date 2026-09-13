@@ -226,8 +226,10 @@ processes. [Inspect the fixture and its limits →](examples/bugfix/README.md)
 
 **Preview status:** source/export checks and tool/fixture tests are automated.
 Humanizer installation and removal with Skills CLI 1.5.26 were checked for all
-three original coding-client targets (Codex, Claude Code, Cursor). Live-client discovery, writing quality, and Grok Bot
-execution have not yet been evaluated. Native agents inherit model and execution policy from the host.
+three original coding-client targets (Codex, Claude Code, Cursor).
+[OpenCode 1.18.30 discovery and agent loading](examples/opencode/README.md) were
+checked on macOS arm64. Other live-client discovery, model outcomes, writing
+quality, and Grok Bot execution have not yet been evaluated. Native agents inherit model and execution policy from the host.
 [Compatibility matrix](docs/compatibility.md) · [Evaluation guide](evals/README.md)
 
 ## Make it useful for you
