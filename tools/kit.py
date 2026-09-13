@@ -20,6 +20,7 @@ TARGETS = {
     "claude": (".claude/skills", ".claude/agents", ".md"),
     "cursor": (".cursor/skills", ".cursor/agents", ".md"),
 }
+EXPORT_TARGETS = (*TARGETS, "groq", "grok-bot")
 NAME = re.compile(r"mkl-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 
@@ -117,6 +118,16 @@ def load_library(root: Path = ROOT) -> tuple[dict, dict]:
     return skills, agents
 
 
+def agent_body(agent: dict, skills: dict) -> str:
+    # Embed dependencies so an exported agent does not need another skill
+    # to be implicitly loaded by the client.
+    return (
+        agent["instructions"]
+        + "\n\n"
+        + "\n\n".join(skills[skill]["body"] for skill in agent["skills"])
+    )
+
+
 def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
     skills, agents = load_library(root)
     if target == "grok-bot":
@@ -124,19 +135,29 @@ def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
         if not files:
             raise KitError("Missing Grok Bot setup recipes")
         return {f"grok-bot/{name}": data for name, data in files.items()}
+    if target == "groq":
+        prompts = {f"skills/{name}.json": skill["body"] for name, skill in skills.items()}
+        prompts.update(
+            {f"agents/{name}.json": agent_body(agent, skills) for name, agent in agents.items()}
+        )
+        return {
+            name: (
+                json.dumps(
+                    {"messages": [{"role": "system", "content": body}]},
+                    indent=2,
+                    ensure_ascii=False,
+                )
+                + "\n"
+            ).encode("utf-8")
+            for name, body in prompts.items()
+        }
     skill_dir, agent_dir, extension = TARGETS[target]
     files = {}
     for name, skill in skills.items():
         for relative, data in skill["files"].items():
             files[f"{skill_dir}/{name}/{relative}"] = data
     for name, agent in agents.items():
-        # Embed the selected workflows, so native agents never depend on a
-        # source-repository path or another skill being implicitly loaded.
-        body = (
-            agent["instructions"]
-            + "\n\n"
-            + "\n\n".join(skills[skill]["body"] for skill in agent["skills"])
-        )
+        body = agent_body(agent, skills)
         if target == "codex":
             content = (
                 "\n".join(
@@ -158,6 +179,199 @@ def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
             )
         files[f"{agent_dir}/{name}{extension}"] = content.encode("utf-8")
     return files
+
+
+def provider_instructions(target: str) -> str:
+    if target == "groq":
+        return (
+            "These JSON files contain a `messages` array with one system prompt. "
+            "Load one file, append your user message, and supply your chosen model "
+            "to Groq's Chat Completions API. They contain no API key or model choice.\n\n"
+            "```python\n"
+            "import json\n"
+            "import os\n"
+            "from pathlib import Path\n\n"
+            "from groq import Groq\n\n"
+            "# Run from this Groq export directory.\n"
+            "prompt = json.loads(Path('skills/mkl-humanize.json').read_text())\n"
+            "response = Groq().chat.completions.create(\n"
+            "    model=os.environ['GROQ_MODEL'],\n"
+            "    messages=[*prompt['messages'], {\n"
+            "        'role': 'user',\n"
+            "        'content': 'Make this natural: We are thrilled to introduce preview mode.',\n"
+            "    }],\n"
+            ")\n"
+            "print(response.choices[0].message.content)\n"
+            "```\n\n"
+            "The application needs the `groq` Python package, `GROQ_API_KEY`, and "
+            "a `GROQ_MODEL` available to your account. Running this example makes "
+            "an API request; generation and validation of these files are offline. "
+            "This example has not been tested against a live model.\n\n"
+            "These are instruction-only templates. Your application supplies task "
+            "context, supporting resources, tool execution, and permissions. "
+            "Loading a prompt does not give it access to your repository or "
+            "implement an autonomous agent. Groq is separate from Grok Bot.\n\n"
+            "References: [text generation](https://console.groq.com/docs/text-chat), "
+            "[API reference](https://console.groq.com/docs/api-reference).\n"
+        )
+    if target == "grok-bot":
+        return (
+            "Follow [the setup guide](grok-bot/README.md) to configure a Bot and "
+            "save its skills. These are setup recipes; the library skills are "
+            "not automatically imported as Bots.\n"
+        )
+    skill_dir, agent_dir, extension = TARGETS[target]
+    return (
+        f"Copy the selected `mkl-*` skill folders into `{skill_dir}/` and agent "
+        f"files into `{agent_dir}/` in your project, keeping the paths shown here. "
+        f"Agent files use `{extension}`. Check existing files before copying.\n\n"
+        "For conflict detection, updates, and removal, use the installer from "
+        "the source clone:\n\n"
+        "```sh\n"
+        f"python3 tools/kit.py install --target {target} --project /existing/project\n"
+        "```\n\n"
+        "The installer reads the canonical source and installs the full library. "
+        "Live-client discovery and task outcomes have not yet been evaluated.\n"
+    )
+
+
+def provider_files(root: Path = ROOT) -> dict[str, bytes]:
+    """The checked-in, browsable catalogue uses the same exports as ZIPs/install."""
+    files = {}
+    for target in EXPORT_TARGETS:
+        files.update(
+            {f"{target}/{name}": data for name, data in export_files(target, root).items()}
+        )
+        files[f"{target}/README.md"] = (
+            f"# {target}\n\n"
+            "[All providers and source links](../README.md)\n\n"
+            + provider_instructions(target)
+            + "\nGenerated by `python3 tools/kit.py sync`. Edit the source, then regenerate.\n"
+        ).encode("utf-8")
+    skills, agents = load_library(root)
+    lines = [
+        "# Choose your provider",
+        "",
+        "One source workflow produces each provider version below. These files are",
+        "generated by `python3 tools/kit.py sync`; CI checks that they match the source.",
+        "",
+        " | ".join(f"[{target}]({target}/README.md)" for target in EXPORT_TARGETS),
+        "",
+        "Codex, Claude Code, and Cursor get native files. Groq gets API prompt",
+        "templates. Grok Bot has separate setup recipes. Format checks do not",
+        "establish live-client behavior.",
+    ]
+    for kind, items in (("skills", skills), ("agents", agents)):
+        lines += [
+            "",
+            f"## {kind.title()}",
+            "",
+            "| Source | Codex | Claude Code | Cursor | Groq API |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+        for name in items:
+            source = f"skills/{name}/SKILL.md" if kind == "skills" else f"agents/{name}.toml"
+            links = [f"[{name}](../{source})"]
+            for target in (*TARGETS, "groq"):
+                if target == "groq":
+                    relative = f"{kind}/{name}.json"
+                else:
+                    skill_dir, agent_dir, extension = TARGETS[target]
+                    relative = (
+                        f"{skill_dir}/{name}/SKILL.md"
+                        if kind == "skills"
+                        else f"{agent_dir}/{name}{extension}"
+                    )
+                links.append(f"[{target}]({target}/{relative})")
+            lines.append("| " + " | ".join(links) + " |")
+    files["README.md"] = ("\n".join(lines) + "\n").encode("utf-8")
+    return files
+
+
+def provider_path(relative: str) -> bool:
+    if not isinstance(relative, str):
+        return False
+    path = PurePosixPath(relative)
+    if path.is_absolute() or ".." in path.parts or "\\" in relative:
+        return False
+    if path.as_posix() != relative:
+        return False
+    if relative == "README.md":
+        return True
+    target, separator, rest = relative.partition("/")
+    if not separator or target not in EXPORT_TARGETS:
+        return False
+    if rest == "README.md":
+        return True
+    if target in TARGETS:
+        return managed_path(rest, target)
+    if target == "groq":
+        return (
+            len(path.parts) == 3
+            and path.parts[1] in {"skills", "agents"}
+            and path.suffix == ".json"
+            and NAME.fullmatch(path.stem) is not None
+        )
+    return rest.startswith("grok-bot/") and len(path.parts) >= 3
+
+
+def sync_providers(root: Path = ROOT, check: bool = False) -> dict:
+    root = root.resolve()
+    destination = checked_path(root, "providers")
+    if destination.exists() and not destination.is_dir():
+        raise KitError("providers must be a directory")
+    desired = provider_files(root)
+    manifest = checked_path(root, "providers/.manifest.json")
+    old = {}
+    if manifest.exists():
+        state = json.loads(manifest.read_text(encoding="utf-8"))
+        if not isinstance(state, dict) or state.get("schema_version") != 1:
+            raise KitError("Invalid provider manifest")
+        old = state.get("files")
+        if not isinstance(old, dict) or any(
+            not provider_path(name) or not isinstance(sha, str) or not SHA256.fullmatch(sha)
+            for name, sha in old.items()
+        ):
+            raise KitError("Invalid provider manifest paths or hashes")
+    writes, removals = {}, []
+    for relative in sorted(set(desired) | set(old)):
+        if not provider_path(relative):
+            raise KitError(f"Invalid provider path: {relative}")
+        path = checked_path(root, f"providers/{relative}")
+        current = current_digest(path)
+        wanted = digest(desired[relative]) if relative in desired else None
+        if current is not None and current != wanted and current != old.get(relative):
+            raise KitError(
+                f"Edited or unmanaged provider file: {relative}; preserve edits in the source "
+                "or restore the generated file before syncing"
+            )
+        if relative in desired and current != wanted:
+            writes[relative] = desired[relative]
+        elif relative not in desired and current is not None:
+            removals.append(relative)
+    state_bytes = (
+        json.dumps(
+            {"schema_version": 1, "files": {name: digest(data) for name, data in desired.items()}},
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode()
+    manifest_changed = not manifest.exists() or manifest.read_bytes() != state_bytes
+    if not check:
+        for relative, data in writes.items():
+            atomic_write(checked_path(root, f"providers/{relative}"), data)
+        for relative in removals:
+            checked_path(root, f"providers/{relative}").unlink()
+        if manifest_changed:
+            atomic_write(manifest, state_bytes)
+    return {
+        "up_to_date": not check or not (writes or removals or manifest_changed),
+        "check": check,
+        "written": sorted(writes),
+        "removed": removals,
+        "manifest_changed": manifest_changed,
+    }
 
 
 def managed_path(relative: str, target: str) -> bool:
@@ -331,14 +545,10 @@ def uninstall(target: str, project: Path, dry_run: bool = False) -> dict:
 def build(target: str, output: Path, root: Path = ROOT) -> Path:
     files = export_files(target, root)
     prefix = f"maintainer-skills-lab-{target}"
-    instructions = "# Installation\n\nExtract this archive into a temporary directory.\n\n" + (
-        "Follow grok-bot/README.md to configure a Bot and save its skills. "
-        "This archive is setup material, not an automatic Bot import.\n"
-        if target == "grok-bot"
-        else "Copy only the mkl-* skill folders and agent files into the matching "
-        "hidden directories of your project. Check existing files before copying. "
-        "For conflict detection and uninstall support, use tools/kit.py from "
-        "https://github.com/00200200/maintainer-skills-lab instead.\n"
+    instructions = (
+        "# Installation\n\nExtract this archive into a temporary directory.\n\n"
+        + provider_instructions(target)
+        + "\nSource: https://github.com/00200200/maintainer-skills-lab\n"
     )
     files["INSTALL.md"] = instructions.encode()
     files["LICENSE"] = (root / "LICENSE").read_bytes()
@@ -359,8 +569,10 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="List source skills and native agents")
     commands.add_parser("check", help="Validate this library and generate exports in memory")
+    sync_parser = commands.add_parser("sync", help="Regenerate the browsable provider catalogue")
+    sync_parser.add_argument("--check", action="store_true", help="Fail on drift without writing")
     build_parser = commands.add_parser("build", help="Build deterministic installation archives")
-    build_parser.add_argument("--target", choices=[*TARGETS, "grok-bot", "all"], default="all")
+    build_parser.add_argument("--target", choices=[*EXPORT_TARGETS, "all"], default="all")
     build_parser.add_argument("--output", type=Path, default=ROOT / "dist")
     for action in ("install", "uninstall"):
         action_parser = commands.add_parser(action, help=f"{action.title()} in one project")
@@ -385,7 +597,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.command == "check":
             skills, agents = load_library()
-            counts = {target: len(export_files(target)) for target in [*TARGETS, "grok-bot"]}
+            counts = {target: len(export_files(target)) for target in EXPORT_TARGETS}
             print(
                 json.dumps(
                     {
@@ -397,8 +609,13 @@ def main(argv: list[str] | None = None) -> int:
                     indent=2,
                 )
             )
+        elif args.command == "sync":
+            result = sync_providers(check=args.check)
+            print(json.dumps(result, indent=2))
+            if args.check and not result["up_to_date"]:
+                return 1
         elif args.command == "build":
-            targets = [*TARGETS, "grok-bot"] if args.target == "all" else [args.target]
+            targets = EXPORT_TARGETS if args.target == "all" else [args.target]
             print(
                 json.dumps(
                     {"archives": [str(build(target, args.output)) for target in targets]}, indent=2

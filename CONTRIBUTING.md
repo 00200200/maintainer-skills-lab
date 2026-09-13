@@ -9,13 +9,18 @@ Python 3.11+ is sufficient; no model API keys are needed.
 
 ```sh
 python3 tools/kit.py check
+python3 tools/kit.py sync --check
 python3 -m unittest discover -s tests -v
 python3 examples/bugfix/run.py --json
 python3 tools/kit.py build
 ```
 
 Edit shared instructions in `skills/` and agent definitions in `agents/`.
-Do not hand-edit built archives. Keep skill frontmatter in the supported source
+Run `python3 tools/kit.py sync` after a source change, and include the updated
+`providers/` files in the same commit. CI rejects source/export drift. One new
+skill generates its provider versions and catalogue links automatically; an
+agent definition can combine existing skills without copying their source text.
+Do not hand-edit provider copies or built archives. Keep skill frontmatter in the supported source
 subset: single-line, double-quoted `name` and `description` values. Use the
 `mkl-` namespace to avoid overriding a client's built-in workflows.
 
