@@ -35,6 +35,14 @@ they add meaningful evidence; do not commit timestamp-only rerun logs.
 
 ## Evidence record
 
+For the writing catalogue, use the [writing scenarios](../examples/writing/README.md)
+and each skill's worked example as acceptance guidance. Give the agent only the
+source and request; keep the example output and acceptance notes outside its
+workspace. Compare names, numbers, uncertainty, commands, tokens, and attribution
+against the source before judging style. Ask a fluent reader to assess whether
+the result fits the audience and voice. A phrase appearing in a prompt, a passing
+format check, or resemblance to the authored example is not evidence of quality.
+
 Use Markdown with the task, fixture revision, library revision, client/runtime,
 actual commands, relevant artifact paths or hashes, observed outcome, and checks
 not performed. Redact private data. Distinguish unsupported UI controls,

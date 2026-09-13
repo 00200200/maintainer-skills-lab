@@ -8,6 +8,14 @@
 - [x] Grok Bot Issue Scout and Release Reporter recipes.
 - [x] Installation tests and CI configuration.
 
+## Writing catalogue
+
+- [x] Eight distinct writing skills with inline worked examples: Humanizer, voice matching, README, tutorial, launch post, UX copy, PL/EN localization, and maintainer reply.
+- [x] A writing editor agent that embeds humanization and voice-matching instructions.
+- [x] Copyable Polish invocation prompts and acceptance scenarios for preserving facts, technical tokens, and uncertainty.
+- [ ] Run independent live-client writing evaluations, including a natural draft that should remain unchanged and a source containing embedded instructions.
+- [ ] Collect real writing samples and user feedback before adding more overlapping editing skills.
+
 ## Next increments
 
 1. Test skill discovery and explicit invocation in real Codex, Claude Code, and Cursor sessions; record exact versions and limitations.

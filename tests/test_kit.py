@@ -32,8 +32,8 @@ def copy_library(destination):
 class LibraryTests(unittest.TestCase):
     def test_native_agents_embed_their_workflows(self):
         skills, agents = kit.load_library()
-        self.assertEqual(len(skills), 6)
-        self.assertEqual(len(agents), 3)
+        self.assertTrue(skills)
+        self.assertTrue(agents)
         for target in kit.TARGETS:
             files = kit.export_files(target)
             skill_dir, agent_dir, extension = kit.TARGETS[target]
@@ -116,14 +116,21 @@ class InstallationTests(unittest.TestCase):
         for target in kit.TARGETS:
             with self.subTest(target=target):
                 result = kit.install(target, self.project)
-                self.assertEqual(len(result["written"]), 9)
-                self.assertEqual(len(snapshot(self.project)), 10)
+                exported = kit.export_files(target)
+                self.assertEqual(set(result["written"]), set(exported))
+                installed = snapshot(self.project)
+                manifest = installed.pop(f".maintainer-skills-lab/{target}.json")
+                self.assertEqual(installed, exported)
+                self.assertEqual(
+                    json.loads(manifest)["files"],
+                    {name: kit.digest(content) for name, content in exported.items()},
+                )
                 kit.uninstall(target, self.project)
                 self.assertEqual(snapshot(self.project), {})
 
     def test_dry_run_has_no_side_effects(self):
         result = kit.install("codex", self.project, dry_run=True)
-        self.assertEqual(len(result["written"]), 9)
+        self.assertEqual(set(result["written"]), set(kit.export_files("codex")))
         self.assertEqual(list(self.project.iterdir()), [])
 
     def test_second_install_is_noop_and_keeps_configuration(self):
@@ -249,7 +256,10 @@ class InstallationTests(unittest.TestCase):
     def test_uninstall_dry_run_preserves_everything(self):
         kit.install("claude", self.project)
         initial = snapshot(self.project)
-        self.assertEqual(len(kit.uninstall("claude", self.project, dry_run=True)["removed"]), 9)
+        self.assertEqual(
+            set(kit.uninstall("claude", self.project, dry_run=True)["removed"]),
+            set(kit.export_files("claude")),
+        )
         self.assertEqual(initial, snapshot(self.project))
 
     def test_cli_input_error_is_concise_and_nonzero(self):

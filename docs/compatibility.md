@@ -8,6 +8,11 @@ This preview targets project-local installation. The following are distinct:
 
 Passing the first two does not establish the third.
 
+The writing catalogue includes authored worked examples and manual acceptance
+scenarios. Export and installation checks cover those skills as files, including
+Polish text in the embedded writing agent. No writing-quality benchmark or
+independent live-client evaluation is claimed.
+
 | Surface | Format | Current evidence | Live-client status |
 | --- | --- | --- | --- |
 | Codex skills | `SKILL.md` under `.agents/skills/` | Export and installer tests | Not yet evaluated |
