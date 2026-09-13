@@ -13,6 +13,7 @@ establish live-client behavior.
 
 | Source | Codex | Claude Code | Cursor | Grok Bot |
 | --- | --- | --- | --- | --- |
+| [mkl-debug-ml-training](../skills/mkl-debug-ml-training/SKILL.md) | [codex](codex/.agents/skills/mkl-debug-ml-training/SKILL.md) | [claude](claude/.claude/skills/mkl-debug-ml-training/SKILL.md) | [cursor](cursor/.cursor/skills/mkl-debug-ml-training/SKILL.md) | [grok-bot](grok-bot/skills/mkl-debug-ml-training.md) |
 | [mkl-humanize](../skills/mkl-humanize/SKILL.md) | [codex](codex/.agents/skills/mkl-humanize/SKILL.md) | [claude](claude/.claude/skills/mkl-humanize/SKILL.md) | [cursor](cursor/.cursor/skills/mkl-humanize/SKILL.md) | [grok-bot](grok-bot/skills/mkl-humanize.md) |
 | [mkl-localize-pl-en](../skills/mkl-localize-pl-en/SKILL.md) | [codex](codex/.agents/skills/mkl-localize-pl-en/SKILL.md) | [claude](claude/.claude/skills/mkl-localize-pl-en/SKILL.md) | [cursor](cursor/.cursor/skills/mkl-localize-pl-en/SKILL.md) | [grok-bot](grok-bot/skills/mkl-localize-pl-en.md) |
 | [mkl-match-voice](../skills/mkl-match-voice/SKILL.md) | [codex](codex/.agents/skills/mkl-match-voice/SKILL.md) | [claude](claude/.claude/skills/mkl-match-voice/SKILL.md) | [cursor](cursor/.cursor/skills/mkl-match-voice/SKILL.md) | [grok-bot](grok-bot/skills/mkl-match-voice.md) |
@@ -33,6 +34,7 @@ establish live-client behavior.
 | Source | Codex | Claude Code | Cursor | Grok Bot |
 | --- | --- | --- | --- | --- |
 | [mkl-bug-investigator](../agents/mkl-bug-investigator.toml) | [codex](codex/.codex/agents/mkl-bug-investigator.toml) | [claude](claude/.claude/agents/mkl-bug-investigator.md) | [cursor](cursor/.cursor/agents/mkl-bug-investigator.md) | [grok-bot](grok-bot/agents/mkl-bug-investigator.md) |
+| [mkl-ml-investigator](../agents/mkl-ml-investigator.toml) | [codex](codex/.codex/agents/mkl-ml-investigator.toml) | [claude](claude/.claude/agents/mkl-ml-investigator.md) | [cursor](cursor/.cursor/agents/mkl-ml-investigator.md) | [grok-bot](grok-bot/agents/mkl-ml-investigator.md) |
 | [mkl-pr-reviewer](../agents/mkl-pr-reviewer.toml) | [codex](codex/.codex/agents/mkl-pr-reviewer.toml) | [claude](claude/.claude/agents/mkl-pr-reviewer.md) | [cursor](cursor/.cursor/agents/mkl-pr-reviewer.md) | [grok-bot](grok-bot/agents/mkl-pr-reviewer.md) |
 | [mkl-release-editor](../agents/mkl-release-editor.toml) | [codex](codex/.codex/agents/mkl-release-editor.toml) | [claude](claude/.claude/agents/mkl-release-editor.md) | [cursor](cursor/.cursor/agents/mkl-release-editor.md) | [grok-bot](grok-bot/agents/mkl-release-editor.md) |
 | [mkl-writing-editor](../agents/mkl-writing-editor.toml) | [codex](codex/.codex/agents/mkl-writing-editor.toml) | [claude](claude/.claude/agents/mkl-writing-editor.md) | [cursor](cursor/.cursor/agents/mkl-writing-editor.md) | [grok-bot](grok-bot/agents/mkl-writing-editor.md) |

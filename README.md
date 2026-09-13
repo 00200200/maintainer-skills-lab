@@ -20,9 +20,9 @@
 
 # Maintainer Skills Lab
 
-**Make stiff drafts readable. Give your coding agent a repeatable way to investigate bugs and review PRs.**
+**Make stiff drafts readable. Debug code and ML training with reproducible evidence.**
 
-14 skills and 4 agent profiles for **Codex, Claude Code, Cursor, and Grok Bot**.
+15 skills and 5 agent profiles for **Codex, Claude Code, Cursor, and Grok Bot**.
 The workflows share one Markdown source, with generated versions for each client.
 Start with one skill, or get the full library with its agents.
 
@@ -68,14 +68,35 @@ Grok Bot uses [manual setup recipes](grok-bot/README.md).
 | --- | --- | --- |
 | Keep a consistent writing voice | [Match voice](skills/mkl-match-voice/SKILL.md) | An edit grounded in supplied writing samples |
 | Fix a bug with evidence | [Reproduce bug](skills/mkl-reproduce-bug/SKILL.md) → [Verify fix](skills/mkl-verify-fix/SKILL.md) | An observed failure and a comparable check of the fix |
+| Debug a training run | [Debug ML training](skills/mkl-debug-ml-training/SKILL.md) | Focused PyTorch, Lightning, and TensorFlow/Keras diagnostics with a [runnable example](examples/ml-training/README.md) |
 | Review a pull request | [Review PR](skills/mkl-review-pr/SKILL.md) | Actionable findings with locations and consequences |
 | Explain your project | [Write README](skills/mkl-write-readme/SKILL.md) | An introduction and quickstart grounded in the actual repository |
 | Work in Polish and English | [Localize PL ↔ EN](skills/mkl-localize-pl-en/SKILL.md) | Natural wording with commands, placeholders, and meaning preserved |
 
-**[Browse all 14 skills and 4 agents →](providers/README.md)**
+**[Browse all 15 skills and 5 agents →](providers/README.md)**
 Includes tutorials, UX copy, launch posts, maintainer replies, issue triage,
-regression tests, and releases. The four agent profiles combine these workflows
-for bug investigation, PR review, release editing, and writing.
+regression tests, and releases. The five agent profiles combine these workflows
+for bug investigation, ML training diagnosis, PR review, release editing, and writing.
+
+## Debug a loss that looks wrong
+
+Your predictions are `[[1], [3]]`, your labels are `[1, 3]`, and the raw mean
+squared residual is **2**. Why isn't it zero? Broadcasting compares every
+prediction with every label. Aligning these scalar regression labels produces
+the intended per-example loss of **0**.
+
+[Debug ML training](skills/mkl-debug-ml-training/SKILL.md) helps investigate shape
+errors, NaNs, missing gradients, and reproducibility problems in **PyTorch,
+Lightning, and TensorFlow/Keras**. The
+[ML investigator agent](agents/mkl-ml-investigator.toml) combines it with fix
+verification. These frameworks are the subject of the task; use the skill in
+your existing Codex, Claude Code, Cursor, or Grok Bot setup.
+
+> Use mkl-debug-ml-training to investigate this training failure. Keep the
+> current framework and compare one fixed batch before and after the proposed fix.
+
+[Run the CPU example in your framework →](examples/ml-training/README.md)
+It checks loss, gradients, and an optimizer update against an analytical result.
 
 ## Start in a minute
 
