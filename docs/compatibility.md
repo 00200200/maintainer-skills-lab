@@ -56,9 +56,11 @@ listed in the [installation guide](install.md#one-skill-with-the-skills-cli).
 The installed skill's SHA-256 was
 `b06fd6512cbbe11af6dbe6c3b78db133e80e3b096eccfd41d31f9c498a1d4ae6`.
 The CLI listed the selected skill, and removal deleted its files while preserving
-an unrelated sentinel file. Telemetry was disabled for these checks. This check
-predates `scripts/check_facts.py`; whether the Skills CLI copies that resource has
-not been rechecked.
+an unrelated sentinel file. Telemetry was disabled for these checks. This historical check predates
+`scripts/check_facts.py`. A later [resource installation diagnostic](../examples/skills-cli/README.md)
+verified copying, execution, and removal of the checker with Skills CLI 1.5.26
+and Node.js 22.20.0 on macOS for all three targets. That diagnostic uses the
+local checkout and does not repeat public-repository cloning.
 
 One preliminary `remove mkl-humanize --agent codex --yes` reported success but
 retained the shared skill directory. The documented removal command omits the
