@@ -1,0 +1,70 @@
+# Installation and updates
+
+Run `tools/kit.py` from a clone with Python 3.11+. The tool has no runtime
+dependencies and does not call model APIs or create GitHub changes.
+
+```sh
+python3 tools/kit.py install --target codex --project /existing/project --dry-run
+python3 tools/kit.py install --target codex --project /existing/project
+```
+
+| Target | Skills | Native agents |
+| --- | --- | --- |
+| `codex` | `.agents/skills/mkl-*/` | `.codex/agents/mkl-*.toml` |
+| `claude` | `.claude/skills/mkl-*/` | `.claude/agents/mkl-*.md` |
+| `cursor` | `.cursor/skills/mkl-*/` | `.cursor/agents/mkl-*.md` |
+
+This preview installs the full library for one target. Per-skill selection is
+not implemented yet. Global installation and automatic changes to client
+configuration files are outside this preview.
+
+## Updates
+
+Update the source clone to the revision you intend to use, inspect its changes,
+and rerun `install`. The manifest at `.maintainer-skills-lab/<target>.json`
+contains SHA-256 hashes of owned files. The installer updates or removes a
+previously installed file only if its current content still matches the manifest.
+It never adopts an identical pre-existing unowned file. Keep the manifest with
+the installed files if you want future update and uninstall protection.
+
+An unchanged install leaves files and their modification times unchanged. All
+content and path conflicts are checked before writes begin. Individual file
+replacements are atomic; the whole multi-file installation is not a transaction.
+Avoid concurrently editing or running two installers on the destination.
+
+If a file conflicts, preserve your edits outside the installation path and
+resolve the conflict deliberately. There is no force-overwrite flag.
+
+## Removal
+
+```sh
+python3 tools/kit.py uninstall --target codex --project /existing/project --dry-run
+python3 tools/kit.py uninstall --target codex --project /existing/project
+```
+
+Only unchanged owned files are removed. Unrelated files and identical files that
+predated installation remain in place. Local modifications stop uninstall so
+you can preserve them first. Missing owned files are tolerated.
+
+## Archives
+
+```sh
+python3 tools/kit.py build --target all
+```
+
+Each ZIP has its own top-level directory, license, and `INSTALL.md`. Extract to
+a temporary directory. For coding clients, copy only the namespaced skill
+folders and agent files into the matching directories in your project. Manual
+copies do not create an installer manifest; use the clone-based installer for
+ownership-aware updates and removal.
+
+The Grok Bot archive contains setup recipes. Follow its guide inside Grok Bot;
+copying an archive to a coding repository does not create a Bot, skill, or routine.
+
+## Exit status
+
+- `0`: operation or validation completed; inspect JSON for planned changes.
+- `2`: invalid arguments, invalid library input, filesystem error, or conflict.
+
+The bundled regression example separately returns `1` when its expected
+baseline-fails/candidate-passes comparison is not established.

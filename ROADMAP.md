@@ -2,11 +2,11 @@
 
 ## First preview
 
-- [ ] Six skills and three native agent profiles.
-- [ ] List, validate, build, install, and uninstall commands.
-- [ ] An executable bug-to-regression-test example.
-- [ ] Grok Bot Issue Scout and Release Reporter recipes.
-- [ ] Installation tests and CI.
+- [x] Six skills and three native agent profiles.
+- [x] List, validate, build, install, and uninstall commands.
+- [x] An executable bug-to-regression-test example.
+- [x] Grok Bot Issue Scout and Release Reporter recipes.
+- [x] Installation tests and CI configuration.
 
 ## Next increments
 
@@ -17,5 +17,7 @@
 5. Add a release example with a real breaking change and migration notes.
 6. Add cross-client discovery checks when more than one bundle is installed.
 7. Collect external feedback and prioritize demonstrated failures.
+8. Add per-skill installation with explicit agent dependency handling.
+9. Add a Python/pytest variant of the dependency-free regression example.
 
 Every skill should explain its purpose, give a runnable or inspectable example, and state the evidence behind its validation status. Add a new workflow only when it addresses a distinct need.
