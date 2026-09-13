@@ -118,6 +118,9 @@ def fetch(url):
                 size += len(chunk)
                 if size > MAX_BYTES:
                     raise WatchError("Source exceeds the 1 MB response limit")
+            # read1() can return EOF without raising for an unsatisfied Content-Length.
+            if response.length is not None and response.length > 0:
+                raise WatchError("Source response ended before Content-Length was satisfied")
             encoding = response.headers.get_content_charset() or "utf-8"
             content = b"".join(chunks).decode(encoding)
             if media_type == "text/html":

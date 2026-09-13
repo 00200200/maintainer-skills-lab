@@ -1,5 +1,6 @@
 import contextlib
 import copy
+import http.client
 import importlib.util
 import io
 import json
@@ -7,7 +8,6 @@ import socket
 import sys
 import tempfile
 import unittest
-from email.message import Message
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -19,6 +19,17 @@ import watch_fetch as wf  # noqa: E402
 spec = importlib.util.spec_from_file_location("watch_demo", ROOT / "examples/skill-watch/run.py")
 demo = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(demo)
+
+
+def http_response(data, kind="text/html", status=200, headers=None):
+    metadata = {"Content-Type": kind, **(headers or {})}
+    head = f"HTTP/1.1 {status} Test\r\n"
+    head += "".join(f"{key}: {value}\r\n" for key, value in metadata.items())
+    sock = Mock()
+    sock.makefile.return_value = io.BytesIO(head.encode("ascii") + b"\r\n" + data)
+    response = http.client.HTTPResponse(sock)
+    response.begin()
+    return response
 
 
 class WatchTests(unittest.TestCase):
@@ -104,6 +115,45 @@ class WatchTests(unittest.TestCase):
         with self.assertRaises(sw.WatchError):
             self.watch.snapshot()
         self.assertFalse(self.watch.state.exists())
+
+    def test_incomplete_response_cannot_create_partial_baseline(self):
+        source = {**self.watch.sources["training"], "id": "incomplete"}
+        source.pop("file")
+        source["url"] = "https://example.org/docs"
+        self.watch.sources["incomplete"] = source
+        content = (demo.HERE / "before.html").read_bytes()
+        with patch.object(wf, "PublicHTTPS") as connection:
+            connection.return_value.getresponse.return_value = http_response(
+                content, headers={"Content-Length": len(content) + 100}
+            )
+            with self.assertRaises(sw.WatchError):
+                self.watch.snapshot()
+        self.assertFalse(self.watch.state.parent.exists())
+
+    def test_incomplete_response_is_error_and_cannot_replace_baseline(self):
+        self.watch.sources["training"].pop("file")
+        self.watch.sources["training"]["url"] = "https://example.org/docs"
+        content = (demo.HERE / "before.html").read_bytes()
+        with patch.object(wf, "PublicHTTPS") as connection:
+            connection.return_value.getresponse.return_value = http_response(
+                content, headers={"Content-Length": len(content)}
+            )
+            self.watch.snapshot()
+            before = self.watch.state.read_bytes()
+            mtime = self.watch.state.stat().st_mtime_ns
+            baseline, _ = self.watch.baseline()
+            expected = baseline["sources"]["training"]["sha256"]
+            # Every selected marker still exists in this incomplete response.
+            connection.return_value.getresponse.side_effect = lambda: http_response(
+                content, headers={"Content-Length": len(content) + 100}
+            )
+            result = self.watch.check()
+            self.assertEqual(result["status"], "error")
+            self.assertEqual(result["sources"][0]["status"], "error")
+            with self.assertRaises(sw.WatchError):
+                self.watch.accept("training", expected)
+        self.assertEqual(self.watch.state.read_bytes(), before)
+        self.assertEqual(self.watch.state.stat().st_mtime_ns, mtime)
 
     def test_accept_requires_current_reviewed_hash_and_preserves_other_entries(self):
         self.watch.snapshot()
@@ -244,22 +294,11 @@ class RetrievalTests(unittest.TestCase):
             connect.return_value, server_hostname="example.org"
         )
 
-    def response(self, data, kind="text/html", status=200, headers=None):
-        response = Mock()
-        response.status = status
-        metadata = {"Content-Type": kind, **(headers or {})}
-        response.getheader.side_effect = lambda key, default=None: metadata.get(key, default)
-        response.headers = Message()
-        response.headers["Content-Type"] = kind
-        stream = io.BytesIO(data)
-        response.read1.side_effect = stream.read
-        return response
-
     def test_html_refresh_is_followed_without_executing_scripts(self):
-        first = self.response(
+        first = http_response(
             b'<meta http-equiv="refresh" content="0; url=/v2/docs"><script>bad()</script>'
         )
-        second = self.response(b"<p>real docs</p>")
+        second = http_response(b"<p>real docs</p>")
         with patch.object(wf, "PublicHTTPS") as connection:
             connection.return_value.getresponse.side_effect = [first, second]
             text, _, resolved = wf.fetch("https://example.org/stable")
@@ -269,9 +308,9 @@ class RetrievalTests(unittest.TestCase):
 
     def test_redirect_downgrade_oversize_and_http_errors_fail(self):
         responses = [
-            self.response(b"", status=302, headers={"Location": "http://example.org"}),
-            self.response(b"x" * (wf.MAX_BYTES + 1)),
-            self.response(b"unavailable", status=503),
+            http_response(b"", status=302, headers={"Location": "http://example.org"}),
+            http_response(b"x" * (wf.MAX_BYTES + 1)),
+            http_response(b"unavailable", status=503),
         ]
         for response in responses:
             with (
@@ -281,6 +320,35 @@ class RetrievalTests(unittest.TestCase):
                 connection.return_value.getresponse.return_value = response
                 with self.assertRaises(wf.WatchError):
                     wf.fetch("https://example.org")
+
+    def test_complete_http_framing_is_supported(self):
+        cases = (
+            (b"docs", {"Content-Length": 4}),
+            (b"2\r\ndo\r\n2\r\ncs\r\n0\r\n\r\n", {"Transfer-Encoding": "chunked"}),
+            (b"docs", {"Connection": "close"}),
+        )
+        for body, headers in cases:
+            with self.subTest(headers=headers), patch.object(wf, "PublicHTTPS") as connection:
+                connection.return_value.getresponse.return_value = http_response(
+                    body, kind="text/plain", headers=headers
+                )
+                self.assertEqual(wf.fetch("https://example.org/docs")[0], "docs")
+
+    def test_incomplete_http_bodies_are_errors(self):
+        cases = (
+            (b"complete selected paragraph", {"Content-Length": 100}),
+            (b"", {"Content-Length": 1}),
+            (b"4\r\ndo", {"Transfer-Encoding": "chunked"}),
+            (b"4\r\ndocs\r\n", {"Transfer-Encoding": "chunked"}),
+        )
+        for body, headers in cases:
+            with self.subTest(body=body), patch.object(wf, "PublicHTTPS") as connection:
+                connection.return_value.getresponse.return_value = http_response(
+                    body, kind="text/plain", headers=headers
+                )
+                with self.assertRaises(wf.WatchError):
+                    wf.fetch("https://example.org/docs")
+                connection.return_value.close.assert_called_once_with()
 
     def test_socket_timeout_is_not_a_valid_empty_source(self):
         with patch.object(wf, "PublicHTTPS") as connection:
