@@ -12,6 +12,7 @@
 
 <p align="center">
   <a href="#try-humanizer"><b>Try Humanizer</b></a> ·
+  <a href="docs/task-gallery.md"><b>Copy a task prompt</b></a> ·
   <a href="providers/README.md"><b>Explore the skills</b></a> ·
   <a href="https://github.com/00200200/maintainer-skills-lab/releases">Download ZIPs</a> ·
   <a href="grok-bot/README.md">Grok Bot</a> ·
@@ -68,6 +69,10 @@ For **OpenCode**, use the Python installer with `--target opencode`.
 Grok Bot uses [manual setup recipes](grok-bot/README.md).
 
 ## Find your next useful skill
+
+**[Pick a task and copy its prompt →](docs/task-gallery.md)** Eight starting
+points for writing, translation, code review, bug reproduction, and ML debugging.
+Each includes the input to bring and what to check in the result.
 
 | You want to… | Start here | What you get |
 | --- | --- | --- |
@@ -237,6 +242,8 @@ quality, and Grok Bot execution have not yet been evaluated. Native agents inher
 Missing a workflow or found a rough edge? [Open an issue](https://github.com/00200200/maintainer-skills-lab/issues/new)
 with the task and a small example. To contribute a skill, edit one source and
 generate the client versions: [contribution guide](CONTRIBUTING.md).
+You can also [contribute one task recipe](CONTRIBUTING.md#contribute-a-task-recipe)
+for an existing skill, with sample input and a clear way to assess its result.
 
 If a skill earns a place in your workflow, **star the repository** to find it again.
 To hear about changes, use GitHub's **Watch → Custom → Releases**.
