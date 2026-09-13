@@ -14,6 +14,7 @@
   <a href="#try-humanizer"><b>Try Humanizer</b></a> ·
   <a href="docs/task-gallery.md"><b>Copy a task prompt</b></a> ·
   <a href="providers/README.md"><b>Explore the skills</b></a> ·
+  <a href="https://github.com/00200200/maintainer-skills-lab"><b>☆ Star on GitHub</b></a> ·
   <a href="https://github.com/00200200/maintainer-skills-lab/releases">Download ZIPs</a> ·
   <a href="grok-bot/README.md">Grok Bot</a> ·
   <a href="hooks/README.md">Hooks</a>
@@ -256,7 +257,8 @@ generate the client versions: [contribution guide](CONTRIBUTING.md).
 You can also [contribute one task recipe](CONTRIBUTING.md#contribute-a-task-recipe)
 for an existing skill, with sample input and a clear way to assess its result.
 
-If a skill earns a place in your workflow, **star the repository** to find it again.
+If a skill earns a place in your workflow,
+**[star the repository](https://github.com/00200200/maintainer-skills-lab)** to find it again.
 To hear about changes, use GitHub's **Watch → Custom → Releases**.
 
 ## Community, in numbers
