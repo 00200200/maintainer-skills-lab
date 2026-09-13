@@ -24,6 +24,11 @@ def snapshot(directory):
     }
 
 
+def humanizer_files(prefix):
+    """Installed paths for every file in the Humanizer source folder, sorted like the kit."""
+    return sorted(f"{prefix}/{name}" for name in kit.source_files(ROOT / "skills/mkl-humanize"))
+
+
 def copy_library(destination):
     for name in ("skills", "agents", "grok-bot"):
         shutil.copytree(ROOT / name, destination / name)
@@ -504,14 +509,14 @@ class SelectedInstallationTests(unittest.TestCase):
 
     def test_one_skill_includes_resources_without_installing_agents_for_each_target(self):
         resource = self.root / "skills/mkl-humanize/references/style.txt"
-        resource.parent.mkdir()
+        resource.parent.mkdir(exist_ok=True)
         resource.write_text("A supporting reference")
         for target, (skill_dir, agent_dir, _) in kit.TARGETS.items():
             with self.subTest(target=target):
                 result = kit.install(target, self.project, self.root, skill_names=["mkl-humanize"])
                 expected = {
-                    f"{skill_dir}/mkl-humanize/{part}"
-                    for part in ("SKILL.md", "references/style.txt", "scripts/check_facts.py")
+                    *humanizer_files(f"{skill_dir}/mkl-humanize"),
+                    f"{skill_dir}/mkl-humanize/references/style.txt",
                 }
                 self.assertEqual(set(result["written"]), expected)
                 self.assertFalse((self.project / agent_dir).exists())
@@ -564,7 +569,9 @@ class SelectedInstallationTests(unittest.TestCase):
     def test_selected_dry_runs_and_repeated_install_preserve_files_and_mtimes(self):
         names = ["mkl-humanize", "mkl-match-voice", "mkl-humanize"]
         result = kit.install("cursor", self.project, self.root, dry_run=True, skill_names=names)
-        self.assertEqual(len(result["written"]), 3)
+        self.assertEqual(
+            len(result["written"]), len(humanizer_files("")) + 1
+        )  # Humanizer's files plus mkl-match-voice/SKILL.md.
         self.assertEqual(result["selected_skills"], ["mkl-humanize", "mkl-match-voice"])
         self.assertEqual(list(self.project.iterdir()), [])
         kit.install("cursor", self.project, self.root, skill_names=names)
@@ -576,13 +583,7 @@ class SelectedInstallationTests(unittest.TestCase):
         self.assertEqual(result["written"], [])
         self.assertFalse(result["manifest_changed"])
         preview = kit.uninstall("cursor", self.project, dry_run=True, skill_names=["mkl-humanize"])
-        self.assertEqual(
-            preview["removed"],
-            [
-                ".cursor/skills/mkl-humanize/SKILL.md",
-                ".cursor/skills/mkl-humanize/scripts/check_facts.py",
-            ],
-        )
+        self.assertEqual(preview["removed"], humanizer_files(".cursor/skills/mkl-humanize"))
         self.assertEqual(snapshot(self.project), before)
         self.assertEqual({path: path.stat().st_mtime_ns for path in mtimes}, mtimes)
 
@@ -628,10 +629,7 @@ class SelectedInstallationTests(unittest.TestCase):
         other.write_text("Local voice edits")
         before = snapshot(self.project)
         result = kit.uninstall("codex", self.project, skill_names=["mkl-humanize"])
-        humanizer = [
-            ".agents/skills/mkl-humanize/SKILL.md",
-            ".agents/skills/mkl-humanize/scripts/check_facts.py",
-        ]
+        humanizer = humanizer_files(".agents/skills/mkl-humanize")
         self.assertEqual(result["removed"], humanizer)
         after = snapshot(self.project)
         for name, data in before.items():
@@ -701,13 +699,7 @@ class SelectedInstallationTests(unittest.TestCase):
 
         run("install", "--skill", "mkl-humanize", "--skill", "mkl-match-voice")
         result = run("uninstall", "--skill", "mkl-humanize")
-        self.assertEqual(
-            result["removed"],
-            [
-                ".agents/skills/mkl-humanize/SKILL.md",
-                ".agents/skills/mkl-humanize/scripts/check_facts.py",
-            ],
-        )
+        self.assertEqual(result["removed"], humanizer_files(".agents/skills/mkl-humanize"))
         self.assertTrue((self.project / ".agents/skills/mkl-match-voice/SKILL.md").exists())
         self.assertFalse((self.project / ".codex/agents").exists())
 

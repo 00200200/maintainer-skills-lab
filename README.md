@@ -95,6 +95,7 @@ Each includes the input to bring and what to check in the result.
 | Review changed reference docs | [Review source change](skills/mkl-review-source-change/SKILL.md) | Supported instruction updates, unaffected claims, and gaps that need evidence |
 | Explain your project | [Write README](skills/mkl-write-readme/SKILL.md) | An introduction and quickstart grounded in the actual repository |
 | Work in Polish and English | [Localize PL ↔ EN](skills/mkl-localize-pl-en/SKILL.md) | Natural wording with commands, placeholders, and meaning preserved |
+| Humanize a Polish draft | [Humanize](skills/mkl-humanize/SKILL.md) + [Polish notes](skills/mkl-humanize/references/pl.md) | Stock phrases and English calques replaced, negations and hedges kept |
 
 **[Browse all 16 skills and 6 agents →](providers/README.md)**
 Includes tutorials, UX copy, launch posts, maintainer replies, issue triage,

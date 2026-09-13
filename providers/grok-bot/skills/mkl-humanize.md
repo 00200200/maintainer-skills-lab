@@ -30,6 +30,8 @@ Compare the rewrite against the source claim by claim. Keep meaningful limitatio
 
 If this skill's folder contains `scripts/check_facts.py` and Python 3.9+ is available, save the source and the rewrite as temporary files and run the script with both paths. It lists code, URLs, long option names such as `--dry-run`, placeholders, quotations, numbers, negations, and hedge words that were dropped or added, and exits with status 1 when it finds any. Restore each listed item or state why the change is intended. The script does not check meaning, emphasis, or attribution, so a clean result does not replace the claim-by-claim comparison.
 
+If the draft is in Polish and this skill's folder contains `references/pl.md`, read it before editing. It lists Polish stock phrases, calques from English, register choices, and the negation and hedge words that must survive. Do not apply its English-oriented advice to other languages.
+
 Return the finished passage. Add a short note only for unresolved factual ambiguity or a material editorial choice; provide a detailed change explanation when requested.
 
 ## Worked example
