@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contribution guide
+    url: https://github.com/00200200/maintainer-skills-lab/blob/main/CONTRIBUTING.md
+    about: Add one source skill and generate its provider versions.

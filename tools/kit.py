@@ -20,7 +20,7 @@ TARGETS = {
     "claude": (".claude/skills", ".claude/agents", ".md"),
     "cursor": (".cursor/skills", ".cursor/agents", ".md"),
 }
-EXPORT_TARGETS = (*TARGETS, "groq", "grok-bot")
+EXPORT_TARGETS = (*TARGETS, "grok-bot")
 NAME = re.compile(r"mkl-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 
@@ -134,23 +134,30 @@ def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
         files = source_files(root / "grok-bot")
         if not files:
             raise KitError("Missing Grok Bot setup recipes")
-        return {f"grok-bot/{name}": data for name, data in files.items()}
-    if target == "groq":
-        prompts = {f"skills/{name}.json": skill["body"] for name, skill in skills.items()}
-        prompts.update(
-            {f"agents/{name}.json": agent_body(agent, skills) for name, agent in agents.items()}
-        )
-        return {
-            name: (
-                json.dumps(
-                    {"messages": [{"role": "system", "content": body}]},
-                    indent=2,
-                    ensure_ascii=False,
+        exports = {f"grok-bot/{name}": data for name, data in files.items()}
+        for kind, items in (("skills", skills), ("agents", agents)):
+            for name, item in items.items():
+                body = item["body"] if kind == "skills" else agent_body(item, skills)
+                content = (
+                    f"# {name}\n\n{item['description']}\n\n"
+                    "## Use in Grok Bot\n\n"
+                    "This is a Markdown setup recipe for Grok Bot (SpaceXAI). "
+                    "It has not been evaluated in a live Bot.\n\n"
+                    "1. Open an existing Bot or create one with this job.\n"
+                    "2. Give it the workflow below with a concrete task and the required "
+                    "inputs or supporting files. Choose the access and approval limits.\n"
+                    "3. Run the task once and inspect its output against the workflow checks.\n"
+                    f'4. Ask: "Save this validated workflow as a skill called {name}."\n'
+                    "5. Check that the skill is enabled for this Bot in "
+                    "Settings → Plugins → Yours, then invoke it from the `/` menu.\n\n"
+                    "An agent recipe combines its source instructions and dependent skills "
+                    "below. Copying this file does not create a Bot or routine.\n\n"
+                    "Reference: [Grok Bot skills and routines]"
+                    "(https://docs.x.ai/grok-bot/skills-routines-and-automations).\n\n"
+                    "## Workflow\n\n" + body + "\n"
                 )
-                + "\n"
-            ).encode("utf-8")
-            for name, body in prompts.items()
-        }
+                exports[f"{kind}/{name}.md"] = content.encode("utf-8")
+        return exports
     skill_dir, agent_dir, extension = TARGETS[target]
     files = {}
     for name, skill in skills.items():
@@ -182,43 +189,12 @@ def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
 
 
 def provider_instructions(target: str) -> str:
-    if target == "groq":
-        return (
-            "These JSON files contain a `messages` array with one system prompt. "
-            "Load one file, append your user message, and supply your chosen model "
-            "to Groq's Chat Completions API. They contain no API key or model choice.\n\n"
-            "```python\n"
-            "import json\n"
-            "import os\n"
-            "from pathlib import Path\n\n"
-            "from groq import Groq\n\n"
-            "# Run from this Groq export directory.\n"
-            "prompt = json.loads(Path('skills/mkl-humanize.json').read_text())\n"
-            "response = Groq().chat.completions.create(\n"
-            "    model=os.environ['GROQ_MODEL'],\n"
-            "    messages=[*prompt['messages'], {\n"
-            "        'role': 'user',\n"
-            "        'content': 'Make this natural: We are thrilled to introduce preview mode.',\n"
-            "    }],\n"
-            ")\n"
-            "print(response.choices[0].message.content)\n"
-            "```\n\n"
-            "The application needs the `groq` Python package, `GROQ_API_KEY`, and "
-            "a `GROQ_MODEL` available to your account. Running this example makes "
-            "an API request; generation and validation of these files are offline. "
-            "This example has not been tested against a live model.\n\n"
-            "These are instruction-only templates. Your application supplies task "
-            "context, supporting resources, tool execution, and permissions. "
-            "Loading a prompt does not give it access to your repository or "
-            "implement an autonomous agent. Groq is separate from Grok Bot.\n\n"
-            "References: [text generation](https://console.groq.com/docs/text-chat), "
-            "[API reference](https://console.groq.com/docs/api-reference).\n"
-        )
     if target == "grok-bot":
         return (
             "Follow [the setup guide](grok-bot/README.md) to configure a Bot and "
-            "save its skills. These are setup recipes; the library skills are "
-            "not automatically imported as Bots.\n"
+            "save its skills. Every library skill and agent has a Markdown recipe "
+            "under `skills/` or `agents/`. These require manual setup in Grok Bot "
+            "(SpaceXAI); they are not automatic Bot imports.\n"
         )
     skill_dir, agent_dir, extension = TARGETS[target]
     return (
@@ -257,8 +233,8 @@ def provider_files(root: Path = ROOT) -> dict[str, bytes]:
         "",
         " | ".join(f"[{target}]({target}/README.md)" for target in EXPORT_TARGETS),
         "",
-        "Codex, Claude Code, and Cursor get native files. Groq gets API prompt",
-        "templates. Grok Bot has separate setup recipes. Format checks do not",
+        "Codex, Claude Code, and Cursor get native files. Grok Bot (SpaceXAI) gets",
+        "a Markdown setup recipe for every skill and agent. Format checks do not",
         "establish live-client behavior.",
     ]
     for kind, items in (("skills", skills), ("agents", agents)):
@@ -266,15 +242,15 @@ def provider_files(root: Path = ROOT) -> dict[str, bytes]:
             "",
             f"## {kind.title()}",
             "",
-            "| Source | Codex | Claude Code | Cursor | Groq API |",
+            "| Source | Codex | Claude Code | Cursor | Grok Bot |",
             "| --- | --- | --- | --- | --- |",
         ]
         for name in items:
             source = f"skills/{name}/SKILL.md" if kind == "skills" else f"agents/{name}.toml"
             links = [f"[{name}](../{source})"]
-            for target in (*TARGETS, "groq"):
-                if target == "groq":
-                    relative = f"{kind}/{name}.json"
+            for target in EXPORT_TARGETS:
+                if target == "grok-bot":
+                    relative = f"{kind}/{name}.md"
                 else:
                     skill_dir, agent_dir, extension = TARGETS[target]
                     relative = (
@@ -299,17 +275,18 @@ def provider_path(relative: str) -> bool:
     if relative == "README.md":
         return True
     target, separator, rest = relative.partition("/")
-    if not separator or target not in EXPORT_TARGETS:
+    if not separator or target not in (*EXPORT_TARGETS, "groq"):
         return False
     if rest == "README.md":
         return True
     if target in TARGETS:
         return managed_path(rest, target)
-    if target == "groq":
+    # Accept retired Groq paths only so sync can remove unchanged, manifest-owned files.
+    if target == "groq" or path.parts[1] in {"skills", "agents"}:
         return (
             len(path.parts) == 3
             and path.parts[1] in {"skills", "agents"}
-            and path.suffix == ".json"
+            and path.suffix == (".json" if target == "groq" else ".md")
             and NAME.fullmatch(path.stem) is not None
         )
     return rest.startswith("grok-bot/") and len(path.parts) >= 3

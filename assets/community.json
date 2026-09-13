@@ -1,0 +1,88 @@
+{
+  "repository": "00200200/maintainer-skills-lab",
+  "observed_on_utc": "2026-09-13",
+  "created_on_utc": "2026-09-13",
+  "stars": 1,
+  "forks": 0,
+  "current_stargazers_by_date": {
+    "2026-09-13": 1
+  },
+  "views": {
+    "window_start_utc": "2026-08-31",
+    "window_end_utc": "2026-09-13",
+    "count": 0,
+    "uniques": 0,
+    "daily": [
+      {
+        "date": "2026-08-31",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-01",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-02",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-03",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-04",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-05",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-06",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-07",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-08",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-09",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-10",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-11",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-12",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "date": "2026-09-13",
+        "count": 0,
+        "uniques": 0
+      }
+    ]
+  }
+}

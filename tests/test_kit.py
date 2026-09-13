@@ -114,27 +114,48 @@ class ProviderTests(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
-    def test_groq_templates_contain_complete_prompts_without_runtime_settings(self):
+    def test_grok_recipes_embed_source_and_agent_dependencies(self):
         skills, agents = kit.load_library(self.root)
-        files = kit.export_files("groq", self.root)
-        self.assertEqual(
-            set(files),
-            {f"skills/{name}.json" for name in skills} | {f"agents/{name}.json" for name in agents},
-        )
-        for relative, data in files.items():
-            parsed = json.loads(data)
-            self.assertEqual(set(parsed), {"messages"})
-            self.assertEqual(len(parsed["messages"]), 1)
-            message = parsed["messages"][0]
-            self.assertEqual(set(message), {"role", "content"})
-            self.assertEqual(message["role"], "system")
-            name = Path(relative).stem
-            if relative.startswith("skills/"):
-                self.assertEqual(message["content"], skills[name]["body"])
-            else:
-                self.assertIn(agents[name]["instructions"], message["content"])
-                for dependency in agents[name]["skills"]:
-                    self.assertIn(skills[dependency]["body"], message["content"])
+        files = kit.export_files("grok-bot", self.root)
+        for kind, items in (("skills", skills), ("agents", agents)):
+            for name, item in items.items():
+                content = files[f"{kind}/{name}.md"].decode()
+                if kind == "skills":
+                    self.assertIn(item["body"], content)
+                else:
+                    self.assertIn(item["instructions"], content)
+                    for dependency in item["skills"]:
+                        self.assertIn(skills[dependency]["body"], content)
+        self.assertNotIn("groq", kit.EXPORT_TARGETS)
+
+    def test_retired_groq_exports_removed_only_when_unchanged(self):
+        kit.sync_providers(self.root)
+        old_files = {
+            "groq/README.md": b"Old Groq guide",
+            "groq/skills/mkl-humanize.json": b'{"messages": []}',
+            "groq/agents/mkl-writing-editor.json": b'{"messages": []}',
+        }
+        manifest = self.root / "providers/.manifest.json"
+        state = json.loads(manifest.read_text())
+        for name, data in old_files.items():
+            path = self.root / "providers" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+            state["files"][name] = kit.digest(data)
+        manifest.write_text(json.dumps(state))
+        changed = self.root / "providers/groq/skills/mkl-humanize.json"
+        changed.write_text("User changes")
+        before = snapshot(self.root)
+        with self.assertRaisesRegex(kit.KitError, "Edited or unmanaged"):
+            kit.sync_providers(self.root)
+        self.assertEqual(snapshot(self.root), before)
+        changed.write_bytes(old_files["groq/skills/mkl-humanize.json"])
+        preview = kit.sync_providers(self.root, check=True)
+        self.assertEqual(set(preview["removed"]), set(old_files))
+        self.assertTrue(changed.exists())
+        result = kit.sync_providers(self.root)
+        self.assertEqual(set(result["removed"]), set(old_files))
+        self.assertTrue(all(not (self.root / "providers" / name).exists() for name in old_files))
 
     def test_sync_check_is_read_only_and_repeated_sync_keeps_mtimes(self):
         initial = snapshot(self.root)
@@ -173,8 +194,8 @@ class ProviderTests(unittest.TestCase):
             "claude/.claude/agents/mkl-writing-editor.md",
             "cursor/.cursor/skills/mkl-humanize/SKILL.md",
             "cursor/.cursor/agents/mkl-writing-editor.md",
-            "groq/skills/mkl-humanize.json",
-            "groq/agents/mkl-writing-editor.json",
+            "grok-bot/skills/mkl-humanize.md",
+            "grok-bot/agents/mkl-writing-editor.md",
         }
         self.assertEqual(set(result["written"]), expected)
         after = snapshot(self.root / "providers")
@@ -184,8 +205,8 @@ class ProviderTests(unittest.TestCase):
         )
         native = tomllib.loads(after["codex/.codex/agents/mkl-writing-editor.toml"].decode())
         self.assertIn(detail.strip(), native["developer_instructions"])
-        groq = json.loads(after["groq/agents/mkl-writing-editor.json"])
-        self.assertIn(detail.strip(), groq["messages"][0]["content"])
+        grok = after["grok-bot/agents/mkl-writing-editor.md"].decode()
+        self.assertIn(detail.strip(), grok)
 
     def test_removed_source_cleans_only_owned_exports(self):
         kit.sync_providers(self.root)
@@ -199,7 +220,7 @@ class ProviderTests(unittest.TestCase):
                 "codex/.agents/skills/mkl-write-tutorial/SKILL.md",
                 "claude/.claude/skills/mkl-write-tutorial/SKILL.md",
                 "cursor/.cursor/skills/mkl-write-tutorial/SKILL.md",
-                "groq/skills/mkl-write-tutorial.json",
+                "grok-bot/skills/mkl-write-tutorial.md",
             },
         )
         self.assertEqual(note.read_text(), "Keep this unrelated file")
@@ -207,7 +228,7 @@ class ProviderTests(unittest.TestCase):
 
     def test_local_provider_edits_block_writes_and_obsolete_removal(self):
         kit.sync_providers(self.root)
-        path = self.root / "providers/groq/skills/mkl-write-tutorial.json"
+        path = self.root / "providers/grok-bot/skills/mkl-write-tutorial.md"
         path.write_text("My edited prompt")
         for remove_source in (False, True):
             if remove_source:

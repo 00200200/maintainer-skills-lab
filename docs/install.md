@@ -34,10 +34,11 @@ unrelated files, and refuses conflicting edits in generated files. Move intentio
 edits into the source or restore a generated file before syncing again. Avoid
 concurrent edits or two sync processes against the same checkout.
 
-For [Groq](../providers/groq/README.md), load a JSON prompt into your application
-and provide the model, user input, credentials, and any required tools or resources.
-There is no project installation target for Groq; `build --target groq` produces
-an archive of API templates. Grok Bot uses its separate setup recipes.
+For [Grok Bot](../providers/grok-bot/README.md), open a generated Markdown skill
+or agent recipe and follow its setup instructions in the Bot app. There is no
+project installation target for Grok Bot; `build --target grok-bot` produces an
+archive with every workflow recipe and the first-task guides. A source update
+requires reviewing and updating the saved skill in the Bot; `sync` updates files only.
 
 ## Updates
 
