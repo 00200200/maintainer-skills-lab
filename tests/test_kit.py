@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -91,7 +92,7 @@ class LibraryTests(unittest.TestCase):
 
     def test_archives_are_reproducible_and_contained(self):
         with tempfile.TemporaryDirectory() as temporary:
-            for target in [*kit.TARGETS, "grok-bot"]:
+            for target in kit.EXPORT_TARGETS:
                 archive = kit.build(target, Path(temporary))
                 initial = archive.read_bytes()
                 kit.build(target, Path(temporary))
@@ -102,6 +103,165 @@ class LibraryTests(unittest.TestCase):
                         self.assertTrue(name.startswith(f"maintainer-skills-lab-{target}/"))
                         self.assertNotIn("..", Path(name).parts)
                     self.assertIn(f"maintainer-skills-lab-{target}/LICENSE", handle.namelist())
+
+
+class ProviderTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        copy_library(self.root)
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def test_groq_templates_contain_complete_prompts_without_runtime_settings(self):
+        skills, agents = kit.load_library(self.root)
+        files = kit.export_files("groq", self.root)
+        self.assertEqual(
+            set(files),
+            {f"skills/{name}.json" for name in skills} | {f"agents/{name}.json" for name in agents},
+        )
+        for relative, data in files.items():
+            parsed = json.loads(data)
+            self.assertEqual(set(parsed), {"messages"})
+            self.assertEqual(len(parsed["messages"]), 1)
+            message = parsed["messages"][0]
+            self.assertEqual(set(message), {"role", "content"})
+            self.assertEqual(message["role"], "system")
+            name = Path(relative).stem
+            if relative.startswith("skills/"):
+                self.assertEqual(message["content"], skills[name]["body"])
+            else:
+                self.assertIn(agents[name]["instructions"], message["content"])
+                for dependency in agents[name]["skills"]:
+                    self.assertIn(skills[dependency]["body"], message["content"])
+
+    def test_sync_check_is_read_only_and_repeated_sync_keeps_mtimes(self):
+        initial = snapshot(self.root)
+        self.assertFalse(kit.sync_providers(self.root, check=True)["up_to_date"])
+        self.assertEqual(snapshot(self.root), initial)
+        kit.sync_providers(self.root)
+        generated = snapshot(self.root / "providers")
+        manifest = json.loads(generated.pop(".manifest.json"))
+        self.assertEqual(generated, kit.provider_files(self.root))
+        self.assertEqual(
+            manifest["files"], {name: kit.digest(data) for name, data in generated.items()}
+        )
+        initial = snapshot(self.root)
+        mtimes = {p: p.stat().st_mtime_ns for p in self.root.rglob("*") if p.is_file()}
+        for check in (True, False):
+            result = kit.sync_providers(self.root, check=check)
+            self.assertTrue(result["up_to_date"])
+            self.assertEqual(result["written"], [])
+            self.assertEqual(snapshot(self.root), initial)
+            self.assertEqual(mtimes, {p: p.stat().st_mtime_ns for p in mtimes})
+
+    def test_one_source_edit_updates_four_providers_and_dependent_agents(self):
+        kit.sync_providers(self.root)
+        before = snapshot(self.root / "providers")
+        source = self.root / "skills/mkl-humanize/SKILL.md"
+        detail = "\nPreserve the exact quotation: „Żółć, 2 MB”.\n"
+        source.write_text(source.read_text() + detail)
+        preview = kit.sync_providers(self.root, check=True)
+        self.assertFalse(preview["up_to_date"])
+        self.assertEqual(snapshot(self.root / "providers"), before)
+        result = kit.sync_providers(self.root)
+        expected = {
+            "codex/.agents/skills/mkl-humanize/SKILL.md",
+            "codex/.codex/agents/mkl-writing-editor.toml",
+            "claude/.claude/skills/mkl-humanize/SKILL.md",
+            "claude/.claude/agents/mkl-writing-editor.md",
+            "cursor/.cursor/skills/mkl-humanize/SKILL.md",
+            "cursor/.cursor/agents/mkl-writing-editor.md",
+            "groq/skills/mkl-humanize.json",
+            "groq/agents/mkl-writing-editor.json",
+        }
+        self.assertEqual(set(result["written"]), expected)
+        after = snapshot(self.root / "providers")
+        self.assertEqual(
+            {name for name in before if before[name] != after[name]},
+            expected | {".manifest.json"},
+        )
+        native = tomllib.loads(after["codex/.codex/agents/mkl-writing-editor.toml"].decode())
+        self.assertIn(detail.strip(), native["developer_instructions"])
+        groq = json.loads(after["groq/agents/mkl-writing-editor.json"])
+        self.assertIn(detail.strip(), groq["messages"][0]["content"])
+
+    def test_removed_source_cleans_only_owned_exports(self):
+        kit.sync_providers(self.root)
+        note = self.root / "providers/local-notes.txt"
+        note.write_text("Keep this unrelated file")
+        shutil.rmtree(self.root / "skills/mkl-write-tutorial")
+        result = kit.sync_providers(self.root)
+        self.assertEqual(
+            set(result["removed"]),
+            {
+                "codex/.agents/skills/mkl-write-tutorial/SKILL.md",
+                "claude/.claude/skills/mkl-write-tutorial/SKILL.md",
+                "cursor/.cursor/skills/mkl-write-tutorial/SKILL.md",
+                "groq/skills/mkl-write-tutorial.json",
+            },
+        )
+        self.assertEqual(note.read_text(), "Keep this unrelated file")
+        self.assertNotIn("mkl-write-tutorial", (self.root / "providers/README.md").read_text())
+
+    def test_local_provider_edits_block_writes_and_obsolete_removal(self):
+        kit.sync_providers(self.root)
+        path = self.root / "providers/groq/skills/mkl-write-tutorial.json"
+        path.write_text("My edited prompt")
+        for remove_source in (False, True):
+            if remove_source:
+                shutil.rmtree(self.root / "skills/mkl-write-tutorial")
+            before = snapshot(self.root)
+            with self.assertRaisesRegex(kit.KitError, "Edited or unmanaged"):
+                kit.sync_providers(self.root)
+            self.assertEqual(snapshot(self.root), before)
+
+    def test_symlink_destination_and_tampered_manifest_are_rejected(self):
+        with tempfile.TemporaryDirectory() as outside:
+            destination = self.root / "providers"
+            destination.symlink_to(outside, target_is_directory=True)
+            with self.assertRaisesRegex(kit.KitError, "symlink"):
+                kit.sync_providers(self.root)
+            self.assertEqual(list(Path(outside).iterdir()), [])
+            destination.unlink()
+        kit.sync_providers(self.root)
+        path = self.root / "providers/.manifest.json"
+        state = json.loads(path.read_text())
+        state["files"]["../LICENSE"] = kit.digest((self.root / "LICENSE").read_bytes())
+        path.write_text(json.dumps(state))
+        before = snapshot(self.root)
+        with self.assertRaisesRegex(kit.KitError, "Invalid provider manifest"):
+            kit.sync_providers(self.root)
+        self.assertEqual(snapshot(self.root), before)
+
+    def test_catalogue_links_resolve_to_sources_and_exports(self):
+        kit.sync_providers(self.root)
+        for relative in ["README.md", *(f"{target}/README.md" for target in kit.EXPORT_TARGETS)]:
+            path = self.root / "providers" / relative
+            for link in re.findall(r"\]\(([^)]+)\)", path.read_text()):
+                if "://" not in link:
+                    self.assertTrue((path.parent / link).is_file(), (path, link))
+
+    def test_cli_check_fails_on_drift_without_writing(self):
+        script = self.root / "tools/kit.py"
+        script.parent.mkdir()
+        shutil.copyfile(ROOT / "tools/kit.py", script)
+        command = [sys.executable, str(script), "sync", "--check"]
+        before = snapshot(self.root)
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertFalse(json.loads(result.stdout)["up_to_date"])
+        self.assertEqual(snapshot(self.root), before)
+        kit.sync_providers(self.root)
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        source = self.root / "skills/mkl-humanize/SKILL.md"
+        source.write_text(source.read_text() + "\nKeep the original meaning.\n")
+        before = snapshot(self.root)
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(snapshot(self.root), before)
 
 
 class InstallationTests(unittest.TestCase):

@@ -28,6 +28,8 @@ jobs:
           python -m ruff format --check tools tests examples
       - name: Validate source and exports
         run: python tools/kit.py check
+      - name: Check provider folders match the source
+        run: python tools/kit.py sync --check
       - name: Run installation and example tests
         run: python -m unittest discover -s tests -v
       - name: Run the regression example

@@ -19,6 +19,7 @@ independent live-client evaluation is claimed.
 | Codex agents | Standalone `.codex/agents/*.toml` | TOML parsing and embedded-workflow tests | Not yet evaluated |
 | Claude Code | `.claude/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
 | Cursor | `.cursor/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
+| Groq API | JSON `messages` templates for skills and composed agent instructions | JSON parsing, complete-prompt, and source propagation tests | No live API requests evaluated |
 | Grok Bot | Role, first-task, save-skill, and routine instructions | Setup recipes based on documentation | Not yet evaluated; no verified share template |
 
 The suite runs locally without API keys. CI targets Linux and macOS on Python
@@ -39,6 +40,9 @@ compatibility alone.
   supported Bot UI rather than assuming local files create cloud resources.
 - No marketplace plugin or general ChatGPT/Claude web-chat compatibility is
   claimed by this local-file release.
+- Groq exports carry instruction text only. The consuming application supplies
+  the model, credentials, task context, supporting resources, tools, and execution
+  policy. These are not an autonomous runtime or an automatic skill-discovery format.
 
 ## Primary format references
 
@@ -52,3 +56,5 @@ Checked 2026-09-13; these are documentation references, not live-run evidence:
 - [Cursor skills](https://cursor.com/docs/skills)
 - [Cursor subagents](https://cursor.com/docs/subagents)
 - [Grok Bot workflows](https://cursor.com/docs/grok-bot/work)
+- [Groq text generation](https://console.groq.com/docs/text-chat)
+- [Groq API reference](https://console.groq.com/docs/api-reference)

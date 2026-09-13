@@ -6,12 +6,45 @@
 **Investigate bugs, verify fixes, and write project docs people can use.**
 
 Fourteen practical skills, four focused agent profiles, and native bundles
-for **Codex, Claude Code, and Cursor**. Includes two **Grok Bot** setup recipes.
+for **Codex, Claude Code, and Cursor**, plus **Groq API** prompt templates.
+Includes two **Grok Bot** setup recipes.
 Shared instructions stay in one source; client-specific formats are generated.
+
+**Browse provider files:** [Codex](providers/codex/README.md) ·
+[Claude Code](providers/claude/README.md) · [Cursor](providers/cursor/README.md) ·
+[Groq](providers/groq/README.md) · [Grok Bot](providers/grok-bot/README.md).
 
 > **Preview:** source/export checks and the bundled regression example are tested.
 > Live-client behavior and Grok Bot template imports have not been evaluated yet.
 > See the [compatibility matrix](docs/compatibility.md).
+
+## Write once, use across providers
+
+Edit a skill in Markdown, then regenerate its provider files:
+
+```sh
+python3 tools/kit.py sync
+```
+
+For example, editing `skills/mkl-humanize/SKILL.md` updates:
+
+```text
+providers/
+├── codex/.agents/skills/mkl-humanize/SKILL.md
+├── claude/.claude/skills/mkl-humanize/SKILL.md
+├── cursor/.cursor/skills/mkl-humanize/SKILL.md
+└── groq/skills/mkl-humanize.json
+```
+
+The [provider catalogue](providers/README.md) links each skill and agent to its
+source and provider versions. Agent sources in `agents/*.toml` hold metadata,
+Markdown instructions, and skill dependencies. The generator embeds those
+dependencies into each native agent or Groq prompt, so a shared skill change
+also updates agents that use it.
+
+CI checks these folders against the source. Provider files, installation, and
+ZIP bundles use the same exporter. Groq templates supply instructions to an
+application through its API; they do not install a coding agent or provide tools.
 
 ## Try the example — no API key required
 
@@ -114,11 +147,12 @@ These are human-readable setup recipes, not automatic Bot imports.
 ```sh
 python3 tools/kit.py list
 python3 tools/kit.py check
+python3 tools/kit.py sync --check
 python3 -m unittest discover -s tests -v
 python3 tools/kit.py build
 ```
 
-Builds produce four deterministic ZIP archives under `dist/`. CI checks Python
+Builds produce five deterministic ZIP archives under `dist/`. CI checks Python
 3.11 and 3.13 on Linux and macOS and exposes the archives as run artifacts.
 Check the linked run before treating any particular revision as verified.
 
