@@ -175,9 +175,12 @@ actual Codex, Claude Code, Cursor, or Grok Bot session.
 
 The regular test suite covers extraction, dependency mapping, baseline handling,
 error classification, path boundaries, redirect behavior, and public-address
-checks. CI also runs the offline demo and an SDK-based stdio test.
+checks. HTTP framing tests use Python's HTTP parser with complete and truncated
+wire responses, including preservation of the baseline after interrupted downloads.
+CI also runs the offline demo and an SDK-based stdio test.
 
-Recorded locally on **2026-09-13**, **macOS 26.6.2 arm64 / Python 3.11.5**:
+Initial release checks recorded on **2026-09-13**,
+**macOS 26.6.2 arm64 / Python 3.11.5**:
 
 - All 75 repository tests passed, including 24 Skill Watch tests.
 - MCP SDK 2.2.0 passed both stdio negotiation modes, with no model invoked.
@@ -206,5 +209,11 @@ The HTML parser is intentionally limited. Client-rendered pages, PDFs, compresse
 responses, and oversized pages may fail. Prefer an official plain-text source
 where available. HTTP 200 alone does not prove the intended documentation was
 served; specific markers reduce the risk of accepting an unrelated response.
+
+A response ending before its declared `Content-Length`, or with incomplete
+chunk data, is an error even when the selected text has already arrived. It cannot
+produce an `unchanged` result, create a snapshot, or replace an accepted baseline.
+Responses without a length or chunked encoding end when the connection closes;
+that framing cannot distinguish a complete document from a premature disconnect.
 
 Reference: [official MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk).
