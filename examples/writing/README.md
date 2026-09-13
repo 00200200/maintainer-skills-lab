@@ -44,6 +44,31 @@ The reader still knows the sample size, platform, observed behavior, and limits.
 "Instant installation on every platform" would change the evidence and fail this
 scenario, even if it sounded more polished.
 
+### Check what the rewrite dropped
+
+Save the source as `draft.md` and a rewrite as `edited.md`, then run the checker
+from a source clone (installed skills keep it in the same `scripts/` folder):
+
+```sh
+python3 skills/mkl-humanize/scripts/check_facts.py draft.md edited.md
+```
+
+For the suitable edit above, it reports that code, URLs, placeholders, quotations,
+numbers, negations, and hedges match. For the "instant installation on every
+platform" version, it exits with status 1:
+
+```text
+Review 3 change(s); restore each one or explain why it is safe:
+- number dropped: '0' (1 -> 0)
+- number dropped: '20' (1 -> 0)
+- negation dropped: 'not' (2 -> 0)
+```
+
+Add `--json` for a machine-readable report. The checker compares tokens and counts
+English and Polish negation and hedge words; it does not detect a new unsupported
+claim written without numbers, a changed attribution, or a translation. A clean
+result supplements reading the rewrite claim by claim.
+
 ## Voice: keep style and facts separate
 
 Style sample:

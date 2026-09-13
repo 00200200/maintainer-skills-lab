@@ -13,6 +13,8 @@ Find the reader's actual question and bring its answer forward. Replace vague wo
 
 Compare the rewrite against the source claim by claim. Keep meaningful limitations such as "in this test" or "may". If an unsupported claim needs attention, flag it separately instead of making it sound verified. In a file, edit the requested prose while preserving code, frontmatter, identifiers, URLs, and interpolation tokens unless the user includes those in scope.
 
+If this skill's folder contains `scripts/check_facts.py` and Python 3.9+ is available, save the source and the rewrite as temporary files and run the script with both paths. It lists code, URLs, placeholders, quotations, numbers, negations, and hedge words that were dropped or added, and exits with status 1 when it finds any. Restore each listed item or state why the change is intended. The script does not check meaning, emphasis, or attribution, so a clean result does not replace the claim-by-claim comparison.
+
 Return the finished passage. Add a short note only for unresolved factual ambiguity or a material editorial choice; provide a detailed change explanation when requested.
 
 ## Worked example
@@ -23,4 +25,4 @@ Source: "Z ogromną przyjemnością informujemy, że nasz innowacyjny instalator
 
 One suitable edit: "Instalator pozwala podejrzeć zmiany przed ich zapisaniem. Tryb `--dry-run` nie zapisuje plików. Nie sprawdziliśmy jeszcze obsługi Windows."
 
-Acceptance: the preview behavior, exact flag, and untested Windows status remain. The edit adds no claim about speed, safety, or popularity. This is an authored example, not a recorded client evaluation.
+Acceptance: the preview behavior, exact flag, and untested Windows status remain. The edit adds no claim about speed, safety, or popularity. `scripts/check_facts.py` reports no differences for this pair. This is an authored example, not a recorded client evaluation.

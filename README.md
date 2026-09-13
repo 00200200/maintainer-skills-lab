@@ -60,6 +60,17 @@ Then ask your client:
 Explicit invocation uses `$mkl-humanize` in Codex CLI or `/mkl-humanize` in
 Claude Code and Cursor. [Installation, removal, and recorded checks →](docs/install.md#one-skill-with-the-skills-cli)
 
+The skill folder includes a small checker that lists numbers, code, links,
+placeholders, quotations, negations, and hedges that a rewrite dropped or added.
+Your client can run it after editing, or you can run it yourself:
+
+```sh
+python3 .agents/skills/mkl-humanize/scripts/check_facts.py draft.md edited.md
+```
+
+That path is for Codex and the Skills CLI's Cursor install; Claude Code uses
+`.claude/skills/`. It needs only Python 3.9+ and does not judge meaning. [Worked example →](examples/writing/README.md#check-what-the-rewrite-dropped)
+
 Prefer Python? [Install just Humanizer with Python 3.11+](docs/install.md#one-or-more-skills-with-python)
 using `--skill mkl-humanize`, with no Node.js dependency. You can also
 [install the full library](#start-in-a-minute) or [get a ZIP](https://github.com/00200200/maintainer-skills-lab/releases).
