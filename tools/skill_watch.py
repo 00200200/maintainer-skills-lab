@@ -9,10 +9,18 @@ import hashlib
 import json
 import os
 import re
+import sys
 import tempfile
-import tomllib
-from datetime import UTC, datetime
 from pathlib import Path
+
+try:
+    import tomllib
+    from datetime import UTC, datetime
+except ImportError:  # New in Python 3.11; older interpreters would show a traceback.
+    sys.exit(
+        f"Skill Watch needs Python 3.11 or newer; this is {sys.version.split()[0]}.\n"
+        f"Run it with a newer interpreter, for example: python3.13 {sys.argv[0]}"
+    )
 
 from watch_fetch import MAX_BYTES, MAX_TEXT, WatchError, fetch, select_text, validate_url
 

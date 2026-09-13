@@ -66,7 +66,9 @@ git config --local core.hooksPath hooks
 ```
 
 The executable [pre-commit](pre-commit) file calls the checker. Git invokes it
-from the repository root. Configuring `core.hooksPath` selects a hook directory,
+from the repository root. It uses `python3` when that is Python 3.11 or newer;
+otherwise it tries `python3.14` through `python3.11` on `PATH`, and blocks the
+commit with a short message if none is found. Configuring `core.hooksPath` selects a hook directory,
 so do not replace an existing path without integrating its hooks first. Cloning
 or installing the skill bundles does not enable this hook automatically.
 
