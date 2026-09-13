@@ -19,6 +19,7 @@ independent live-client evaluation is claimed.
 | Python selected-skill installer | Repeatable `--skill NAME` for install, update, and uninstall | Filesystem tests for four targets, additive selection, resources, retained ownership, conflicts, dry runs, and actual CLI calls | Installer integration only; clients not invoked |
 | Git pre-commit hook | Executable shell entry and Python staged-export checker | Actual commit, alternate-index, and partial-staging tests | Git integration only; no client lifecycle hook installed |
 | Skill Watch | Local CLI and optional MCP stdio server | Offline change fixture, retrieval/state tests, actual SDK client-to-server stdio calls; [usage and limits](skill-watch.md) | Protocol integration only; individual client apps not evaluated |
+| Humanizer fact check | `scripts/check_facts.py` inside the `mkl-humanize` skill folder | Unit tests for code, URLs, placeholders, quotations, numbers, English/Polish negations and hedges, the skill's worked example, and CLI exit codes on Python 3.11/3.13; a manual run with Python 3.9.6 on macOS | Not yet invoked by a live client; not included in Grok Bot recipes, which contain the workflow text only |
 | ML training example | Python CPU fixture with selectable PyTorch, Lightning, or TensorFlow/Keras execution | Three local framework runs plus framework-independent oracle tests; [versions and results](../examples/ml-training/README.md#recorded-cpu-check) | Fixture execution only; ML skill and agent not independently evaluated |
 | Codex skills | `SKILL.md` under `.agents/skills/` | Export and installer tests | Not yet evaluated |
 | Codex agents | Standalone `.codex/agents/*.toml` | TOML parsing and embedded-workflow tests | Not yet evaluated |
@@ -55,7 +56,9 @@ listed in the [installation guide](install.md#one-skill-with-the-skills-cli).
 The installed skill's SHA-256 was
 `b06fd6512cbbe11af6dbe6c3b78db133e80e3b096eccfd41d31f9c498a1d4ae6`.
 The CLI listed the selected skill, and removal deleted its files while preserving
-an unrelated sentinel file. Telemetry was disabled for these checks.
+an unrelated sentinel file. Telemetry was disabled for these checks. This check
+predates `scripts/check_facts.py`; whether the Skills CLI copies that resource has
+not been rechecked.
 
 One preliminary `remove mkl-humanize --agent codex --yes` reported success but
 retained the shared skill directory. The documented removal command omits the

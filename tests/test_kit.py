@@ -511,7 +511,7 @@ class SelectedInstallationTests(unittest.TestCase):
                 result = kit.install(target, self.project, self.root, skill_names=["mkl-humanize"])
                 expected = {
                     f"{skill_dir}/mkl-humanize/{part}"
-                    for part in ("SKILL.md", "references/style.txt")
+                    for part in ("SKILL.md", "references/style.txt", "scripts/check_facts.py")
                 }
                 self.assertEqual(set(result["written"]), expected)
                 self.assertFalse((self.project / agent_dir).exists())
@@ -564,7 +564,7 @@ class SelectedInstallationTests(unittest.TestCase):
     def test_selected_dry_runs_and_repeated_install_preserve_files_and_mtimes(self):
         names = ["mkl-humanize", "mkl-match-voice", "mkl-humanize"]
         result = kit.install("cursor", self.project, self.root, dry_run=True, skill_names=names)
-        self.assertEqual(len(result["written"]), 2)
+        self.assertEqual(len(result["written"]), 3)
         self.assertEqual(result["selected_skills"], ["mkl-humanize", "mkl-match-voice"])
         self.assertEqual(list(self.project.iterdir()), [])
         kit.install("cursor", self.project, self.root, skill_names=names)
@@ -576,7 +576,13 @@ class SelectedInstallationTests(unittest.TestCase):
         self.assertEqual(result["written"], [])
         self.assertFalse(result["manifest_changed"])
         preview = kit.uninstall("cursor", self.project, dry_run=True, skill_names=["mkl-humanize"])
-        self.assertEqual(preview["removed"], [".cursor/skills/mkl-humanize/SKILL.md"])
+        self.assertEqual(
+            preview["removed"],
+            [
+                ".cursor/skills/mkl-humanize/SKILL.md",
+                ".cursor/skills/mkl-humanize/scripts/check_facts.py",
+            ],
+        )
         self.assertEqual(snapshot(self.project), before)
         self.assertEqual({path: path.stat().st_mtime_ns for path in mtimes}, mtimes)
 
@@ -622,13 +628,14 @@ class SelectedInstallationTests(unittest.TestCase):
         other.write_text("Local voice edits")
         before = snapshot(self.project)
         result = kit.uninstall("codex", self.project, skill_names=["mkl-humanize"])
-        self.assertEqual(result["removed"], [".agents/skills/mkl-humanize/SKILL.md"])
+        humanizer = [
+            ".agents/skills/mkl-humanize/SKILL.md",
+            ".agents/skills/mkl-humanize/scripts/check_facts.py",
+        ]
+        self.assertEqual(result["removed"], humanizer)
         after = snapshot(self.project)
         for name, data in before.items():
-            if name not in (
-                ".agents/skills/mkl-humanize/SKILL.md",
-                ".maintainer-skills-lab/codex.json",
-            ):
+            if name not in (*humanizer, ".maintainer-skills-lab/codex.json"):
                 self.assertEqual(after[name], data, name)
         _, owned = kit.installed_state(self.project, "codex")
         self.assertNotIn(".agents/skills/mkl-humanize/SKILL.md", owned)
@@ -694,7 +701,13 @@ class SelectedInstallationTests(unittest.TestCase):
 
         run("install", "--skill", "mkl-humanize", "--skill", "mkl-match-voice")
         result = run("uninstall", "--skill", "mkl-humanize")
-        self.assertEqual(result["removed"], [".agents/skills/mkl-humanize/SKILL.md"])
+        self.assertEqual(
+            result["removed"],
+            [
+                ".agents/skills/mkl-humanize/SKILL.md",
+                ".agents/skills/mkl-humanize/scripts/check_facts.py",
+            ],
+        )
         self.assertTrue((self.project / ".agents/skills/mkl-match-voice/SKILL.md").exists())
         self.assertFalse((self.project / ".codex/agents").exists())
 
