@@ -1,0 +1,3 @@
+#!/bin/sh
+# Git runs pre-commit from the working-tree root and supplies the active index.
+exec python3 -B tools/check_staged.py

@@ -4,7 +4,7 @@ A useful contribution starts with a real task. You can suggest a workflow,
 improve an example, report a client mismatch, or send a focused pull request.
 No need to support every client by hand: the generator does that part.
 
-**[Suggest a skill or agent](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml)** ·
+**[Suggest a skill, agent, or hook](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml)** ·
 **[Report a bug](https://github.com/00200200/maintainer-skills-lab/issues/new?template=bug_report.yml)**
 
 Search existing issues and the [catalogue](providers/README.md) before starting.
@@ -52,6 +52,15 @@ version; you do not need to copy their text into your source profile.
 Models and execution permissions inherit from the host. An exported agent or
 Grok Bot recipe does not grant access to accounts or publish content on its own.
 
+## Add or improve a hook
+
+The [hook catalogue](hooks/README.md) contains a Git pre-commit check for staged
+exports. Reproduce a concrete failure before expanding a hook. Document its
+trigger, inputs, output, execution cost, configuration, and removal. Keep checks
+local and read-only when possible, and preserve existing user hooks. Test actual
+Git behavior or the client protocol that changed; source parsing alone does not
+establish a working client integration.
+
 ## Local checks
 
 Use Python 3.11+. Library checks need no model API keys or third-party packages.
@@ -71,6 +80,9 @@ python3 -m pip install ruff==0.16.7
 ruff check tools tests examples
 ruff format --check tools tests examples
 ```
+
+The optional [pre-commit hook](hooks/README.md) checks the staged library before
+committing. It supplements the full checks above.
 
 Edit canonical source files; do not hand-edit provider copies or built archives.
 Test affected filesystem behavior when changing the installer. Workflow checks

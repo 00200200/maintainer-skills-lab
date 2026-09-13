@@ -14,6 +14,7 @@
   <a href="providers/README.md"><b>Explore the skills</b></a> ·
   <a href="#start-in-a-minute">Install</a> ·
   <a href="grok-bot/README.md">Grok Bot</a> ·
+  <a href="hooks/README.md">Hooks</a> ·
   <a href="CONTRIBUTING.md">Add your own</a>
 </p>
 
@@ -88,6 +89,19 @@ Grok Bot recipes follow the [official x.ai documentation](https://docs.x.ai/grok
 They are Markdown instructions for manual setup; copying them does not create a Bot.
 [Issue Scout and Release Reporter](grok-bot/README.md) include first-task prompts and optional routines.
 
+## Catch incomplete commits with a hook
+
+Changed a skill but forgot to stage its generated versions? The optional
+[staged export guard](hooks/README.md) catches that before the commit is created.
+It checks the exact staged files, so a correct working tree cannot hide stale
+provider copies in the index. Unstaged edits are left alone.
+
+```sh
+python3 -B tools/check_staged.py
+```
+
+For contributors to this library and its forks. [Setup, examples, and limits →](hooks/README.md)
+
 ## Start in a minute
 
 **Python 3.11+**, with no third-party dependencies for the library tools.
@@ -143,7 +157,7 @@ evaluated. Native agents inherit model and execution policy from the host.
 Built a skill that saves you time? Bring the use case and a small example.
 You can contribute without implementing a whole agent or understanding every provider.
 
-- **[Suggest a skill or agent](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml)** — describe the job, input, and useful result.
+- **[Suggest a skill, agent, or hook](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml)** — describe the job, input, and useful result.
 - **[Report a bug or client mismatch](https://github.com/00200200/maintainer-skills-lab/issues/new?template=bug_report.yml)** — share the smallest reproduction and the client version.
 - **[Open a pull request](CONTRIBUTING.md)** — add one source skill, run `sync`, and include a worked example.
 

@@ -31,6 +31,15 @@ Source validation, fixture execution, and actual agent evaluation are different
 claims. Record which happened. Never mark a client as tested solely because its
 files parse. Native agent exports inherit model and execution policy.
 
+## Hooks
+
+- Keep hook activation opt-in and preserve existing hook configuration.
+- Git checks must read the active index, including alternate indexes; never stage,
+  stash, or rewrite source files as a side effect of a validation hook.
+- After staging, run `python3 -B tools/check_staged.py` before committing.
+- Test hooks with actual Git operations in disposable repositories. Client protocol
+  fixtures do not establish live-client hook discovery or execution.
+
 ## Maintenance
 
 - Prefer one useful, complete improvement over activity-only changes.
