@@ -3,9 +3,9 @@
 [![Validate library](https://github.com/00200200/maintainer-skills-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/00200200/maintainer-skills-lab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Turn a bug report into a reproduction, a regression test, and a fix you can verify.**
+**Investigate bugs, verify fixes, and write project docs people can use.**
 
-Six practical maintainer skills, three focused agent profiles, and native bundles
+Fourteen practical skills, four focused agent profiles, and native bundles
 for **Codex, Claude Code, and Cursor**. Includes two **Grok Bot** setup recipes.
 Shared instructions stay in one source; client-specific formats are generated.
 
@@ -63,6 +63,8 @@ published ChatGPT, Claude, or Cursor marketplace plugin.
 
 ## Pick a workflow
 
+### Maintain code
+
 | Skill | Useful result |
 | --- | --- |
 | [Triage issue](skills/mkl-triage-issue/SKILL.md) | Evidence, missing information, and a next action |
@@ -72,8 +74,35 @@ published ChatGPT, Claude, or Cursor marketplace plugin.
 | [Review PR](skills/mkl-review-pr/SKILL.md) | Actionable findings with locations and consequences |
 | [Prepare release](skills/mkl-prepare-release/SKILL.md) | Accurate release notes and migration guidance |
 
-Agent profiles: **mkl-bug-investigator**, **mkl-pr-reviewer**, and
-**mkl-release-editor**. Each exported agent embeds the workflows it needs;
+### Write and communicate
+
+| Skill | Useful result |
+| --- | --- |
+| [Humanizer](skills/mkl-humanize/SKILL.md) | Natural prose that preserves the author's facts and intent |
+| [Match voice](skills/mkl-match-voice/SKILL.md) | A draft adapted to supplied writing samples |
+| [Write README](skills/mkl-write-readme/SKILL.md) | Project introduction and quickstart grounded in repository evidence |
+| [Write tutorial](skills/mkl-write-tutorial/SKILL.md) | A guided outcome with prerequisites and verifiable checkpoints |
+| [Write launch post](skills/mkl-write-launch-post/SKILL.md) | A factual announcement or development update ready for review |
+| [Write UX copy](skills/mkl-write-ux-copy/SKILL.md) | Clear labels, errors, and empty states with intact placeholders |
+| [Localize PL ↔ EN](skills/mkl-localize-pl-en/SKILL.md) | Natural Polish/English with technical tokens and meaning preserved |
+| [Write maintainer reply](skills/mkl-write-maintainer-reply/SKILL.md) | A respectful issue or PR reply with a concrete next action |
+
+Try this after installing a bundle:
+
+> Use mkl-humanize to improve this Polish update. Keep the command and limitation:
+> „Z przyjemnością informujemy o możliwości podglądu zmian za pomocą `--dry-run`.
+> Windows nie został jeszcze przetestowany.”
+
+One possible edit: „Użyj `--dry-run`, żeby podejrzeć zmiany. Nie sprawdziliśmy
+jeszcze obsługi Windows.”
+
+Every writing skill includes an inspectable worked example. See the
+[writing examples](examples/writing/README.md) for ready-to-use prompts and
+acceptance scenarios. These are authored illustrations; writing quality and
+live-client invocation have not yet been evaluated.
+
+Agent profiles: **mkl-bug-investigator**, **mkl-pr-reviewer**,
+**mkl-release-editor**, and **mkl-writing-editor**. Each exported agent embeds the workflows it needs;
 it does not require another skill to be implicitly loaded. Models and execution
 permissions inherit from the host session.
 
@@ -105,6 +134,12 @@ is especially useful. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
 integration problem.
 
 If the library helps your workflow, a star makes it easier to find again.
+
+## Related project
+
+[blader/humanizer](https://github.com/blader/humanizer) is a general-purpose
+humanization skill worth exploring. The writing workflows here are independently
+authored for project maintenance, documentation, and Polish/English communication.
 
 ## License
 
