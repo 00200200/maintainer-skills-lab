@@ -1,4 +1,4 @@
-name: Suggest a skill or agent
+name: Suggest a skill, agent, or hook
 description: Bring a real task, a small example, and the result you want.
 title: "[Workflow]: "
 body:
@@ -15,6 +15,7 @@ body:
       options:
         - A new skill
         - An agent that combines skills
+        - A hook for a concrete check or automation
         - An improvement to an existing workflow
     validations:
       required: true
