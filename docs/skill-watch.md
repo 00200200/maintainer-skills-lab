@@ -101,6 +101,11 @@ preserves other sources and detects concurrent baseline writes. Neither `check`
 nor `accept` edits skills or generated copies. Source edits still use the normal
 `python3 tools/kit.py sync` workflow.
 
+Baseline files have a 6 MB UTF-8 limit, including retained sources removed from
+the configuration. A snapshot or acceptance that would exceed it fails before
+writing and preserves any existing baseline. Use a separate `--state` file for
+a new group of sources and review them before creating its initial snapshot.
+
 Use `--project /absolute/project`, `--config relative/watch.toml`, or
 `--state relative/baseline.json` **before** the subcommand for another project or
 state file. Use `--json` there for full text, hashes, resolved URLs, timestamps,

@@ -17,6 +17,7 @@ from pathlib import Path
 from watch_fetch import MAX_BYTES, MAX_TEXT, WatchError, fetch, select_text, validate_url
 
 ROOT = Path(__file__).resolve().parents[1]
+MAX_BASELINE_BYTES = 6_000_000
 ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 PROVIDERS = {
     "codex": (".agents/skills", ".codex/agents", ".toml"),
@@ -181,7 +182,7 @@ class Watch:
         local_path(self.root, self.state.relative_to(self.root))
         if not self.state.exists():
             return {"version": 1, "sources": {}}, None
-        raw = read_text(self.state, 6_000_000)
+        raw = read_text(self.state, MAX_BASELINE_BYTES)
         state = json.loads(raw)
         if (
             not isinstance(state, dict)
@@ -207,6 +208,9 @@ class Watch:
         return state, raw
 
     def save(self, state, expected):
+        serialized = json.dumps(state, indent=2, ensure_ascii=False) + "\n"
+        if len(serialized.encode("utf-8")) > MAX_BASELINE_BYTES:
+            raise WatchError("Baseline exceeds the 6 MB limit; use a separate state file")
         local_path(self.root, self.state.relative_to(self.root))
         self.state.parent.mkdir(parents=True, exist_ok=True)
         local_path(self.root, self.state.relative_to(self.root))
@@ -228,8 +232,7 @@ class Watch:
                     mode="w", encoding="utf-8", dir=self.state.parent, delete=False
                 ) as output:
                     temporary = Path(output.name)
-                    json.dump(state, output, indent=2, ensure_ascii=False)
-                    output.write("\n")
+                    output.write(serialized)
                     output.flush()
                     os.fsync(output.fileno())
                 os.replace(temporary, self.state)
