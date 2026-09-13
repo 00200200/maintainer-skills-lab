@@ -16,6 +16,7 @@
   <a href="https://github.com/00200200/maintainer-skills-lab/releases">Download ZIPs</a> ·
   <a href="grok-bot/README.md">Grok Bot</a> ·
   <a href="hooks/README.md">Hooks</a>
+  · <a href="docs/skill-watch.md"><b>Skill Watch MCP</b></a>
 </p>
 
 # Maintainer Skills Lab
@@ -78,6 +79,28 @@ Includes tutorials, UX copy, launch posts, maintainer replies, issue triage,
 regression tests, and releases. The five agent profiles combine these workflows
 for bug investigation, ML training diagnosis, PR review, release editing, and writing.
 
+## Catch outdated agent instructions
+
+**Skill Watch** compares selected source documentation with a saved baseline and
+shows which skills, dependent agents, and generated client files need review.
+It includes a local scraper, CLI, and optional **MCP server**, with no model or
+API key required.
+
+Try an authored change in a disposable project, without network access:
+
+```sh
+python3 examples/skill-watch/run.py
+```
+
+```diff
+-Checkpoints remain enabled during this diagnostic.
++Checkpoints are disabled during this diagnostic.
+```
+
+Checks preserve the saved baseline. Accepting a new source version is explicit.
+A changed page is a signal to review the instructions, not proof that they are
+wrong. [Watch real sources and connect through MCP →](docs/skill-watch.md)
+
 ## Debug a loss that looks wrong
 
 Your predictions are `[[1], [3]]`, your labels are `[1, 3]`, and the raw mean
@@ -100,8 +123,9 @@ It checks loss, gradients, and an optimizer update against an analytical result.
 
 ## Start in a minute
 
-Get the **full library and native agents** with Python 3.11+. The library tools
-have no third-party dependencies.
+Get the **full library and native agents** with Python 3.11+. The exporter,
+installer, and Skill Watch CLI use only the standard library. The optional MCP
+server installs its SDK separately.
 
 ```sh
 git clone https://github.com/00200200/maintainer-skills-lab.git

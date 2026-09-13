@@ -34,6 +34,13 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run the regression example
         run: python examples/bugfix/run.py --json
+      - name: Run the offline Skill Watch example
+        run: python examples/skill-watch/run.py
+      - name: Check Skill Watch over MCP stdio
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.11'
+        run: |
+          python -m pip install mcp==2.2.0
+          python examples/skill-watch/check_mcp.py
       - name: Build all client bundles
         run: python tools/kit.py build
       - uses: actions/upload-artifact@v4

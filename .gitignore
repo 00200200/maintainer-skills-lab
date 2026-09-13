@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.skill-watch/
 .pytest_cache/
 .ruff_cache/
 dist/
