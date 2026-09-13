@@ -50,7 +50,7 @@ updated guide. For example:
 > executed, and the guide does not specify a replacement checkpoint test.
 
 The minimal demo has no generated provider copies. A reviewer must not claim to
-have inspected eight exports merely because the full library supports four clients.
+have inspected eight exports merely because the full library supports more clients.
 It should not expand the one-batch check into an unspecified full training run.
 
 Run the deterministic detection fixture with Python 3.11+:

@@ -96,7 +96,7 @@ class WatchTests(unittest.TestCase):
                 output.write_text("generated fixture")
         result = self.watch.check()["sources"][0]
         self.assertEqual(result["agents"], ["agents/mkl-demo-investigator.toml"])
-        self.assertEqual(len(result["generated_files"]), 8)
+        self.assertEqual(len(result["generated_files"]), 10)
 
     def test_snapshot_refuses_overwrite(self):
         self.watch.snapshot()

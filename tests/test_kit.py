@@ -52,7 +52,12 @@ class LibraryTests(unittest.TestCase):
                         line.split(":", 1)[0]: json.loads(line.split(":", 1)[1])
                         for line in header.strip().splitlines()
                     }
-                self.assertEqual(parsed["name"], name)
+                if target == "opencode":
+                    self.assertEqual(set(parsed), {"description", "mode"})
+                    self.assertEqual(parsed["mode"], "subagent")
+                    self.assertEqual(parsed["description"], agent["description"])
+                else:
+                    self.assertEqual(parsed["name"], name)
                 for dependency in agent["skills"]:
                     self.assertIn(skills[dependency]["body"], body)
 
@@ -177,7 +182,7 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(snapshot(self.root), initial)
             self.assertEqual(mtimes, {p: p.stat().st_mtime_ns for p in mtimes})
 
-    def test_one_source_edit_updates_four_providers_and_dependent_agents(self):
+    def test_one_source_edit_updates_all_providers_and_dependent_agents(self):
         kit.sync_providers(self.root)
         before = snapshot(self.root / "providers")
         source = self.root / "skills/mkl-humanize/SKILL.md"
@@ -194,6 +199,8 @@ class ProviderTests(unittest.TestCase):
             "claude/.claude/agents/mkl-writing-editor.md",
             "cursor/.cursor/skills/mkl-humanize/SKILL.md",
             "cursor/.cursor/agents/mkl-writing-editor.md",
+            "opencode/.opencode/skills/mkl-humanize/SKILL.md",
+            "opencode/.opencode/agents/mkl-writing-editor.md",
             "grok-bot/skills/mkl-humanize.md",
             "grok-bot/agents/mkl-writing-editor.md",
         }
@@ -220,6 +227,7 @@ class ProviderTests(unittest.TestCase):
                 "codex/.agents/skills/mkl-write-tutorial/SKILL.md",
                 "claude/.claude/skills/mkl-write-tutorial/SKILL.md",
                 "cursor/.cursor/skills/mkl-write-tutorial/SKILL.md",
+                "opencode/.opencode/skills/mkl-write-tutorial/SKILL.md",
                 "grok-bot/skills/mkl-write-tutorial.md",
             },
         )
@@ -292,6 +300,27 @@ class InstallationTests(unittest.TestCase):
 
     def tearDown(self):
         self.temporary.cleanup()
+
+    def test_opencode_cli_preserves_config_and_unowned_agent(self):
+        config = self.project / "opencode.json"
+        config.write_text('{"permission":{"edit":"ask"}}\n')
+        own_agent = self.project / ".opencode/agents/custom.md"
+        own_agent.parent.mkdir(parents=True)
+        own_agent.write_text("User-owned agent")
+        original = snapshot(self.project)
+        command = [sys.executable, str(ROOT / "tools/kit.py")]
+        options = ["--target", "opencode", "--project", str(self.project)]
+        for action in ("install", "uninstall"):
+            result = subprocess.run(
+                [*command, action, *options], capture_output=True, text=True, check=False
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            if action == "install":
+                self.assertTrue((self.project / ".opencode/skills/mkl-humanize/SKILL.md").is_file())
+                self.assertTrue((self.project / ".opencode/agents/mkl-writing-editor.md").is_file())
+            self.assertEqual(config.read_bytes(), original["opencode.json"])
+            self.assertEqual(own_agent.read_bytes(), original[".opencode/agents/custom.md"])
+        self.assertEqual(snapshot(self.project), original)
 
     def test_each_target_installs_and_uninstalls(self):
         for target in kit.TARGETS:

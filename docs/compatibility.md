@@ -16,7 +16,7 @@ independent live-client evaluation is claimed.
 | Surface | Format | Current evidence | Live-client status |
 | --- | --- | --- | --- |
 | Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for three targets; see recorded check below | Installer integration only; clients not invoked |
-| Python selected-skill installer | Repeatable `--skill NAME` for install, update, and uninstall | Filesystem tests for three targets, additive selection, resources, retained ownership, conflicts, dry runs, and actual CLI calls | Installer integration only; clients not invoked |
+| Python selected-skill installer | Repeatable `--skill NAME` for install, update, and uninstall | Filesystem tests for four targets, additive selection, resources, retained ownership, conflicts, dry runs, and actual CLI calls | Installer integration only; clients not invoked |
 | Git pre-commit hook | Executable shell entry and Python staged-export checker | Actual commit, alternate-index, and partial-staging tests | Git integration only; no client lifecycle hook installed |
 | Skill Watch | Local CLI and optional MCP stdio server | Offline change fixture, retrieval/state tests, actual SDK client-to-server stdio calls; [usage and limits](skill-watch.md) | Protocol integration only; individual client apps not evaluated |
 | ML training example | Python CPU fixture with selectable PyTorch, Lightning, or TensorFlow/Keras execution | Three local framework runs plus framework-independent oracle tests; [versions and results](../examples/ml-training/README.md#recorded-cpu-check) | Fixture execution only; ML skill and agent not independently evaluated |
@@ -24,6 +24,7 @@ independent live-client evaluation is claimed.
 | Codex agents | Standalone `.codex/agents/*.toml` | TOML parsing and embedded-workflow tests | Not yet evaluated |
 | Claude Code | `.claude/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
 | Cursor | `.cursor/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
+| OpenCode | `.opencode/skills/` and `.opencode/agents/*.md` with `mode: subagent` | Source/export, propagation, installer and archive tests; [setup](opencode.md) | Not yet evaluated |
 | Grok Bot (SpaceXAI) | Markdown recipe for each skill and agent, plus first-task guides | Source propagation and embedded-workflow tests; documented manual setup | Not yet evaluated in a live Bot |
 
 The suite runs locally without API keys. CI targets Linux and macOS on Python
@@ -94,5 +95,7 @@ Checked 2026-09-13; these are documentation references, not live-run evidence:
 - [Claude Code subagents](https://code.claude.com/docs/en/sub-agents)
 - [Cursor skills](https://cursor.com/docs/skills)
 - [Cursor subagents](https://cursor.com/docs/subagents)
+- [OpenCode skills](https://opencode.ai/docs/skills)
+- [OpenCode agents](https://opencode.ai/docs/agents)
 - [Grok Bot overview](https://docs.x.ai/grok-bot/overview)
 - [Grok Bot skills and routines](https://docs.x.ai/grok-bot/skills-routines-and-automations)
