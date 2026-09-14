@@ -8,11 +8,16 @@
     "2026-09-13": 6
   },
   "views": {
-    "window_start_utc": "2026-09-01",
-    "window_end_utc": "2026-09-14",
-    "count": 0,
-    "uniques": 0,
+    "window_start_utc": "2026-08-31",
+    "window_end_utc": "2026-09-13",
+    "count": 74,
+    "uniques": 12,
     "daily": [
+      {
+        "date": "2026-08-31",
+        "count": 0,
+        "uniques": 0
+      },
       {
         "date": "2026-09-01",
         "count": 0,
@@ -75,13 +80,8 @@
       },
       {
         "date": "2026-09-13",
-        "count": 0,
-        "uniques": 0
-      },
-      {
-        "date": "2026-09-14",
-        "count": 0,
-        "uniques": 0
+        "count": 74,
+        "uniques": 12
       }
     ]
   }
