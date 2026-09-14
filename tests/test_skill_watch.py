@@ -346,6 +346,31 @@ class RetrievalTests(unittest.TestCase):
             connect.return_value, server_hostname="example.org"
         )
 
+    def test_unreachable_public_address_falls_back_without_redoing_dns(self):
+        records = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.35", 443)),
+        ]
+        connection = wf.PublicHTTPS("example.org", timeout=5)
+        connection._context = Mock()
+        second_socket = Mock()
+        with (
+            patch.object(socket, "getaddrinfo", return_value=records) as resolve,
+            patch.object(
+                socket,
+                "create_connection",
+                side_effect=[OSError("first address is unreachable"), second_socket],
+            ) as connect,
+        ):
+            connection.connect()
+        resolve.assert_called_once_with("example.org", 443, type=socket.SOCK_STREAM)
+        self.assertEqual(connect.call_count, 2)
+        connect.assert_any_call(("93.184.216.34", 443), timeout=5)
+        connect.assert_any_call(("93.184.216.35", 443), timeout=5)
+        connection._context.wrap_socket.assert_called_once_with(
+            second_socket, server_hostname="example.org"
+        )
+
     def test_html_refresh_is_followed_without_executing_scripts(self):
         first = http_response(
             b'<meta http-equiv="refresh" content="0; url=/v2/docs"><script>bad()</script>'

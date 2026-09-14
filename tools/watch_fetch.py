@@ -46,13 +46,22 @@ class PublicHTTPS(http.client.HTTPSConnection):
             not ipaddress.ip_address(address[4][0]).is_global for address in addresses
         ):
             raise WatchError("Source resolves to a non-public address")
-        # Connect to the checked address, not a second DNS lookup of the hostname.
-        raw = socket.create_connection((addresses[0][4][0], self.port), timeout=self.timeout)
-        try:
-            self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
-        except BaseException:
-            raw.close()
-            raise
+        # Connect to a checked address, not a second DNS lookup of the hostname.
+        # A dual-stack host can return an unreachable address first, so try each
+        # public result while retaining the original hostname for TLS SNI.
+        last_error = None
+        for address in addresses:
+            raw = None
+            try:
+                raw = socket.create_connection((address[4][0], self.port), timeout=self.timeout)
+                self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
+                return
+            except OSError as error:
+                last_error = error
+                if raw is not None:
+                    raw.close()
+        if last_error is not None:
+            raise last_error
 
 
 class RefreshTarget(HTMLParser):
