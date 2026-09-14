@@ -704,5 +704,39 @@ class SelectedInstallationTests(unittest.TestCase):
         self.assertFalse((self.project / ".codex/agents").exists())
 
 
+class MarketplaceTests(unittest.TestCase):
+    """The Claude Code marketplace points at checked-in exports; it is not a client run."""
+
+    def setUp(self):
+        self.marketplace = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
+        self.plugins = {plugin["name"]: plugin for plugin in self.marketplace["plugins"]}
+
+    def test_plugins_use_generated_exports_and_existing_sources(self):
+        self.assertEqual(set(self.plugins), {"maintainer-skills-lab", "mkl-humanize"})
+        self.assertEqual(len(self.plugins), len(self.marketplace["plugins"]))
+        for plugin in self.plugins.values():
+            self.assertTrue(plugin["source"].startswith("./"), plugin)
+            self.assertIs(plugin["strict"], False)
+            self.assertTrue((ROOT / plugin["source"]).is_dir(), plugin)
+        library = ROOT / self.plugins["maintainer-skills-lab"]["source"]
+        self.assertEqual(library, ROOT / "providers/claude/.claude")
+        self.assertEqual(
+            snapshot(library),
+            {
+                name.removeprefix(".claude/"): data
+                for name, data in kit.export_files("claude").items()
+            },
+        )
+        humanizer = ROOT / self.plugins["mkl-humanize"]["source"]
+        self.assertEqual(humanizer, ROOT / "skills/mkl-humanize")
+        self.assertTrue((humanizer / "SKILL.md").is_file())
+
+    def test_library_description_counts_match_the_source(self):
+        skills, agents = kit.load_library()
+        description = self.plugins["maintainer-skills-lab"]["description"]
+        counts = f"{len(skills)} maintainer skills and {len(agents)} agent profiles"
+        self.assertIn(counts, description)
+
+
 if __name__ == "__main__":
     unittest.main()
