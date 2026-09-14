@@ -61,6 +61,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run the regression example
         run: python examples/bugfix/run.py --json
+      - name: Run the Humanizer checker demo
+        run: python examples/writing/run.py --json
       - name: Run the offline Skill Watch example
         run: python examples/skill-watch/run.py
       - name: Check Skill Watch over MCP stdio

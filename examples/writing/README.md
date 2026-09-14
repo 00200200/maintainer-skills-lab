@@ -8,6 +8,26 @@ skill's `SKILL.md` includes its own short worked example, available after instal
 The examples and acceptance scenarios below are authored teaching material.
 They are not captured model outputs or measured writing-quality results.
 
+## Run the checker demo
+
+From a source clone, with Python 3.9+, run:
+
+```sh
+python3 examples/writing/run.py
+```
+
+No client, Node.js, network access, or API key is needed. The example reads four
+[authored fixture files](fixtures/) and runs the actual checker without editing
+them. It compares a clear rewrite, a rewrite that changes an option, number, and
+negation, and a deliberate blind spot: replacing Linux with macOS.
+
+The changed rewrite produces five token findings. The clear rewrite and the
+blind spot produce none, demonstrating why a clean report still needs a human
+claim-by-claim review. This checks the tool, not a model's writing quality.
+Use `--json` for full reports. Exit 0 means the three fixture outcomes matched
+expectations, including the documented blind spot; exit 1 indicates a mismatch
+or checker error. Each checker invocation has a ten-second timeout.
+
 ## Prompts to try
 
 | Task | Polish prompt |
