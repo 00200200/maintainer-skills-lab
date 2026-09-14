@@ -86,7 +86,7 @@ Grok Bot uses [manual setup recipes](grok-bot/README.md).
 
 ## Find your next useful skill
 
-**[Pick a task and copy its prompt →](docs/task-gallery.md)** Eight starting
+**[Pick a task and copy its prompt →](docs/task-gallery.md)** Nine starting
 points for writing, translation, code review, bug reproduction, and ML debugging.
 Each includes the input to bring and what to check in the result.
 
