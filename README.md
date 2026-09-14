@@ -69,6 +69,10 @@ Your client can run it after editing, or you can run it yourself:
 python3 .agents/skills/mkl-humanize/scripts/check_facts.py draft.md edited.md
 ```
 
+Want to see it first? From a source clone, run
+`python3 examples/writing/run.py` for a [ready-made demo](examples/writing/README.md#run-the-checker-demo)
+that shows both detected changes and a meaningful blind spot, without a client or API key.
+
 That path is for Codex and the Skills CLI's Cursor install; Claude Code uses
 `.claude/skills/`. It needs only Python 3.9+ and does not judge meaning. [Worked example →](examples/writing/README.md#check-what-the-rewrite-dropped)
 
