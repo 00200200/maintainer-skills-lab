@@ -25,7 +25,7 @@
 
 **Make stiff drafts readable. Debug code and ML training with reproducible evidence.**
 
-16 skills and 6 agent profiles for **Codex, Claude Code, Cursor, OpenCode, and Grok Bot**.
+17 skills and 6 agent profiles for **Codex, Claude Code, Cursor, OpenCode, and Grok Bot**.
 The workflows share one Markdown source, with generated versions for each client.
 Start with one skill, or get the full library with its agents.
 
@@ -97,11 +97,12 @@ Each includes the input to bring and what to check in the result.
 | Debug a training run | [Debug ML training](skills/mkl-debug-ml-training/SKILL.md) | Focused PyTorch, Lightning, and TensorFlow/Keras diagnostics with a [runnable example](examples/ml-training/README.md) |
 | Review a pull request | [Review PR](skills/mkl-review-pr/SKILL.md) | Actionable findings with locations and consequences |
 | Review changed reference docs | [Review source change](skills/mkl-review-source-change/SKILL.md) | Supported instruction updates, unaffected claims, and gaps that need evidence |
+| Review a dependency update | [Review dependency](skills/mkl-review-dependency/SKILL.md) | Compatibility risks, lockfile checks, and a bounded validation plan |
 | Explain your project | [Write README](skills/mkl-write-readme/SKILL.md) | An introduction and quickstart grounded in the actual repository |
 | Work in Polish and English | [Localize PL ↔ EN](skills/mkl-localize-pl-en/SKILL.md) | Natural wording with commands, placeholders, and meaning preserved |
 | Humanize a Polish draft | [Humanize](skills/mkl-humanize/SKILL.md) + [Polish notes](skills/mkl-humanize/references/pl.md) | Stock phrases and English calques replaced, negations and hedges kept |
 
-**[Browse all 16 skills and 6 agents →](providers/README.md)**
+**[Browse all 17 skills and 6 agents →](providers/README.md)**
 Includes tutorials, UX copy, launch posts, maintainer replies, issue triage,
 regression tests, and releases. The six agent profiles combine these workflows
 for bug investigation, ML training diagnosis, PR review, source-change review,
