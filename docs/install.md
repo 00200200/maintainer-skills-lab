@@ -41,8 +41,11 @@ branch that added the marketplace, followed by `claude plugin install`, succeede
 plugins; `claude plugin details` listed 16 skills and 6 agents for
 `maintainer-skills-lab` (about 1,250 tokens of always-on descriptions) and one skill for
 `mkl-humanize` (about 65). The installed full plugin was byte-for-byte identical to
-`providers/claude/.claude/`. No model was invoked, so skill behavior inside a session
-was not evaluated.
+`providers/claude/.claude/`. With Claude Code 2.1.271, `claude plugin validate --strict`
+also passed for the marketplace and for `providers/claude/.claude/`, but rejected
+`skills/mkl-humanize/` because a single-skill folder has no plugin manifest; that plugin
+still installs and lists its skill. No model was invoked, so skill behavior inside a
+session was not evaluated.
 
 ## One skill with the Skills CLI
 
