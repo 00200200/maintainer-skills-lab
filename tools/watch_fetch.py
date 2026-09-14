@@ -50,10 +50,18 @@ class PublicHTTPS(http.client.HTTPSConnection):
         # A dual-stack host can return an unreachable address first, so try each
         # public result while retaining the original hostname for TLS SNI.
         last_error = None
+        deadline = None if self.timeout is None else time.monotonic() + self.timeout
         for address in addresses:
+            if deadline is not None:
+                timeout = deadline - time.monotonic()
+                if timeout <= 0:
+                    last_error = TimeoutError("connection deadline exceeded")
+                    break
+            else:
+                timeout = None
             raw = None
             try:
-                raw = socket.create_connection((address[4][0], self.port), timeout=self.timeout)
+                raw = socket.create_connection((address[4][0], self.port), timeout=timeout)
                 self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
                 return
             except OSError as error:
