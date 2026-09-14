@@ -36,7 +36,8 @@ into `.claude/skills/` with another method; duplicate names in one client are un
 
 Recorded check, 2026-09-15, Claude Code 2.1.177 on macOS, with a temporary
 `CLAUDE_CONFIG_DIR`: `claude plugin validate . --strict` passed for the marketplace;
-`claude plugin marketplace add <checkout>` and `claude plugin install` succeeded for both
+`claude plugin marketplace add` with a local checkout, and again with a GitHub clone of the
+branch that added the marketplace, followed by `claude plugin install`, succeeded for both
 plugins; `claude plugin details` listed 16 skills and 6 agents for
 `maintainer-skills-lab` (about 1,250 tokens of always-on descriptions) and one skill for
 `mkl-humanize` (about 65). The installed full plugin was byte-for-byte identical to
