@@ -25,6 +25,7 @@ independent live-client evaluation is claimed.
 | Codex skills | `SKILL.md` under `.agents/skills/` | Export and installer tests | Not yet evaluated |
 | Codex agents | Standalone `.codex/agents/*.toml` | TOML parsing and embedded-workflow tests | Not yet evaluated |
 | Claude Code | `.claude/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
+| Claude Code plugin marketplace | `.claude-plugin/marketplace.json` with a Humanizer plugin and a full-library plugin | Manifest tests; strict CLI validation, local marketplace add, install and component inventory with Claude Code 2.1.177 ([recorded check](install.md#claude-code-plugin-marketplace)) | Installation only; no model invoked |
 | Cursor | `.cursor/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
 | OpenCode | `.opencode/skills/` and `.opencode/agents/*.md` with `mode: subagent` | Source/export, propagation, installer and archive tests; [client check](../examples/opencode/README.md) | 1.18.30 discovery and configuration loading checked on macOS arm64; model outcomes not evaluated |
 | Grok Bot (SpaceXAI) | Markdown recipe for each skill and agent, plus first-task guides | Source propagation and embedded-workflow tests; documented manual setup | Not yet evaluated in a live Bot |
@@ -84,8 +85,8 @@ or protection for locally edited files in the third-party CLI.
   permission grants, force a model, or claim to impose a cross-client sandbox.
 - A Grok Bot configuration is distinct from a Cursor IDE subagent. Follow the
   supported Bot UI rather than assuming local files create cloud resources.
-- No marketplace plugin or general ChatGPT/Claude web-chat compatibility is
-  claimed by this local-file release.
+- The Claude Code plugin marketplace has an installation check only; see the
+  [installation guide](install.md#claude-code-plugin-marketplace). No other client marketplace or general ChatGPT/Claude web-chat compatibility is claimed.
 - Grok Bot recipes contain workflow instructions. Required access, supporting files,
   and saved skills are configured in the Bot app. Regenerating a Markdown file does
   not update an existing cloud Bot or its routines.
