@@ -17,6 +17,7 @@ linked skill instructions with your task.
 | [Improve a README](#improve-a-readme) | An accessible repository | A quickstart grounded in available commands |
 | [Reproduce a bug](#reproduce-a-bug) | A report and code | A rerunnable failure or a named blocker |
 | [Review a pull request](#review-a-pull-request) | Base and head revisions | Findings with triggers and evidence |
+| [Review an ML refactor](#review-an-ml-refactor) | Base/head revisions and the project checkout | Reproducibility evidence scoped to the changed experiment |
 | [Debug a training loss](#debug-a-training-loss) | One batch and the loss expression | A shape diagnosis before a proposed fix |
 | [Review changed documentation](#review-changed-documentation) | A source diff and dependent instructions | Supported corrections and unresolved claims |
 
@@ -135,6 +136,35 @@ approving, merging, or editing the patch.
 **Check the result:** findings explain a reachable failure rather than stylistic
 preferences; untested assumptions remain explicit. An empty finding list is
 acceptable and does not establish that every behavior was tested.
+
+## Review an ML refactor
+
+Skill: [mkl-review-pr](../skills/mkl-review-pr/SKILL.md).
+Use this when a pull request changes data preparation, randomness, training, or
+evaluation code and the repository checkout is available to the client.
+
+```text
+Use mkl-review-pr to review this ML change for correctness and reproducibility.
+Read the complete diff and the repository guidance first.
+
+Base: [base commit]
+Head: [head commit]
+Project checkout: [path]
+
+If the project provides a reproducibility checker such as Repro Lens, run its
+static check on the checkout and inspect any RNG, device, data-order, or
+configuration findings. If before/after reports exist, compare them. Run a
+bounded replay only when the repository documents the command and inputs.
+Return findings with locations, triggers, consequences, exact commands and
+environment, and keep a clean static scan or matching run scoped to its evidence.
+Do not edit, approve, merge, or post comments.
+```
+
+**Check the result:** a finding is tied to changed behavior and a reachable
+consequence. Static review findings are separated from replay results, and a
+matching fixture run is not presented as proof of scientific validity or
+cross-platform equivalence. [Repro Lens framework checks](https://github.com/00200200/repro-lens#framework-checks)
+show the kind of evidence this recipe can consume.
 
 ## Debug a training loss
 
