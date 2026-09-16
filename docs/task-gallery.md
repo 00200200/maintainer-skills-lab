@@ -18,6 +18,7 @@ linked skill instructions with your task.
 | [Reproduce a bug](#reproduce-a-bug) | A report and code | A rerunnable failure or a named blocker |
 | [Review a pull request](#review-a-pull-request) | Base and head revisions | Findings with triggers and evidence |
 | [Review an ML refactor](#review-an-ml-refactor) | Base/head revisions and the project checkout | Reproducibility evidence scoped to the changed experiment |
+| [Review a dependency update](#review-a-dependency-update) | Base/head revisions and package metadata | Compatibility risks and a bounded validation plan |
 | [Debug a training loss](#debug-a-training-loss) | One batch and the loss expression | A shape diagnosis before a proposed fix |
 | [Review changed documentation](#review-changed-documentation) | A source diff and dependent instructions | Supported corrections and unresolved claims |
 
@@ -165,6 +166,29 @@ consequence. Static review findings are separated from replay results, and a
 matching fixture run is not presented as proof of scientific validity or
 cross-platform equivalence. [Repro Lens framework checks](https://github.com/00200200/repro-lens#framework-checks)
 show the kind of evidence this recipe can consume.
+
+## Review a dependency update
+
+Skill: [mkl-review-dependency](../skills/mkl-review-dependency/SKILL.md).
+Use this for a version bump or automated dependency PR before deciding whether
+the change is ready to merge.
+
+```text
+Use mkl-review-dependency to review the dependency update between these
+revisions. Read the repository guidance, package manifest, lockfile, supported
+runtime matrix, CI configuration, and the dependency's official release notes.
+Identify breaking changes, resolver or platform risks, changed transitive
+packages, and the smallest validation plan. Separate checks you ran from checks
+you recommend. Do not edit files or approve the PR.
+
+Base: [base commit]
+Head: [head commit]
+Repository: [checkout path]
+```
+
+**Check the result:** the review names the old and new constraints and resolved
+versions, ties each finding to a trigger and consequence, and does not call the
+update safe merely because installation or a syntax check succeeded.
 
 ## Debug a training loss
 

@@ -46,16 +46,22 @@ def exercise(executable):
             env[f"XDG_{kind}_HOME"] = str(root / kind.lower())
 
         def run(*args):
-            result = subprocess.run(
-                [executable, *args],
-                cwd=project,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=45,
-                check=True,
-            )
-            return result.stdout
+            # OpenCode 1.18.30 can exit before a large stdout write drains
+            # through a pipe, silently truncating output past 64 KiB (seen
+            # once the library grew past that on `debug skill`). A real file
+            # doesn't hit that pipe-backpressure limit.
+            with tempfile.NamedTemporaryFile(dir=root, prefix="stdout-") as stdout_file:
+                subprocess.run(
+                    [executable, *args],
+                    cwd=project,
+                    env=env,
+                    stdout=stdout_file,
+                    stderr=subprocess.PIPE,
+                    timeout=45,
+                    check=True,
+                )
+                stdout_file.seek(0)
+                return stdout_file.read().decode("utf-8")
 
         version = run("--version").strip()
         require(version == VERSION, f"Expected OpenCode {VERSION}, got {version}")
