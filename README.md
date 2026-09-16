@@ -40,6 +40,20 @@ language, keeping facts, code, quotations, and meaningful caveats intact.
 
 This is an authored illustration. [More examples and acceptance checks →](examples/writing/README.md)
 
+### Install as a Claude Code plugin
+
+In Claude Code, add this repository as a plugin marketplace, then install Humanizer
+alone or the full library:
+
+```text
+/plugin marketplace add 00200200/maintainer-skills-lab
+/plugin install mkl-humanize@maintainer-skills-lab
+```
+
+For all 16 skills and 6 agents, install `maintainer-skills-lab@maintainer-skills-lab`
+instead. Update with `/plugin marketplace update maintainer-skills-lab`.
+[Plugin contents and recorded check →](docs/install.md#claude-code-plugin-marketplace)
+
 ### Install one skill
 
 With **Node.js 22.20.0+ and Git**, run this in the project where you want to use it:

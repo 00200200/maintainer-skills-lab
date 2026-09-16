@@ -1,0 +1,43 @@
+{
+  "name": "maintainer-skills-lab",
+  "owner": {
+    "name": "00200200",
+    "url": "https://github.com/00200200"
+  },
+  "description": "Maintainer workflows from one shared source: writing, bug and PR review, ML debugging and releases.",
+  "plugins": [
+    {
+      "name": "maintainer-skills-lab",
+      "source": "./providers/claude/.claude",
+      "description": "All 16 maintainer skills and 6 agent profiles: humanize and localize prose, triage, reproduce and verify bugs, review PRs, debug ML training, and prepare releases.",
+      "homepage": "https://github.com/00200200/maintainer-skills-lab",
+      "repository": "https://github.com/00200200/maintainer-skills-lab",
+      "license": "MIT",
+      "keywords": [
+        "maintainer",
+        "writing",
+        "humanizer",
+        "code-review",
+        "debugging"
+      ],
+      "category": "productivity",
+      "strict": false
+    },
+    {
+      "name": "mkl-humanize",
+      "source": "./skills/mkl-humanize",
+      "description": "Only Humanizer: edit stiff or AI-sounding prose while keeping facts, numbers, negations and hedges, with a stdlib fact checker and Polish notes.",
+      "homepage": "https://github.com/00200200/maintainer-skills-lab#try-humanizer",
+      "repository": "https://github.com/00200200/maintainer-skills-lab",
+      "license": "MIT",
+      "keywords": [
+        "humanizer",
+        "writing",
+        "editing",
+        "polish"
+      ],
+      "category": "productivity",
+      "strict": false
+    }
+  ]
+}
