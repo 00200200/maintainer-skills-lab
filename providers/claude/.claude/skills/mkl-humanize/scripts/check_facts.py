@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """List evidence that changed between a draft and its same-language rewrite.
 
-Compares code, URLs, long option names, placeholders, numbers and quotations, and counts
-negation and hedge words in English and Polish. It cannot judge meaning: a clean
-result only says these tokens survived. Standard library only; Python 3.9+.
+Compares code, URLs, long option names and attached non-numeric values, placeholders,
+numbers and quotations, and counts negation and hedge words in English and Polish.
+It cannot judge meaning: a clean result only says these tokens survived. Standard
+library only; Python 3.9+.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ PLACEHOLDER = re.compile(
 QUOTE = re.compile(r'"([^"\n]+)"|“([^”\n]+)”|„([^”“\n]+)[”“]|«([^»\n]+)»')
 NUMBER = re.compile(r"(?<![\w.])[-+]?(?:\d+(?:[.,]\d+)*|[.,]\d+)(?:[eE][-+]?\d+)?%?")
 FLAG = re.compile(r"(?<![\w/-])--[A-Za-z][A-Za-z0-9_-]*(?![\w-])")
+ASSIGNED = re.compile(r"(?<![\w/-])(--[A-Za-z][A-Za-z0-9_-]*)=([^\s<>()\[\]\"']+)")
 WORDS = {
     "negation": (
         "not no never none nobody nothing neither nor without cannot can't don't doesn't "
@@ -47,7 +49,21 @@ def evidence(text: str) -> dict[str, Counter]:
     found["placeholder"] = Counter(PLACEHOLDER.findall(text))
     text = PLACEHOLDER.sub(" ", text)
     found["quotation"] = Counter(next(part for part in m if part) for m in QUOTE.findall(text))
-    found["flag"] = Counter(FLAG.findall(text))
+    flags: Counter[str] = Counter()
+
+    def take_assigned(match: re.Match[str]) -> str:
+        name, value = match.group(1), match.group(2).rstrip(".,;:!?")
+        if not value:
+            return match.group(0)
+        if NUMBER.fullmatch(value):
+            flags[name] += 1
+            return f" {value} "
+        flags[f"{name}={value}"] += 1
+        return " "
+
+    text = ASSIGNED.sub(take_assigned, text)
+    flags.update(FLAG.findall(text))
+    found["flag"] = flags
     text = FLAG.sub(" ", text)
     found["number"] = Counter(NUMBER.findall(text))
     lowered = text.lower().replace("’", "'")

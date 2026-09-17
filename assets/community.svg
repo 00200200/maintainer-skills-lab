@@ -1,30 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="410" viewBox="0 0 1200 410" role="img" aria-labelledby="title desc">
 <title id="title">Maintainer Skills Lab community statistics</title>
-<desc id="desc">GitHub snapshot: 6 stars, 0 forks, 74 views and 12 unique visitors in the returned 14-day window. Star chart groups current stargazers by date starred; removed stars are excluded.</desc>
+<desc id="desc">GitHub snapshot: 16 stars, 2 forks, 209 views and 70 unique visitors in the returned 14-day window. Star chart groups current stargazers by date starred; removed stars are excluded.</desc>
 <rect width="1200" height="410" rx="24" fill="#101923"/>
 <g font-family="Arial,Helvetica,sans-serif">
 <text x="40" y="40" font-size="13" fill="#bced85" >COMMUNITY / LIVE BADGES ABOVE · SNAPSHOT BELOW</text>
-<text x="1160" y="40" font-size="14" fill="#a9b9c8" text-anchor="end">2026-09-14 UTC</text>
+<text x="1160" y="40" font-size="14" fill="#a9b9c8" text-anchor="end">2026-09-17 UTC</text>
 <text x="40" y="80" font-size="12" fill="#a9b9c8" >STARS</text>
-<text x="40" y="130" font-size="44" fill="#eef4f8" font-weight="700">6</text>
+<text x="40" y="130" font-size="44" fill="#eef4f8" font-weight="700">16</text>
 <text x="326" y="80" font-size="12" fill="#a9b9c8" >FORKS</text>
-<text x="326" y="130" font-size="44" fill="#eef4f8" font-weight="700">0</text>
+<text x="326" y="130" font-size="44" fill="#eef4f8" font-weight="700">2</text>
 <text x="612" y="80" font-size="12" fill="#a9b9c8" >VIEWS · 14 DAYS</text>
-<text x="612" y="130" font-size="44" fill="#eef4f8" font-weight="700">74</text>
+<text x="612" y="130" font-size="44" fill="#eef4f8" font-weight="700">209</text>
 <text x="898" y="80" font-size="12" fill="#a9b9c8" >UNIQUE VISITORS · 14 DAYS</text>
-<text x="898" y="130" font-size="44" fill="#eef4f8" font-weight="700">12</text>
+<text x="898" y="130" font-size="44" fill="#eef4f8" font-weight="700">70</text>
 <path d="M40 159H1160" stroke="#2a3949"/>
 <text x="40" y="191" font-size="13" fill="#bced85" >STAR HISTORY</text>
 <text x="1160" y="191" font-size="13" fill="#a9b9c8" text-anchor="end">Current stargazers, grouped by date starred</text>
 <path d="M70 307H1160" stroke="#223140"/>
 <path d="M70 263.0H1160" stroke="#223140"/>
 <path d="M70 219H1160" stroke="#223140"/>
-<text x="40" y="224" font-size="12" fill="#a9b9c8" >6</text>
+<text x="40" y="224" font-size="12" fill="#a9b9c8" >16</text>
 <text x="40" y="312" font-size="12" fill="#a9b9c8" >0</text>
-<circle cx="70.0" cy="219.0" r="5" fill="#bced85"/>
-<text x="1160" y="270" font-size="16" fill="#a9b9c8" text-anchor="end">The beginning. Each dot comes from GitHub.</text>
+<path d="M70.0 274.0H342.5V257.5H615.0V241.0H887.5V219.0" fill="none" stroke="#bced85" stroke-width="3"/>
+<circle cx="70.0" cy="274.0" r="5" fill="#bced85"/>
+<circle cx="342.5" cy="257.5" r="5" fill="#bced85"/>
+<circle cx="615.0" cy="241.0" r="5" fill="#bced85"/>
+<circle cx="887.5" cy="219.0" r="5" fill="#bced85"/>
 <text x="70" y="335" font-size="12" fill="#a9b9c8" >2026-09-13</text>
-<text x="1160" y="335" font-size="12" fill="#a9b9c8" text-anchor="end">2026-09-14</text>
-<text x="40" y="380" font-size="13" fill="#a9b9c8" >Views: 2026-08-31 to 2026-09-13 UTC.</text>
+<text x="1160" y="335" font-size="12" fill="#a9b9c8" text-anchor="end">2026-09-17</text>
+<text x="40" y="380" font-size="13" fill="#a9b9c8" >Views: 2026-09-03 to 2026-09-16 UTC.</text>
 <text x="1160" y="380" font-size="13" fill="#a9b9c8" text-anchor="end">Source: GitHub API · Removed stars are excluded</text>
 </g></svg>
