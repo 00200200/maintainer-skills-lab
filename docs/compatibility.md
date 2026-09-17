@@ -15,7 +15,7 @@ independent live-client evaluation is claimed.
 
 | Surface | Format | Current evidence | Live-client status |
 | --- | --- | --- | --- |
-| Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for three targets; see recorded check below | Installer integration only; clients not invoked |
+| Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for four targets (Codex, Claude Code, Cursor, OpenCode); see recorded check below | Installer integration only; clients not invoked |
 | Python selected-skill installer | Repeatable `--skill NAME` for install, update, and uninstall | Filesystem tests for four targets, additive selection, resources, retained ownership, conflicts, dry runs, and actual CLI calls | Installer integration only; clients not invoked |
 | Git pre-commit hook | Executable shell entry and Python staged-export checker | Actual commit, alternate-index, and partial-staging tests | Git integration only; no client lifecycle hook installed |
 | Skill Watch | Local CLI and optional MCP stdio server | Offline change fixture, retrieval/state tests, actual SDK client-to-server stdio calls; [usage and limits](skill-watch.md) | Protocol integration only; individual client apps not evaluated |
@@ -27,7 +27,7 @@ independent live-client evaluation is claimed.
 | Claude Code | `.claude/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
 | Claude Code plugin marketplace | `.claude-plugin/marketplace.json` with a Humanizer plugin and a full-library plugin | Manifest tests; strict CLI validation, local marketplace add, install and component inventory with Claude Code 2.1.177 ([recorded check](install.md#claude-code-plugin-marketplace)) | Installation only; no model invoked |
 | Cursor | `.cursor/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
-| OpenCode | `.opencode/skills/` and `.opencode/agents/*.md` with `mode: subagent` | Source/export, propagation, installer and archive tests; [client check](../examples/opencode/README.md) | 1.18.30 discovery and configuration loading checked on macOS arm64; model outcomes not evaluated |
+| OpenCode | `.opencode/skills/` and `.opencode/agents/*.md` with `mode: subagent` | Source/export, propagation, installer and archive tests; [client check](../examples/opencode/README.md) | 1.18.30 discovery and configuration loading checked on macOS arm64, including a skill copied to `.agents/skills/`; model outcomes not evaluated |
 | Grok Bot (SpaceXAI) | Markdown recipe for each skill and agent, plus first-task guides | Source propagation and embedded-workflow tests; documented manual setup | Not yet evaluated in a live Bot |
 
 The suite runs locally without API keys. CI targets Linux and macOS on Python
@@ -61,7 +61,9 @@ The CLI listed the selected skill, and removal deleted its files while preservin
 an unrelated sentinel file. Telemetry was disabled for these checks. This historical check predates
 `scripts/check_facts.py`. A later [resource installation diagnostic](../examples/skills-cli/README.md)
 verified copying, execution, and removal of the checker with Skills CLI 1.5.26
-and Node.js 22.20.0 on macOS for all three targets. That diagnostic uses the
+and Node.js 22.20.0 on macOS for Codex, Claude Code, and Cursor. A later run of
+the same diagnostic on macOS with Node.js 24.21.0 also covered `--agent opencode`,
+which copies into the shared `.agents/skills` path. That diagnostic uses the
 local checkout and does not repeat public-repository cloning.
 
 One preliminary `remove mkl-humanize --agent codex --yes` reported success but

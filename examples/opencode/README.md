@@ -31,7 +31,9 @@ settings or project files, and cleans its temporary project when it finishes.
 
 - An empty project has no `mkl-*` skills.
 - Installing only Humanizer exposes exactly that skill; removal hides it again.
-- Full installation exposes all 16 skills, with matching names, descriptions,
+- A Humanizer copy in `.agents/skills/` (the Skills CLI `--agent opencode` path)
+  is discovered with a matching name, description, body, and resolved location.
+- Full installation exposes every library skill, with matching names, descriptions,
   resolved paths and complete bodies.
 - All six agents load as subagents with matching descriptions and embedded prompts.
 - Diagnostic reads leave the installed exports unchanged.
@@ -56,6 +58,22 @@ no global installation was used. Source exports were from commit
   "skills": 16,
   "agents": 6,
   "selected_install_discovery": true,
+  "removal_discovery": true,
+  "skill_content_and_agent_prompts_match": true,
+  "model_session_started": false
+}
+```
+
+A later local run on **2026-09-17**, same host and OpenCode 1.18.30 binary, used
+the current library (17 skills) and also asserted `.agents/skills/` discovery:
+
+```json
+{
+  "opencode_version": "1.18.30",
+  "skills": 17,
+  "agents": 6,
+  "selected_install_discovery": true,
+  "agents_path_discovery": true,
   "removal_discovery": true,
   "skill_content_and_agent_prompts_match": true,
   "model_session_started": false

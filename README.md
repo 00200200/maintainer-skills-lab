@@ -63,9 +63,10 @@ npx skills@1.5.26 add 00200200/maintainer-skills-lab --skill mkl-humanize --agen
 ```
 
 For **Claude Code**, replace `--agent codex` with `--agent claude-code`.
-For **Cursor**, use `--agent cursor`. This uses the third-party
-[Vercel Skills CLI](https://github.com/vercel-labs/skills) to install one skill
-locally in the current project. Read the linked skill before installing it.
+For **Cursor**, use `--agent cursor`. For **OpenCode**, use `--agent opencode`.
+This uses the third-party [Vercel Skills CLI](https://github.com/vercel-labs/skills)
+to install one skill locally in the current project. Read the linked skill before
+installing it.
 
 Then ask your client:
 
@@ -87,14 +88,15 @@ Want to see it first? From a source clone, run
 `python3 examples/writing/run.py` for a [ready-made demo](examples/writing/README.md#run-the-checker-demo)
 that shows both detected changes and a meaningful blind spot, without a client or API key.
 
-That path is for Codex and the Skills CLI's Cursor install; Claude Code uses
-`.claude/skills/`. It needs only Python 3.9+ and does not judge meaning. [Worked example →](examples/writing/README.md#check-what-the-rewrite-dropped)
+That path is for Codex and the Skills CLI's Cursor and OpenCode installs;
+Claude Code uses `.claude/skills/`. It needs only Python 3.9+ and does not judge
+meaning. [Worked example →](examples/writing/README.md#check-what-the-rewrite-dropped)
 
 Prefer Python? [Install just Humanizer with Python 3.11+](docs/install.md#one-or-more-skills-with-python)
 using `--skill mkl-humanize`, with no Node.js dependency. You can also
 [install the full library](#start-in-a-minute) or [get a ZIP](https://github.com/00200200/maintainer-skills-lab/releases).
-For **OpenCode**, use the Python installer with `--target opencode`.
-[OpenCode setup and invocation →](docs/opencode.md)
+The Python installer is still the way to get native OpenCode agents and the
+`.opencode/skills/` copy. [OpenCode setup and invocation →](docs/opencode.md)
 
 Grok Bot uses [manual setup recipes](grok-bot/README.md).
 

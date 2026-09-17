@@ -66,7 +66,7 @@ def exercise(executable):
         version = run("--version").strip()
         require(version == VERSION, f"Expected OpenCode {VERSION}, got {version}")
 
-        def discovered(expected):
+        def discovered(expected, skill_dir=".opencode/skills"):
             entries = json.loads(run("debug", "skill"))
             actual = [entry for entry in entries if entry["name"].startswith("mkl-")]
             require(len(actual) == len(expected), "Unexpected number of library skills")
@@ -75,13 +75,25 @@ def exercise(executable):
                 source = skills[entry["name"]]
                 require(entry["description"] == source["description"], "Description differs")
                 require(entry["content"].strip() == source["body"].strip(), "Skill body differs")
-                location = project / ".opencode/skills" / entry["name"] / "SKILL.md"
+                location = project / skill_dir / entry["name"] / "SKILL.md"
                 require(Path(entry["location"]).resolve() == location, "Unexpected skill location")
+
+        def copy_skill(name, skill_dir):
+            destination = project / skill_dir / name
+            for relative, data in skills[name]["files"].items():
+                path = destination / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
 
         discovered([])
         kit.install("opencode", project, skill_names=["mkl-humanize"])
         discovered(["mkl-humanize"])
         kit.uninstall("opencode", project, skill_names=["mkl-humanize"])
+        discovered([])
+        # Skills CLI --agent opencode copies into the shared .agents/skills path.
+        copy_skill("mkl-humanize", ".agents/skills")
+        discovered(["mkl-humanize"], skill_dir=".agents/skills")
+        shutil.rmtree(project / ".agents/skills/mkl-humanize")
         discovered([])
         kit.install("opencode", project)
         discovered(skills)
@@ -105,6 +117,7 @@ def exercise(executable):
             "skills": len(skills),
             "agents": len(agents),
             "selected_install_discovery": True,
+            "agents_path_discovery": True,
             "removal_discovery": True,
             "skill_content_and_agent_prompts_match": True,
             "model_session_started": False,
