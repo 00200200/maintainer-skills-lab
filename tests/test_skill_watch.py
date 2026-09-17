@@ -407,7 +407,7 @@ class RetrievalTests(unittest.TestCase):
                 "create_connection",
                 side_effect=[OSError("first address is unreachable"), Mock()],
             ) as connect,
-            patch.object(wf.time, "monotonic", side_effect=[100.0, 101.0, 104.5]),
+            patch.object(wf.time, "monotonic", side_effect=[100.0, 101.0, 104.5, 104.5]),
         ):
             connection.connect()
         self.assertEqual(connect.call_count, 2)
@@ -426,6 +426,49 @@ class RetrievalTests(unittest.TestCase):
             with self.assertRaisesRegex(TimeoutError, "connection deadline exceeded"):
                 connection.connect()
         connect.assert_not_called()
+
+    def test_tls_handshake_uses_remaining_connection_budget(self):
+        records = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.35", 443)),
+        ]
+        connection = wf.PublicHTTPS("example.org", timeout=5)
+        connection._context = Mock()
+        first_raw = Mock()
+        second_raw = Mock()
+        connection._context.wrap_socket.side_effect = [OSError("handshake timed out"), Mock()]
+        with (
+            patch.object(socket, "getaddrinfo", return_value=records),
+            patch.object(
+                socket, "create_connection", side_effect=[first_raw, second_raw]
+            ) as connect,
+            patch.object(wf.time, "monotonic", side_effect=[100.0, 101.0, 104.0, 104.5, 104.5]),
+        ):
+            connection.connect()
+        first_raw.settimeout.assert_called_once_with(1.0)
+        first_raw.close.assert_called_once_with()
+        self.assertAlmostEqual(connect.call_args_list[1].kwargs["timeout"], 0.5)
+        second_raw.settimeout.assert_called_once_with(0.5)
+        connection._context.wrap_socket.assert_called_with(
+            second_raw, server_hostname="example.org"
+        )
+
+    def test_slow_tcp_connect_skips_tls_when_budget_is_gone(self):
+        records = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
+        connection = wf.PublicHTTPS("example.org", timeout=5)
+        connection._context = Mock()
+        raw = Mock()
+        with (
+            patch.object(socket, "getaddrinfo", return_value=records),
+            patch.object(socket, "create_connection", return_value=raw) as connect,
+            patch.object(wf.time, "monotonic", side_effect=[100.0, 100.0, 106.0]),
+        ):
+            with self.assertRaisesRegex(TimeoutError, "connection deadline exceeded"):
+                connection.connect()
+        connect.assert_called_once_with(("93.184.216.34", 443), timeout=5)
+        raw.settimeout.assert_not_called()
+        connection._context.wrap_socket.assert_not_called()
+        raw.close.assert_called_once_with()
 
     def test_html_refresh_is_followed_without_executing_scripts(self):
         first = http_response(
