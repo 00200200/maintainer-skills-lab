@@ -61,6 +61,11 @@ class PublicHTTPS(http.client.HTTPSConnection):
             raw = None
             try:
                 raw = socket.create_connection((address[4][0], self.port), timeout=timeout)
+                if deadline is not None:
+                    timeout = deadline - time.monotonic()
+                    if timeout <= 0:
+                        raise TimeoutError("connection deadline exceeded")
+                    raw.settimeout(timeout)
                 self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
                 return
             except OSError as error:
