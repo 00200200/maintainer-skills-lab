@@ -332,6 +332,26 @@ class RetrievalTests(unittest.TestCase):
                     wf.PublicHTTPS("example.org").connect()
                 connect.assert_not_called()
 
+    def test_mixed_dns_skips_non_public_addresses(self):
+        records = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 443)),
+            (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("fe80::1", 443, 0, 0)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+        ]
+        connection = wf.PublicHTTPS("example.org", timeout=5)
+        connection._context = Mock()
+        with (
+            patch.object(socket, "getaddrinfo", return_value=records) as resolve,
+            patch.object(socket, "create_connection") as connect,
+            patch.object(wf.time, "monotonic", return_value=100.0),
+        ):
+            connection.connect()
+        resolve.assert_called_once_with("example.org", 443, type=socket.SOCK_STREAM)
+        connect.assert_called_once_with(("93.184.216.34", 443), timeout=5)
+        connection._context.wrap_socket.assert_called_once_with(
+            connect.return_value, server_hostname="example.org"
+        )
+
     def test_dns_result_is_pinned_while_tls_uses_original_hostname(self):
         records = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
         connection = wf.PublicHTTPS("example.org", timeout=5)
