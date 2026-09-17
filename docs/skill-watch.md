@@ -226,12 +226,12 @@ page layouts. Baseline text is stored locally and is not distributed in the repo
 The scraper supports explicit public HTTPS URLs on port 443, HTTP redirects and
 HTML meta refreshes, with at most four requests per source, a 1 MB response cap,
 and a 60,000-character selected-text cap. It connects to a checked public IP while
-verifying TLS for the original hostname. It uses no cookies, browser sessions,
-proxy environment variables, JavaScript execution, recursive crawling, or paid
-fallbacks. Requests use socket timeouts up to 15 seconds and a response-read
-deadline; DNS and connection setup can extend total elapsed time. Configure up
-to 20 sources and keep checks infrequent enough
-for the source sites.
+verifying TLS for the original hostname. Non-public records in a mixed DNS
+response are skipped rather than failing the lookup. It uses no cookies,
+browser sessions, proxy environment variables, JavaScript execution, recursive
+crawling, or paid fallbacks. Requests use socket timeouts up to 15 seconds and a
+response-read deadline; DNS and connection setup can extend total elapsed time.
+Configure up to 20 sources and keep checks infrequent enough for the source sites.
 
 The HTML parser is intentionally limited. Client-rendered pages, PDFs, compressed
 responses, and oversized pages may fail. Prefer an official plain-text source

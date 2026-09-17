@@ -42,16 +42,15 @@ def validate_url(url):
 class PublicHTTPS(http.client.HTTPSConnection):
     def connect(self):
         addresses = socket.getaddrinfo(self.host, self.port, type=socket.SOCK_STREAM)
-        if not addresses or any(
-            not ipaddress.ip_address(address[4][0]).is_global for address in addresses
-        ):
+        public = [address for address in addresses if ipaddress.ip_address(address[4][0]).is_global]
+        if not public:
             raise WatchError("Source resolves to a non-public address")
         # Connect to a checked address, not a second DNS lookup of the hostname.
-        # A dual-stack host can return an unreachable address first, so try each
+        # Skip non-public records from a mixed response, and try each remaining
         # public result while retaining the original hostname for TLS SNI.
         last_error = None
         deadline = None if self.timeout is None else time.monotonic() + self.timeout
-        for address in addresses:
+        for address in public:
             if deadline is not None:
                 timeout = deadline - time.monotonic()
                 if timeout <= 0:
