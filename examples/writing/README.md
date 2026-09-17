@@ -173,11 +173,14 @@ Do not grade style by exact-match comparisons against these example answers.
 The checker also tracks long option names outside code spans. For example,
 changing `Run installer --dry-run.` to `Run installer --force.` reports
 `--dry-run` as dropped and `--force` as added, even when the files contain no
-Markdown backticks. Reordering a sentence while keeping the option is allowed.
+Markdown backticks. Changing `Set --format=json.` to `Set --format=yaml.`
+reports the attached values. Reordering a sentence while keeping the option
+is allowed.
 
-This is a token check, not a shell parser: short options and the meaning of
-option values are not checked as options. Numbers in values still receive the
-normal numeric check. Put complete commands in code spans when their exact
-contents must be preserved. Code and URLs are checked separately rather than
-counting their option-like text a second time. This is an authored regression
-example, not a live-model result.
+This is a token check, not a shell parser: short options and space-separated
+argument values are not checked as options. An attached value such as
+`--format=json` is tracked, so changing it to `--format=yaml` is reported.
+Numbers in values such as `--limit=20` still receive the normal numeric check.
+Put complete commands in code spans when their exact contents must be preserved.
+Code and URLs are checked separately rather than counting their option-like text
+a second time. This is an authored regression example, not a live-model result.
