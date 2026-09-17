@@ -65,12 +65,15 @@ default branch; pinning the CLI does not pin the skill revision.
 | Codex | `--agent codex` | `.agents/skills/mkl-humanize/SKILL.md` |
 | Claude Code | `--agent claude-code` | `.claude/skills/mkl-humanize/SKILL.md` |
 | Cursor | `--agent cursor` | `.agents/skills/mkl-humanize/SKILL.md` |
+| OpenCode | `--agent opencode` | `.agents/skills/mkl-humanize/SKILL.md` |
 
 `--copy` creates regular files in the current project. The CLI also writes
-`skills-lock.json`. Cursor uses the CLI's shared `.agents/skills` path; the Python
-installer below uses `.cursor/skills`. Neither command configures a live client
-or installs Grok Bot recipes. Native agent profiles are available through the
-Python installer and release ZIPs.
+`skills-lock.json`. Cursor and OpenCode use the CLI's shared `.agents/skills`
+path. The Python installer below uses `.cursor/skills` for Cursor and
+`.opencode/skills` for OpenCode. OpenCode 1.18.30 also loads the shared
+`.agents/skills` copy; that discovery is part of the [OpenCode client check](../examples/opencode/README.md).
+Neither command configures a live client or installs Grok Bot recipes. Native
+agent profiles are available through the Python installer and release ZIPs.
 
 Discover another skill before selecting it:
 
