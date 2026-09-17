@@ -99,7 +99,8 @@ when running it to opt out; this also disables its security-audit requests.
 [Recorded installation checks and limits →](compatibility.md#skills-cli-installation-check)
 The optional [resource diagnostic](../examples/skills-cli/README.md) verifies
 that Humanizer installs with its checker, runs it, and removes the skill while
-preserving unrelated files in disposable projects.
+preserving unrelated files in disposable projects. Linux CI runs that same
+diagnostic with the pinned CLI.
 
 ## One or more skills with Python
 

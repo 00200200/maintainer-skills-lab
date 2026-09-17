@@ -738,5 +738,20 @@ class MarketplaceTests(unittest.TestCase):
         self.assertIn(counts, description)
 
 
+class SkillsCliWorkflowTests(unittest.TestCase):
+    """Linux CI must run the pinned Skills CLI diagnostic; this is not a client run."""
+
+    def test_linux_ci_runs_the_pinned_skills_cli_diagnostic(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        spec = importlib.util.spec_from_file_location(
+            "skills_cli_check", ROOT / "examples/skills-cli/check.py"
+        )
+        check = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(check)
+        self.assertIn(f"skills@{check.VERSION}", workflow)
+        self.assertIn("python examples/skills-cli/check.py", workflow)
+        self.assertIn("skills-cli-install-linux", workflow)
+
+
 if __name__ == "__main__":
     unittest.main()
