@@ -40,5 +40,20 @@ used the CLI's shared `.agents/skills/` path, the same as Codex and Cursor.
 
 This verifies installer behavior and execution of the copied Python script.
 It does not establish live-client invocation, writing quality, global installs,
-other operating systems, or other CLI versions. The diagnostic is opt-in and
-is not part of the network-free unit suite.
+Windows, or other CLI versions. The diagnostic is opt-in locally and is not
+part of the network-free unit suite.
+
+## Continuous integration
+
+The `Skills CLI 1.5.26 Humanizer install (Linux)` job in
+[Validate library](../../.github/workflows/ci.yml) runs this same script on
+pushes and pull requests, using Python 3.11, Node.js 22, and `skills@1.5.26`.
+Installation stays under the runner's temporary directory, disables package
+lifecycle scripts, and does not modify the repository or a live client. The
+job has a ten-minute limit.
+
+A nonzero diagnostic fails the job. A successful run uploads
+`skills-cli-install-linux`, containing the CLI version, Node version, the four
+targets, and the assertion summary. Inspect the run for the exact commit being
+evaluated. No API credentials are supplied, and no model session is started.
+The macOS result above remains a separately recorded local run.

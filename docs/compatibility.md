@@ -15,7 +15,7 @@ independent live-client evaluation is claimed.
 
 | Surface | Format | Current evidence | Live-client status |
 | --- | --- | --- | --- |
-| Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for four targets (Codex, Claude Code, Cursor, OpenCode); see recorded check below | Installer integration only; clients not invoked |
+| Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for four targets (Codex, Claude Code, Cursor, OpenCode); macOS recorded check below; [Linux CI job](../examples/skills-cli/README.md#continuous-integration) | Installer integration only; clients not invoked |
 | Python selected-skill installer | Repeatable `--skill NAME` for install, update, and uninstall | Filesystem tests for four targets, additive selection, resources, retained ownership, conflicts, dry runs, and actual CLI calls | Installer integration only; clients not invoked |
 | Git pre-commit hook | Executable shell entry and Python staged-export checker | Actual commit, alternate-index, and partial-staging tests | Git integration only; no client lifecycle hook installed |
 | Skill Watch | Local CLI and optional MCP stdio server | Offline change fixture, retrieval/state tests, actual SDK client-to-server stdio calls; [usage and limits](skill-watch.md) | Protocol integration only; individual client apps not evaluated |
@@ -71,9 +71,11 @@ retained the shared skill directory. The documented removal command omits the
 agent filter and was verified on all three targets. A shared directory can also
 be used by other clients; this is not evidence of isolated client discovery.
 
-These are recorded installer checks, separate from the network-free Python CI
-suite. They do not establish client loading, writing quality, Windows support,
-or protection for locally edited files in the third-party CLI.
+These are recorded installer checks, separate from the network-free Python
+matrix. Linux execution of the resource diagnostic is tracked by the CI job in
+[the Skills CLI example](../examples/skills-cli/README.md#continuous-integration).
+They do not establish client loading, writing quality, Windows support, or
+protection for locally edited files in the third-party CLI.
 
 ## Known limits
 

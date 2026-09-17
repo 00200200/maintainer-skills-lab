@@ -35,6 +35,34 @@ jobs:
           name: opencode-discovery-linux
           path: ${{ runner.temp }}/opencode-discovery.json
           if-no-files-found: error
+  skills-cli-install:
+    name: Skills CLI 1.5.26 Humanizer install (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the pinned Skills CLI into runner temporary storage
+        run: >-
+          npm install --prefix "$RUNNER_TEMP/skills-cli"
+          --ignore-scripts --no-audit --no-fund skills@1.5.26
+      - name: Check Humanizer copy, checker, and removal without a model session
+        shell: bash
+        run: |
+          python examples/skills-cli/check.py \
+            --node "$(command -v node)" \
+            --skills "$RUNNER_TEMP/skills-cli/node_modules/skills/bin/cli.mjs" \
+            | tee "$RUNNER_TEMP/skills-cli-install.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skills-cli-install-linux
+          path: ${{ runner.temp }}/skills-cli-install.json
+          if-no-files-found: error
   checks:
     runs-on: ${{ matrix.os }}
     strategy:
