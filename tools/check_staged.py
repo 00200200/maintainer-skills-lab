@@ -69,7 +69,9 @@ def check(root: Path) -> dict:
     if not git(root, "diff", "--cached", "--name-only", "-z", "--", *PATHS):
         return {"checked": False, "reason": "No library changes staged"}
     files = staged_files(root)
-    if files.get("tools/kit.py") != Path(kit.__file__).read_bytes():
+    if kit.canonical_bytes(files.get("tools/kit.py", b"")) != kit.canonical_bytes(
+        Path(kit.__file__).read_bytes()
+    ):
         raise StagedError(
             "The staged tools/kit.py differs from the running exporter. "
             "Use the intended exporter revision in both the working tree and index."

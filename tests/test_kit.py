@@ -187,6 +187,16 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(snapshot(self.root), initial)
             self.assertEqual(mtimes, {p: p.stat().st_mtime_ns for p in mtimes})
 
+    def test_sync_accepts_git_line_ending_conversion(self):
+        kit.sync_providers(self.root)
+        for path in (self.root / "providers").rglob("*"):
+            if path.is_file():
+                data = path.read_bytes().replace(b"\r\n", b"\n")
+                path.write_bytes(data.replace(b"\n", b"\r\n"))
+        result = kit.sync_providers(self.root, check=True)
+        self.assertTrue(result["up_to_date"])
+        self.assertEqual(result["written"], [])
+
     def test_one_source_edit_updates_all_providers_and_dependent_agents(self):
         kit.sync_providers(self.root)
         before = snapshot(self.root / "providers")

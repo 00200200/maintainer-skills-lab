@@ -37,8 +37,19 @@ class KitError(Exception):
     """Expected input, source, or installation conflict."""
 
 
+def canonical_bytes(data: bytes) -> bytes:
+    """Treat Git's text line-ending conversion as content-preserving."""
+    if b"\x00" in data:
+        return data
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data
+    return data.replace(b"\r\n", b"\n")
+
+
 def digest(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    return hashlib.sha256(canonical_bytes(data)).hexdigest()
 
 
 def skill_metadata(path: Path) -> tuple[dict[str, str], str]:
@@ -370,7 +381,9 @@ def sync_providers(root: Path = ROOT, check: bool = False) -> dict:
         )
         + "\n"
     ).encode()
-    manifest_changed = not manifest.exists() or manifest.read_bytes() != state_bytes
+    manifest_changed = not manifest.exists() or canonical_bytes(
+        manifest.read_bytes()
+    ) != canonical_bytes(state_bytes)
     if not check:
         for relative, data in writes.items():
             atomic_write(checked_path(root, f"providers/{relative}"), data)
@@ -536,7 +549,8 @@ def install(
             raise KitError(f"Existing or locally modified file conflicts: {relative}")
     state_bytes = manifest_bytes(target, owned)
     manifest_changed = (bool(owned) or manifest_path.exists()) and (
-        not manifest_path.exists() or manifest_path.read_bytes() != state_bytes
+        not manifest_path.exists()
+        or canonical_bytes(manifest_path.read_bytes()) != canonical_bytes(state_bytes)
     )
     if not dry_run:
         for relative, data in writes.items():
