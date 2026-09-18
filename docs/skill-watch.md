@@ -67,8 +67,10 @@ errors. Choose a unique sentence if a heading also occurs in the table of conten
 
 HTML scripts, styles, navigation, headers, footers, and explicitly hidden elements
 are omitted. Normal prose whitespace is collapsed, while indentation inside
-`pre` is preserved. This is text comparison, not a rendered-page or visual diff.
-Plain text and Markdown are compared as text without executing embedded content.
+`pre` is preserved. Table cells and definition-list terms are separated so a
+minified flag table does not become `--dry-runfalse`. This is text comparison,
+not a rendered-page or visual diff. Plain text and Markdown are compared as text
+without executing embedded content.
 
 For local documentation or offline fixtures, replace `url` with a project-relative
 `file` and optionally set `format = "html"` (default: `text`). Use exactly one
