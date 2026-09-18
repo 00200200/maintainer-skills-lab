@@ -126,6 +126,31 @@ class FactCheckTests(unittest.TestCase):
             [("flag", "dropped", "--dry-run")],
         )
 
+    def test_plain_units_after_numbers_are_reported(self):
+        self.assertCountEqual(
+            changes("The limit is 6 MB.", "The limit is 6 GB."),
+            [("number", "dropped", "6 MB"), ("number", "added", "6 GB")],
+        )
+        self.assertEqual(changes("The limit is 6 MB.", "Keep the 6 MB limit."), [])
+        self.assertCountEqual(
+            changes("Timeout is 15s.", "Timeout is 15ms."),
+            [("number", "dropped", "15s"), ("number", "added", "15ms")],
+        )
+        self.assertCountEqual(
+            changes("Wait 15 seconds.", "Wait 15 minutes."),
+            [("number", "dropped", "15 seconds"), ("number", "added", "15 minutes")],
+        )
+        self.assertCountEqual(
+            changes("The limit is 6MB.", "The limit is 6GB."),
+            [("number", "dropped", "6MB"), ("number", "added", "6GB")],
+        )
+        self.assertEqual(changes("In our 20-file fixture.", "In our 20-file sample."), [])
+        self.assertEqual(changes("Tested on 2 systems.", "Checked on 2 systems."), [])
+        self.assertEqual(
+            changes("Set --limit=20.", "Set --limit=30."),
+            [("number", "dropped", "20"), ("number", "added", "30")],
+        )
+
     def test_plain_assigned_option_values_are_reported(self):
         self.assertEqual(
             changes("Set --format=json.", "Set --format=yaml."),

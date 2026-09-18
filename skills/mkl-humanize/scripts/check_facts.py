@@ -2,7 +2,8 @@
 """List evidence that changed between a draft and its same-language rewrite.
 
 Compares code, URLs, long option names and attached non-numeric values, placeholders,
-numbers and quotations, and counts negation and hedge words in English and Polish.
+numbers (including attached units such as 6 MB or 15s) and quotations, and counts
+negation and hedge words in English and Polish.
 It cannot judge meaning: a clean result only says these tokens survived. Standard
 library only; Python 3.9+.
 """
@@ -23,7 +24,17 @@ PLACEHOLDER = re.compile(
     r"\{\{[^{}\n]+\}\}|\{[\w.:-]+\}|%\(\w+\)[sdifr]|%[sdif]|\$\{\w+\}|\$[A-Z_][A-Z0-9_]*"
 )
 QUOTE = re.compile(r'"([^"\n]+)"|“([^”\n]+)”|„([^”“\n]+)[”“]|«([^»\n]+)»')
-NUMBER = re.compile(r"(?<![\w.])[-+]?(?:\d+(?:[.,]\d+)*|[.,]\d+)(?:[eE][-+]?\d+)?%?")
+UNITS = (
+    "characters character seconds second minutes minute hours hour weeks week "
+    "days day bytes byte bajtów bajty bajt sekundy sekundę sekund minuty minut "
+    "godziny godzin tygodnie tygodni tydzień znaków znaki znak dnia dzień dni "
+    "KiB MiB GiB TiB PiB KB MB GB TB PB kB secs sec mins min hrs hr godz sek "
+    "ms ns µs μs us s h"
+)
+NUMBER = re.compile(
+    r"(?<![\w.])[-+]?(?:\d+(?:[.,]\d+)*|[.,]\d+)(?:[eE][-+]?\d+)?%?"
+    r"(?:[\s-]*(?:" + "|".join(sorted(UNITS.split(), key=len, reverse=True)) + r")\b)?"
+)
 FLAG = re.compile(r"(?<![\w/-])--[A-Za-z][A-Za-z0-9_-]*(?![\w-])")
 ASSIGNED = re.compile(r"(?<![\w/-])(--[A-Za-z][A-Za-z0-9_-]*)=([^\s<>()\[\]\"']+)")
 WORDS = {
