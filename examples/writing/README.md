@@ -184,3 +184,13 @@ Numbers in values such as `--limit=20` still receive the normal numeric check.
 Put complete commands in code spans when their exact contents must be preserved.
 Code and URLs are checked separately rather than counting their option-like text
 a second time. This is an authored regression example, not a live-model result.
+
+### Keep units on numbers
+
+The checker treats a following unit as part of the number. Changing
+`The limit is 6 MB.` to `The limit is 6 GB.` reports `6 MB` as dropped and
+`6 GB` as added, including the attached forms `6MB`/`6GB` and `15s`/`15ms`.
+Reordering a sentence while keeping `6 MB` is allowed. Words such as `20-file`
+and `2 systems` are not treated as units. This is not a converter: `6 MB` and
+`6000 kB` are different tokens. Month names and platform names remain a
+claim-by-claim review, as in the Linux/macOS blind spot above.
