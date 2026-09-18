@@ -2,6 +2,8 @@
 
 `hero.svg` is the editable vector banner. `workflow.gif` illustrates the source-to-
 provider generation process; it is not a recording of a client or benchmark.
+`demo-humanize.svg` and `demo-bugfix.svg` replay the stdout of
+`examples/writing/run.py` and `examples/bugfix/run.py`.
 The same information is available as text and paths in the main README.
 
 To regenerate the animation, install Pillow in a development environment and run:
