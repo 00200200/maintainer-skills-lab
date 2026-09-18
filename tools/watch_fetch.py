@@ -160,7 +160,24 @@ def fetch(url):
 
 class PageText(HTMLParser):
     OMIT = {"script", "style", "template", "head", "nav", "header", "footer"}
-    BLOCK = {"p", "div", "section", "article", "li", "tr", "br", "pre", "h1", "h2", "h3", "h4"}
+    BLOCK = {
+        "p",
+        "div",
+        "section",
+        "article",
+        "li",
+        "tr",
+        "td",
+        "th",
+        "dt",
+        "dd",
+        "br",
+        "pre",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+    }
     VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "wbr"}
 
     def __init__(self):

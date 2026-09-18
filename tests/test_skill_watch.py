@@ -299,6 +299,34 @@ class RetrievalTests(unittest.TestCase):
         self.assertNotIn("noise", text)
         self.assertNotIn("ignore me", text)
 
+    def test_table_and_definition_list_cells_are_not_concatenated(self):
+        minified = (
+            "<h2>Start</h2><table><tr><th>flag</th><th>default</th></tr>"
+            "<tr><td>--dry-run</td><td>false</td></tr></table><h2>End</h2>"
+        )
+        spaced = (
+            "<h2>Start</h2><table><tr><td>--dry-run</td> <td>false</td></tr></table><h2>End</h2>"
+        )
+        changed = (
+            "<h2>Start</h2><table><tr><th>flag</th><th>default</th></tr>"
+            "<tr><td>--dry-run</td><td>true</td></tr></table><h2>End</h2>"
+        )
+        definition = "<h2>Start</h2><dl><dt>--dry-run</dt><dd>Preview only</dd></dl><h2>End</h2>"
+        for html in (minified, spaced):
+            with self.subTest(html=html[:40]):
+                text = wf.select_text(html, "text/html", "Start", "End")
+                self.assertIn("--dry-run", text)
+                self.assertIn("false", text)
+                self.assertNotIn("--dry-runfalse", text)
+        self.assertNotEqual(
+            wf.select_text(minified, "text/html", "Start", "End"),
+            wf.select_text(changed, "text/html", "Start", "End"),
+        )
+        text = wf.select_text(definition, "text/html", "Start", "End")
+        self.assertIn("--dry-run", text)
+        self.assertIn("Preview only", text)
+        self.assertNotIn("--dry-runPreview", text)
+
     def test_ambiguous_missing_and_oversized_selections_fail(self):
         for content, start, end in (
             ("a a b", "a", "b"),
