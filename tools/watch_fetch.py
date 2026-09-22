@@ -173,10 +173,19 @@ class PageText(HTMLParser):
         "dd",
         "br",
         "pre",
+        "code",
+        "kbd",
+        "samp",
+        "option",
+        "button",
+        "label",
+        "summary",
         "h1",
         "h2",
         "h3",
         "h4",
+        "h5",
+        "h6",
     }
     VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "wbr"}
 
