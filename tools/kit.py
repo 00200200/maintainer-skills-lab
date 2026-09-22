@@ -393,6 +393,15 @@ def sync_providers(root: Path = ROOT, check: bool = False) -> dict:
             checked_path(root, f"providers/{relative}").unlink()
         if manifest_changed:
             atomic_write(manifest, state_bytes)
+        # Drop only now-empty directories left by removals; keep occupied parents.
+        for relative in removals:
+            directory = checked_path(root, f"providers/{relative}").parent
+            while directory != destination and destination in directory.parents:
+                try:
+                    directory.rmdir()
+                except OSError:
+                    break
+                directory = directory.parent
     return {
         "up_to_date": not check or not (writes or removals or manifest_changed),
         "check": check,

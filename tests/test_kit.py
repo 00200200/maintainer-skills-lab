@@ -248,6 +248,36 @@ class ProviderTests(unittest.TestCase):
         )
         self.assertEqual(note.read_text(), "Keep this unrelated file")
         self.assertNotIn("mkl-write-tutorial", (self.root / "providers/README.md").read_text())
+        for relative in (
+            "codex/.agents/skills/mkl-write-tutorial",
+            "claude/.claude/skills/mkl-write-tutorial",
+            "cursor/.cursor/skills/mkl-write-tutorial",
+            "opencode/.opencode/skills/mkl-write-tutorial",
+        ):
+            self.assertFalse(
+                (self.root / "providers" / relative).exists(),
+                f"empty skill directory left behind: {relative}",
+            )
+
+    def test_sync_removes_empty_nested_dirs_but_keeps_occupied_parents(self):
+        resource = self.root / "skills/mkl-write-tutorial/references/style.txt"
+        resource.parent.mkdir(parents=True)
+        resource.write_text("supporting note\n")
+        kit.sync_providers(self.root)
+        neighbor = self.root / "providers/codex/.agents/skills/keep-me.txt"
+        neighbor.write_text("unrelated neighbor\n")
+        shutil.rmtree(self.root / "skills/mkl-write-tutorial")
+        result = kit.sync_providers(self.root)
+        self.assertIn(
+            "codex/.agents/skills/mkl-write-tutorial/references/style.txt",
+            result["removed"],
+        )
+        self.assertFalse((self.root / "providers/codex/.agents/skills/mkl-write-tutorial").exists())
+        self.assertFalse(
+            (self.root / "providers/opencode/.opencode/skills/mkl-write-tutorial").exists()
+        )
+        self.assertEqual(neighbor.read_text(), "unrelated neighbor\n")
+        self.assertTrue((self.root / "providers/codex/.agents/skills").is_dir())
 
     def test_local_provider_edits_block_writes_and_obsolete_removal(self):
         kit.sync_providers(self.root)
