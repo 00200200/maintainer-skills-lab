@@ -59,7 +59,7 @@ alone or the full library:
 /plugin install mkl-humanize@maintainer-skills-lab
 ```
 
-For all 16 skills and 6 agents, install `maintainer-skills-lab@maintainer-skills-lab`
+For all 17 skills and 6 agents, install `maintainer-skills-lab@maintainer-skills-lab`
 instead. Update with `/plugin marketplace update maintainer-skills-lab`.
 [Plugin contents and recorded check →](docs/install.md#claude-code-plugin-marketplace)
 
