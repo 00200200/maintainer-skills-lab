@@ -15,11 +15,11 @@ independent live-client evaluation is claimed.
 
 | Surface | Format | Current evidence | Live-client status |
 | --- | --- | --- | --- |
-| Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for three targets; see recorded check below | Installer integration only; clients not invoked |
+| Skills CLI 1.5.26 | One selected source skill, copied to a project directory | Public-repository discovery, Humanizer installation/list/removal for four targets (Codex, Claude Code, Cursor, OpenCode); macOS recorded check below; [Linux CI job](../examples/skills-cli/README.md#continuous-integration) | Installer integration only; clients not invoked |
 | Python selected-skill installer | Repeatable `--skill NAME` for install, update, and uninstall | Filesystem tests for four targets, additive selection, resources, retained ownership, conflicts, dry runs, and actual CLI calls | Installer integration only; clients not invoked |
 | Git pre-commit hook | Executable shell entry and Python staged-export checker | Actual commit, alternate-index, and partial-staging tests | Git integration only; no client lifecycle hook installed |
 | Skill Watch | Local CLI and optional MCP stdio server | Offline change fixture, retrieval/state tests, actual SDK client-to-server stdio calls; [usage and limits](skill-watch.md) | Protocol integration only; individual client apps not evaluated |
-| Humanizer fact check | `scripts/check_facts.py` inside the `mkl-humanize` skill folder | Unit tests for code, URLs, placeholders, quotations, numbers, English/Polish negations and hedges, the skill's worked example, and CLI exit codes on Python 3.11/3.13; a manual run with Python 3.9.6 on macOS | Not yet invoked by a live client; not included in Grok Bot recipes, which contain the workflow text only |
+| Humanizer fact check | `scripts/check_facts.py` inside the `mkl-humanize` skill folder | Unit tests for code, URLs, placeholders, quotations, numbers including attached units, English/Polish negations and hedges, the skill's worked example, and CLI exit codes on Python 3.11/3.13; a manual run with Python 3.9.6 on macOS | Not yet invoked by a live client; not included in Grok Bot recipes, which contain the workflow text only |
 | Humanizer Polish notes | `references/pl.md` inside the `mkl-humanize` skill folder | Export and installer tests copy the resource; `check_facts.py` reports no change for the release-note example and one intended dropped „nie” (a filler phrase) for the reply example, as the file states | Authored guidance; no live-client run and no fluent-reader review recorded yet |
 | ML training example | Python CPU fixture with selectable PyTorch, Lightning, or TensorFlow/Keras execution | Three local framework runs plus framework-independent oracle tests; [versions and results](../examples/ml-training/README.md#recorded-cpu-check) | Fixture execution only; ML skill and agent not independently evaluated |
 | Codex skills | `SKILL.md` under `.agents/skills/` | Export and installer tests | Not yet evaluated |
@@ -27,7 +27,7 @@ independent live-client evaluation is claimed.
 | Claude Code | `.claude/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
 | Claude Code plugin marketplace | `.claude-plugin/marketplace.json` with a Humanizer plugin and a full-library plugin | Manifest tests; strict CLI validation, local marketplace add, install and component inventory with Claude Code 2.1.177 ([recorded check](install.md#claude-code-plugin-marketplace)) | Installation only; no model invoked |
 | Cursor | `.cursor/skills/` and YAML-frontmatter agent Markdown | Export and installer tests | Not yet evaluated |
-| OpenCode | `.opencode/skills/` and `.opencode/agents/*.md` with `mode: subagent` | Source/export, propagation, installer and archive tests; [client check](../examples/opencode/README.md) | 1.18.30 discovery and configuration loading checked on macOS arm64; model outcomes not evaluated |
+| OpenCode | `.opencode/skills/` and `.opencode/agents/*.md` with `mode: subagent` | Source/export, propagation, installer and archive tests; [client check](../examples/opencode/README.md) | 1.18.30 discovery and configuration loading checked on macOS arm64, including a skill copied to `.agents/skills/`; model outcomes not evaluated |
 | Grok Bot (SpaceXAI) | Markdown recipe for each skill and agent, plus first-task guides | Source propagation and embedded-workflow tests; documented manual setup | Not yet evaluated in a live Bot |
 
 The suite runs locally without API keys. CI targets Linux and macOS on Python
@@ -61,7 +61,9 @@ The CLI listed the selected skill, and removal deleted its files while preservin
 an unrelated sentinel file. Telemetry was disabled for these checks. This historical check predates
 `scripts/check_facts.py`. A later [resource installation diagnostic](../examples/skills-cli/README.md)
 verified copying, execution, and removal of the checker with Skills CLI 1.5.26
-and Node.js 22.20.0 on macOS for all three targets. That diagnostic uses the
+and Node.js 22.20.0 on macOS for Codex, Claude Code, and Cursor. A later run of
+the same diagnostic on macOS with Node.js 24.21.0 also covered `--agent opencode`,
+which copies into the shared `.agents/skills` path. That diagnostic uses the
 local checkout and does not repeat public-repository cloning.
 
 One preliminary `remove mkl-humanize --agent codex --yes` reported success but
@@ -69,9 +71,11 @@ retained the shared skill directory. The documented removal command omits the
 agent filter and was verified on all three targets. A shared directory can also
 be used by other clients; this is not evidence of isolated client discovery.
 
-These are recorded installer checks, separate from the network-free Python CI
-suite. They do not establish client loading, writing quality, Windows support,
-or protection for locally edited files in the third-party CLI.
+These are recorded installer checks, separate from the network-free Python
+matrix. Linux execution of the resource diagnostic is tracked by the CI job in
+[the Skills CLI example](../examples/skills-cli/README.md#continuous-integration).
+They do not establish client loading, writing quality, Windows support, or
+protection for locally edited files in the third-party CLI.
 
 ## Known limits
 

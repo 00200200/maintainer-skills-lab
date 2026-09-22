@@ -126,6 +126,46 @@ class FactCheckTests(unittest.TestCase):
             [("flag", "dropped", "--dry-run")],
         )
 
+    def test_plain_units_after_numbers_are_reported(self):
+        self.assertCountEqual(
+            changes("The limit is 6 MB.", "The limit is 6 GB."),
+            [("number", "dropped", "6 MB"), ("number", "added", "6 GB")],
+        )
+        self.assertEqual(changes("The limit is 6 MB.", "Keep the 6 MB limit."), [])
+        self.assertCountEqual(
+            changes("Timeout is 15s.", "Timeout is 15ms."),
+            [("number", "dropped", "15s"), ("number", "added", "15ms")],
+        )
+        self.assertCountEqual(
+            changes("Wait 15 seconds.", "Wait 15 minutes."),
+            [("number", "dropped", "15 seconds"), ("number", "added", "15 minutes")],
+        )
+        self.assertCountEqual(
+            changes("The limit is 6MB.", "The limit is 6GB."),
+            [("number", "dropped", "6MB"), ("number", "added", "6GB")],
+        )
+        self.assertEqual(changes("In our 20-file fixture.", "In our 20-file sample."), [])
+        self.assertEqual(changes("Tested on 2 systems.", "Checked on 2 systems."), [])
+        self.assertEqual(
+            changes("Set --limit=20.", "Set --limit=30."),
+            [("number", "dropped", "20"), ("number", "added", "30")],
+        )
+
+    def test_plain_assigned_option_values_are_reported(self):
+        self.assertEqual(
+            changes("Set --format=json.", "Set --format=yaml."),
+            [("flag", "dropped", "--format=json"), ("flag", "added", "--format=yaml")],
+        )
+        self.assertEqual(changes("Set --format=json.", "Use --format=json now."), [])
+        self.assertEqual(
+            changes("Pass --format=json twice: --format=json.", "Pass --format=json twice."),
+            [("flag", "dropped", "--format=json")],
+        )
+        self.assertEqual(
+            changes("Set --limit=20.", "Set --limit=30."),
+            [("number", "dropped", "20"), ("number", "added", "30")],
+        )
+
     def test_long_options_do_not_double_count_code_urls_or_prose_words(self):
         self.assertEqual(
             changes("Use `--dry-run`.", "Use `--force`."),
@@ -136,6 +176,11 @@ class FactCheckTests(unittest.TestCase):
         )
         self.assertEqual(evidence["flag"], {})
         self.assertEqual(check_facts.evidence("Use --only --no-cache.")["hedge"], {})
+        self.assertEqual(check_facts.evidence("Use --color=never.")["negation"], {})
+        self.assertEqual(
+            changes("Use `--format=json`.", "Use `--format=yaml`."),
+            [("code", "dropped", "`--format=json`"), ("code", "added", "`--format=yaml`")],
+        )
 
     def test_cli_exit_status_and_json(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -1,6 +1,17 @@
 # OpenCode
 
-Install one shared skill into an existing project from this source clone:
+Install one shared skill into an existing project. With **Node.js 22.20.0+ and Git**,
+the same Skills CLI command used for Codex also targets OpenCode:
+
+```sh
+npx skills@1.5.26 add 00200200/maintainer-skills-lab --skill mkl-humanize --agent opencode --copy
+```
+
+That copy lands in `.agents/skills/mkl-humanize/`, which OpenCode 1.18.30 also
+discovers. [Installation, removal, and recorded CLI checks →](install.md#one-skill-with-the-skills-cli)
+
+From a source clone, the Python installer writes the native `.opencode/skills/`
+path instead, and is the way to include agent profiles:
 
 ```sh
 python3 tools/kit.py install --target opencode --project /existing/project --skill mkl-humanize --dry-run
@@ -59,8 +70,10 @@ without adding model or permission settings. Skill Watch includes existing
 OpenCode exports in its impact report, and the builder produces an OpenCode ZIP.
 
 OpenCode 1.18.30 discovery and configuration loading were checked on macOS arm64:
-all 16 skill bodies and six agent prompts matched, and selected installation and
-skill removal were reflected in client diagnostics.
+all 17 skill bodies and six agent prompts matched, selected installation and
+skill removal were reflected in client diagnostics, and a Humanizer copy in
+`.agents/skills/` (the Skills CLI `--agent opencode` path) was discovered with
+a matching body and location.
 A separate Linux CI job runs the same discovery assertions against the pinned
 client and publishes a result artifact.
 [Repeat the client check and inspect the recorded result](../examples/opencode/README.md).

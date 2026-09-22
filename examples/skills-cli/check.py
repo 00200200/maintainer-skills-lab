@@ -12,7 +12,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = "1.5.26"
-TARGETS = {"codex": ".agents", "claude-code": ".claude", "cursor": ".agents"}
+TARGETS = {
+    "codex": ".agents",
+    "claude-code": ".claude",
+    "cursor": ".agents",
+    "opencode": ".agents",
+}
 
 
 def require(condition, message):

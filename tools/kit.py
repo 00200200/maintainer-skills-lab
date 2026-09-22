@@ -237,9 +237,11 @@ def provider_instructions(target: str) -> str:
         "to select more. Other skills and native agents are preserved. Use the same "
         "selection with `uninstall` to remove only unchanged files owned for those skills.\n\n"
         + (
-            "OpenCode 1.18.30 discovery and agent loading were checked on macOS arm64. "
-            "Model task outcomes remain unevaluated. See `examples/opencode/README.md` "
-            "in the source clone for the repeatable check and its limits.\n"
+            "OpenCode 1.18.30 discovery and agent loading were checked on macOS arm64, "
+            "including a skill copied to `.agents/skills/` (the Skills CLI "
+            "`--agent opencode` path). Model task outcomes remain unevaluated. See "
+            "`examples/opencode/README.md` in the source clone for the repeatable "
+            "check and its limits.\n"
             if target == "opencode"
             else "Live-client discovery and task outcomes have not yet been evaluated.\n"
         )

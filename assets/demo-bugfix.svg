@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 260" width="820" height="260" font-size="15" role="img" aria-label="The bugfix fixture fails before the patch and passes after, without calling a model">
+  <style>
+    text{font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;fill:#c9d1d9}
+    .dim{fill:#8b949e}.g{fill:#3fb950}.r{fill:#f85149}.t{fill:#bced85}
+    #l1,#l2,#l3,#l4,#l5{animation:reveal 9s infinite}
+    #l1{animation-name:r1}#l2{animation-name:r2}#l3{animation-name:r3}
+    #l4{animation-name:r4}#l5{animation-name:r5}
+    @keyframes r1{0%,2%{opacity:0}4%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r2{0%,16%{opacity:0}18%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r3{0%,30%{opacity:0}32%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r4{0%,44%{opacity:0}46%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r5{0%,60%{opacity:0}62%,96%{opacity:1}100%{opacity:0}}
+    .cur{animation:blink 1.1s steps(1) infinite}@keyframes blink{50%{opacity:0}}
+  </style>
+  <rect x="6" y="6" width="808" height="248" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <rect x="6" y="6" width="808" height="36" rx="10" fill="#161b22"/>
+  <rect x="6" y="30" width="808" height="12" fill="#161b22"/>
+  <circle cx="28" cy="24" r="6" fill="#ff5f56"/>
+  <circle cx="48" cy="24" r="6" fill="#ffbd2e"/>
+  <circle cx="68" cy="24" r="6" fill="#27c93f"/>
+  <text x="410" y="29" text-anchor="middle" class="dim">mkl-verify-fix &#183; examples/bugfix/run.py</text>
+
+  <text id="l1" x="26" y="78"><tspan class="dim">$</tspan> python3 examples/bugfix/run.py</text>
+  <text id="l2" x="26" y="114">Baseline:  <tspan class="r">assertion-failure</tspan></text>
+  <text id="l3" x="26" y="144">Candidate: <tspan class="g">pass</tspan></text>
+  <text id="l4" x="26" y="174">Verified for this fixture: <tspan class="t">True</tspan></text>
+  <text id="l5" x="26" y="206" class="dim">This checks the bundled example, not agent performance.</text>
+
+  <text x="26" y="236"><tspan class="dim">$</tspan> <tspan class="cur">&#9612;</tspan></text>
+</svg>

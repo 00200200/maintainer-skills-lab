@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 460" width="820" height="460" font-size="15" role="img" aria-label="The Humanizer fact checker reports dropped flags and numbers, and a blind spot it does not catch">
+  <style>
+    text{font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;fill:#c9d1d9}
+    .dim{fill:#8b949e}.g{fill:#3fb950}.r{fill:#f85149}.b{fill:#58a6ff}.y{fill:#d29922}.t{fill:#bced85}
+    #l1,#l2,#l3,#l4,#l5,#l6,#l7,#l8,#l9,#l10,#l11,#l12{animation:reveal 13s infinite}
+    #l1{animation-name:r1}#l2{animation-name:r2}#l3{animation-name:r3}#l4{animation-name:r4}
+    #l5{animation-name:r5}#l6{animation-name:r6}#l7{animation-name:r7}#l8{animation-name:r8}
+    #l9{animation-name:r9}#l10{animation-name:r10}#l11{animation-name:r11}#l12{animation-name:r12}
+    @keyframes r1{0%,2%{opacity:0}4%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r2{0%,8%{opacity:0}10%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r3{0%,16%{opacity:0}18%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r4{0%,22%{opacity:0}24%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r5{0%,28%{opacity:0}30%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r6{0%,34%{opacity:0}36%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r7{0%,40%{opacity:0}42%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r8{0%,46%{opacity:0}48%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r9{0%,54%{opacity:0}56%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r10{0%,62%{opacity:0}64%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r11{0%,70%{opacity:0}72%,96%{opacity:1}100%{opacity:0}}
+    @keyframes r12{0%,78%{opacity:0}80%,96%{opacity:1}100%{opacity:0}}
+    .cur{animation:blink 1.1s steps(1) infinite}@keyframes blink{50%{opacity:0}}
+  </style>
+  <rect x="6" y="6" width="808" height="448" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <rect x="6" y="6" width="808" height="36" rx="10" fill="#161b22"/>
+  <rect x="6" y="30" width="808" height="12" fill="#161b22"/>
+  <circle cx="28" cy="24" r="6" fill="#ff5f56"/>
+  <circle cx="48" cy="24" r="6" fill="#ffbd2e"/>
+  <circle cx="68" cy="24" r="6" fill="#27c93f"/>
+  <text x="410" y="29" text-anchor="middle" class="dim">mkl-humanize &#183; examples/writing/run.py</text>
+
+  <text id="l1"  x="26" y="78"><tspan class="dim">$</tspan> python3 examples/writing/run.py</text>
+  <text id="l2"  x="26" y="114" class="g">clear: 0 tracked token changes</text>
+  <text id="l3"  x="26" y="144" class="y">changed: 5 tracked token changes</text>
+  <text id="l4"  x="26" y="172" class="r">  flag dropped: --dry-run</text>
+  <text id="l5"  x="26" y="198" class="r">  flag added: --force</text>
+  <text id="l6"  x="26" y="224" class="r">  number dropped: 20</text>
+  <text id="l7"  x="26" y="250" class="r">  number added: 200</text>
+  <text id="l8"  x="26" y="276" class="r">  negation dropped: not</text>
+  <text id="l9"  x="26" y="310" class="dim">blind-spot: 0 tracked token changes</text>
+  <text id="l10" x="26" y="338" class="y">The blind-spot rewrite changes Linux to macOS; the checker misses it.</text>
+  <text id="l11" x="26" y="366" class="dim">Read every claim. A clean token report does not prove preserved meaning.</text>
+  <text id="l12" x="26" y="400" class="t">Fixture verified: True (not a writing-quality evaluation)</text>
+
+  <text x="26" y="432"><tspan class="dim">$</tspan> <tspan class="cur">&#9612;</tspan></text>
+</svg>

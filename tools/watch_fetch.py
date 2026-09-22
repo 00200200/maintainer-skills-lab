@@ -42,16 +42,15 @@ def validate_url(url):
 class PublicHTTPS(http.client.HTTPSConnection):
     def connect(self):
         addresses = socket.getaddrinfo(self.host, self.port, type=socket.SOCK_STREAM)
-        if not addresses or any(
-            not ipaddress.ip_address(address[4][0]).is_global for address in addresses
-        ):
+        public = [address for address in addresses if ipaddress.ip_address(address[4][0]).is_global]
+        if not public:
             raise WatchError("Source resolves to a non-public address")
         # Connect to a checked address, not a second DNS lookup of the hostname.
-        # A dual-stack host can return an unreachable address first, so try each
+        # Skip non-public records from a mixed response, and try each remaining
         # public result while retaining the original hostname for TLS SNI.
         last_error = None
         deadline = None if self.timeout is None else time.monotonic() + self.timeout
-        for address in addresses:
+        for address in public:
             if deadline is not None:
                 timeout = deadline - time.monotonic()
                 if timeout <= 0:
@@ -62,6 +61,11 @@ class PublicHTTPS(http.client.HTTPSConnection):
             raw = None
             try:
                 raw = socket.create_connection((address[4][0], self.port), timeout=timeout)
+                if deadline is not None:
+                    timeout = deadline - time.monotonic()
+                    if timeout <= 0:
+                        raise TimeoutError("connection deadline exceeded")
+                    raw.settimeout(timeout)
                 self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
                 return
             except OSError as error:
@@ -156,7 +160,24 @@ def fetch(url):
 
 class PageText(HTMLParser):
     OMIT = {"script", "style", "template", "head", "nav", "header", "footer"}
-    BLOCK = {"p", "div", "section", "article", "li", "tr", "br", "pre", "h1", "h2", "h3", "h4"}
+    BLOCK = {
+        "p",
+        "div",
+        "section",
+        "article",
+        "li",
+        "tr",
+        "td",
+        "th",
+        "dt",
+        "dd",
+        "br",
+        "pre",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+    }
     VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "wbr"}
 
     def __init__(self):

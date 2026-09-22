@@ -1,9 +1,9 @@
 # Check that Humanizer installs with its script
 
 This optional diagnostic runs **Skills CLI 1.5.26** against the current source
-checkout. It creates three temporary projects, installs only Humanizer for
-Codex, Claude Code, and Cursor, and compares every copied resource with the
-canonical skill directory. It then runs the installed checker against an
+checkout. It creates four temporary projects, installs only Humanizer for
+Codex, Claude Code, Cursor, and OpenCode, and compares every copied resource with
+the canonical skill directory. It then runs the installed checker against an
 unchanged draft and a rewrite with a changed exponent and removed negation.
 Finally it removes the skill and verifies that unrelated project files remain.
 
@@ -23,7 +23,7 @@ Each command has a 50-second timeout. The test disables Skills CLI telemetry
 and its associated security-audit requests. It installs from the local checkout,
 so it does not test GitHub cloning, remote updates, or a moving default branch.
 
-Success produces a JSON report with the three targets, `resources_match`,
+Success produces a JSON report with the four targets, `resources_match`,
 `installed_checker_executed`, and `removal_verified` set to true. Any failed
 check exits nonzero. Temporary projects are removed on exit.
 
@@ -34,7 +34,26 @@ Skills CLI 1.5.26, and Python 3.11.5. Humanizer's instruction and checker matche
 the canonical files from commit `1a57a8b8a64029c774d32a1e9adaf46e1edfb9b0`.
 Codex and Cursor used `.agents/skills/`; Claude Code used `.claude/skills/`.
 
+On 2026-09-17, the same diagnostic passed on macOS 26.6.2 arm64 with Node.js 24.21.0,
+Skills CLI 1.5.26, and Python 3.11.5, now including `--agent opencode`. OpenCode
+used the CLI's shared `.agents/skills/` path, the same as Codex and Cursor.
+
 This verifies installer behavior and execution of the copied Python script.
 It does not establish live-client invocation, writing quality, global installs,
-other operating systems, or other CLI versions. The diagnostic is opt-in and
-is not part of the network-free unit suite.
+Windows, or other CLI versions. The diagnostic is opt-in locally and is not
+part of the network-free unit suite.
+
+## Continuous integration
+
+The `Skills CLI 1.5.26 Humanizer install (Linux)` job in
+[Validate library](../../.github/workflows/ci.yml) runs this same script on
+pushes and pull requests, using Python 3.11, Node.js 22, and `skills@1.5.26`.
+Installation stays under the runner's temporary directory, disables package
+lifecycle scripts, and does not modify the repository or a live client. The
+job has a ten-minute limit.
+
+A nonzero diagnostic fails the job. A successful run uploads
+`skills-cli-install-linux`, containing the CLI version, Node version, the four
+targets, and the assertion summary. Inspect the run for the exact commit being
+evaluated. No API credentials are supplied, and no model session is started.
+The macOS result above remains a separately recorded local run.

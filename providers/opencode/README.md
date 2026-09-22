@@ -12,7 +12,7 @@ python3 tools/kit.py install --target opencode --project /existing/project
 
 The installer reads the canonical source and installs the full library by default. Add `--skill mkl-humanize` to install or update only that skill; repeat `--skill` to select more. Other skills and native agents are preserved. Use the same selection with `uninstall` to remove only unchanged files owned for those skills.
 
-OpenCode 1.18.30 discovery and agent loading were checked on macOS arm64. Model task outcomes remain unevaluated. See `examples/opencode/README.md` in the source clone for the repeatable check and its limits.
+OpenCode 1.18.30 discovery and agent loading were checked on macOS arm64, including a skill copied to `.agents/skills/` (the Skills CLI `--agent opencode` path). Model task outcomes remain unevaluated. See `examples/opencode/README.md` in the source clone for the repeatable check and its limits.
 
 OpenCode derives agent names from filenames; agents use `mode: subagent`. Try `@mkl-writing-editor` with a draft after installing the full library. For a skill-only install, ask OpenCode to load `mkl-humanize` using its skill tool. Model and permissions remain controlled by your OpenCode configuration. No config file or plugin is installed. Avoid duplicate skill names in `.agents/skills/` and `.claude/skills/`, which OpenCode can also discover.
 

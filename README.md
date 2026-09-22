@@ -1,9 +1,10 @@
 <p align="center">
-  <img src="assets/hero.svg" alt="Maintainer Skills Lab — Useful skills. One shared source." width="1200">
+  <img src="assets/hero.svg" alt="Maintainer Skills Lab — Useful skills. One shared source." width="100%">
 </p>
 
 <p align="center">
   <a href="https://github.com/00200200/maintainer-skills-lab/actions/workflows/ci.yml"><img src="https://github.com/00200200/maintainer-skills-lab/actions/workflows/ci.yml/badge.svg" alt="Validate library"></a>
+  <img src="https://img.shields.io/badge/runs%20in-Codex%20·%20Claude%20Code%20·%20Cursor%20·%20OpenCode%20·%20Grok%20Bot-8957e5" alt="Codex, Claude Code, Cursor, OpenCode, and Grok Bot">
   <a href="https://github.com/00200200/maintainer-skills-lab/stargazers"><img src="https://img.shields.io/github/stars/00200200/maintainer-skills-lab?style=flat&amp;color=bced85&amp;label=stars" alt="GitHub stars"></a>
   <a href="https://github.com/00200200/maintainer-skills-lab/forks"><img src="https://img.shields.io/github/forks/00200200/maintainer-skills-lab?style=flat&amp;color=83d2e9" alt="GitHub forks"></a>
   <a href="https://github.com/00200200/maintainer-skills-lab/issues"><img src="https://img.shields.io/github/issues/00200200/maintainer-skills-lab?style=flat&amp;color=e9b293" alt="Open issues"></a>
@@ -28,6 +29,14 @@
 17 skills and 6 agent profiles for **Codex, Claude Code, Cursor, OpenCode, and Grok Bot**.
 The workflows share one Markdown source, with generated versions for each client.
 Start with one skill, or get the full library with its agents.
+
+```
+edit one source  →  sync  →  native files for each client
+```
+
+<p align="center">
+  <img src="assets/demo-humanize.svg" alt="Humanizer fact checker: a clean rewrite, a rewrite that drops flags and numbers, and a Linux-to-macOS blind spot" width="760">
+</p>
 
 ## Try Humanizer
 
@@ -63,9 +72,10 @@ npx skills@1.5.26 add 00200200/maintainer-skills-lab --skill mkl-humanize --agen
 ```
 
 For **Claude Code**, replace `--agent codex` with `--agent claude-code`.
-For **Cursor**, use `--agent cursor`. This uses the third-party
-[Vercel Skills CLI](https://github.com/vercel-labs/skills) to install one skill
-locally in the current project. Read the linked skill before installing it.
+For **Cursor**, use `--agent cursor`. For **OpenCode**, use `--agent opencode`.
+This uses the third-party [Vercel Skills CLI](https://github.com/vercel-labs/skills)
+to install one skill locally in the current project. Read the linked skill before
+installing it.
 
 Then ask your client:
 
@@ -87,14 +97,15 @@ Want to see it first? From a source clone, run
 `python3 examples/writing/run.py` for a [ready-made demo](examples/writing/README.md#run-the-checker-demo)
 that shows both detected changes and a meaningful blind spot, without a client or API key.
 
-That path is for Codex and the Skills CLI's Cursor install; Claude Code uses
-`.claude/skills/`. It needs only Python 3.9+ and does not judge meaning. [Worked example →](examples/writing/README.md#check-what-the-rewrite-dropped)
+That path is for Codex and the Skills CLI's Cursor and OpenCode installs;
+Claude Code uses `.claude/skills/`. It needs only Python 3.9+ and does not judge
+meaning. [Worked example →](examples/writing/README.md#check-what-the-rewrite-dropped)
 
 Prefer Python? [Install just Humanizer with Python 3.11+](docs/install.md#one-or-more-skills-with-python)
 using `--skill mkl-humanize`, with no Node.js dependency. You can also
 [install the full library](#start-in-a-minute) or [get a ZIP](https://github.com/00200200/maintainer-skills-lab/releases).
-For **OpenCode**, use the Python installer with `--target opencode`.
-[OpenCode setup and invocation →](docs/opencode.md)
+The Python installer is still the way to get native OpenCode agents and the
+`.opencode/skills/` copy. [OpenCode setup and invocation →](docs/opencode.md)
 
 Grok Bot uses [manual setup recipes](grok-bot/README.md).
 
@@ -197,7 +208,16 @@ mixed-client discovery is an [untested limitation](docs/compatibility.md).
 
 ## One source, five versions
 
-![One source generates five client versions; Grok Bot uses manual recipes.](assets/providers.svg)
+<p align="center">
+  <img src="assets/workflow.gif" alt="Edit one skill source and generate native files for each coding client. Illustration of kit.py sync, not a recording of a client session." width="100%">
+</p>
+
+The GIF is a diagram, not a captured client session. It shows four of the five
+generated targets; OpenCode is in the tree below.
+
+<p align="center">
+  <img src="assets/providers.svg" alt="One source generates five client versions; Grok Bot uses manual recipes." width="100%">
+</p>
 
 ```sh
 python3 tools/kit.py sync
@@ -250,6 +270,10 @@ Run a complete local regression example without a model or API key:
 ```sh
 python3 examples/bugfix/run.py
 ```
+
+<p align="center">
+  <img src="assets/demo-bugfix.svg" alt="Bugfix fixture: baseline assertion-failure, candidate pass, verified for this fixture" width="760">
+</p>
 
 ```text
 Baseline:  assertion-failure

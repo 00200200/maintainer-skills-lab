@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """List evidence that changed between a draft and its same-language rewrite.
 
-Compares code, URLs, long option names, placeholders, numbers and quotations, and counts
-negation and hedge words in English and Polish. It cannot judge meaning: a clean
-result only says these tokens survived. Standard library only; Python 3.9+.
+Compares code, URLs, long option names and attached non-numeric values, placeholders,
+numbers (including attached units such as 6 MB or 15s) and quotations, and counts
+negation and hedge words in English and Polish.
+It cannot judge meaning: a clean result only says these tokens survived. Standard
+library only; Python 3.9+.
 """
 
 from __future__ import annotations
@@ -22,8 +24,19 @@ PLACEHOLDER = re.compile(
     r"\{\{[^{}\n]+\}\}|\{[\w.:-]+\}|%\(\w+\)[sdifr]|%[sdif]|\$\{\w+\}|\$[A-Z_][A-Z0-9_]*"
 )
 QUOTE = re.compile(r'"([^"\n]+)"|“([^”\n]+)”|„([^”“\n]+)[”“]|«([^»\n]+)»')
-NUMBER = re.compile(r"(?<![\w.])[-+]?(?:\d+(?:[.,]\d+)*|[.,]\d+)(?:[eE][-+]?\d+)?%?")
+UNITS = (
+    "characters character seconds second minutes minute hours hour weeks week "
+    "days day bytes byte bajtów bajty bajt sekundy sekundę sekund minuty minut "
+    "godziny godzin tygodnie tygodni tydzień znaków znaki znak dnia dzień dni "
+    "KiB MiB GiB TiB PiB KB MB GB TB PB kB secs sec mins min hrs hr godz sek "
+    "ms ns µs μs us s h"
+)
+NUMBER = re.compile(
+    r"(?<![\w.])[-+]?(?:\d+(?:[.,]\d+)*|[.,]\d+)(?:[eE][-+]?\d+)?%?"
+    r"(?:[\s-]*(?:" + "|".join(sorted(UNITS.split(), key=len, reverse=True)) + r")\b)?"
+)
 FLAG = re.compile(r"(?<![\w/-])--[A-Za-z][A-Za-z0-9_-]*(?![\w-])")
+ASSIGNED = re.compile(r"(?<![\w/-])(--[A-Za-z][A-Za-z0-9_-]*)=([^\s<>()\[\]\"']+)")
 WORDS = {
     "negation": (
         "not no never none nobody nothing neither nor without cannot can't don't doesn't "
@@ -47,7 +60,21 @@ def evidence(text: str) -> dict[str, Counter]:
     found["placeholder"] = Counter(PLACEHOLDER.findall(text))
     text = PLACEHOLDER.sub(" ", text)
     found["quotation"] = Counter(next(part for part in m if part) for m in QUOTE.findall(text))
-    found["flag"] = Counter(FLAG.findall(text))
+    flags: Counter[str] = Counter()
+
+    def take_assigned(match: re.Match[str]) -> str:
+        name, value = match.group(1), match.group(2).rstrip(".,;:!?")
+        if not value:
+            return match.group(0)
+        if NUMBER.fullmatch(value):
+            flags[name] += 1
+            return f" {value} "
+        flags[f"{name}={value}"] += 1
+        return " "
+
+    text = ASSIGNED.sub(take_assigned, text)
+    flags.update(FLAG.findall(text))
+    found["flag"] = flags
     text = FLAG.sub(" ", text)
     found["number"] = Counter(NUMBER.findall(text))
     lowered = text.lower().replace("’", "'")

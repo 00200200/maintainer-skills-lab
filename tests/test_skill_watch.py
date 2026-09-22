@@ -299,6 +299,34 @@ class RetrievalTests(unittest.TestCase):
         self.assertNotIn("noise", text)
         self.assertNotIn("ignore me", text)
 
+    def test_table_and_definition_list_cells_are_not_concatenated(self):
+        minified = (
+            "<h2>Start</h2><table><tr><th>flag</th><th>default</th></tr>"
+            "<tr><td>--dry-run</td><td>false</td></tr></table><h2>End</h2>"
+        )
+        spaced = (
+            "<h2>Start</h2><table><tr><td>--dry-run</td> <td>false</td></tr></table><h2>End</h2>"
+        )
+        changed = (
+            "<h2>Start</h2><table><tr><th>flag</th><th>default</th></tr>"
+            "<tr><td>--dry-run</td><td>true</td></tr></table><h2>End</h2>"
+        )
+        definition = "<h2>Start</h2><dl><dt>--dry-run</dt><dd>Preview only</dd></dl><h2>End</h2>"
+        for html in (minified, spaced):
+            with self.subTest(html=html[:40]):
+                text = wf.select_text(html, "text/html", "Start", "End")
+                self.assertIn("--dry-run", text)
+                self.assertIn("false", text)
+                self.assertNotIn("--dry-runfalse", text)
+        self.assertNotEqual(
+            wf.select_text(minified, "text/html", "Start", "End"),
+            wf.select_text(changed, "text/html", "Start", "End"),
+        )
+        text = wf.select_text(definition, "text/html", "Start", "End")
+        self.assertIn("--dry-run", text)
+        self.assertIn("Preview only", text)
+        self.assertNotIn("--dry-runPreview", text)
+
     def test_ambiguous_missing_and_oversized_selections_fail(self):
         for content, start, end in (
             ("a a b", "a", "b"),
@@ -331,6 +359,26 @@ class RetrievalTests(unittest.TestCase):
                 with self.assertRaises(wf.WatchError):
                     wf.PublicHTTPS("example.org").connect()
                 connect.assert_not_called()
+
+    def test_mixed_dns_skips_non_public_addresses(self):
+        records = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 443)),
+            (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("fe80::1", 443, 0, 0)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+        ]
+        connection = wf.PublicHTTPS("example.org", timeout=5)
+        connection._context = Mock()
+        with (
+            patch.object(socket, "getaddrinfo", return_value=records) as resolve,
+            patch.object(socket, "create_connection") as connect,
+            patch.object(wf.time, "monotonic", return_value=100.0),
+        ):
+            connection.connect()
+        resolve.assert_called_once_with("example.org", 443, type=socket.SOCK_STREAM)
+        connect.assert_called_once_with(("93.184.216.34", 443), timeout=5)
+        connection._context.wrap_socket.assert_called_once_with(
+            connect.return_value, server_hostname="example.org"
+        )
 
     def test_dns_result_is_pinned_while_tls_uses_original_hostname(self):
         records = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
@@ -387,7 +435,7 @@ class RetrievalTests(unittest.TestCase):
                 "create_connection",
                 side_effect=[OSError("first address is unreachable"), Mock()],
             ) as connect,
-            patch.object(wf.time, "monotonic", side_effect=[100.0, 101.0, 104.5]),
+            patch.object(wf.time, "monotonic", side_effect=[100.0, 101.0, 104.5, 104.5]),
         ):
             connection.connect()
         self.assertEqual(connect.call_count, 2)
@@ -406,6 +454,49 @@ class RetrievalTests(unittest.TestCase):
             with self.assertRaisesRegex(TimeoutError, "connection deadline exceeded"):
                 connection.connect()
         connect.assert_not_called()
+
+    def test_tls_handshake_uses_remaining_connection_budget(self):
+        records = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.35", 443)),
+        ]
+        connection = wf.PublicHTTPS("example.org", timeout=5)
+        connection._context = Mock()
+        first_raw = Mock()
+        second_raw = Mock()
+        connection._context.wrap_socket.side_effect = [OSError("handshake timed out"), Mock()]
+        with (
+            patch.object(socket, "getaddrinfo", return_value=records),
+            patch.object(
+                socket, "create_connection", side_effect=[first_raw, second_raw]
+            ) as connect,
+            patch.object(wf.time, "monotonic", side_effect=[100.0, 101.0, 104.0, 104.5, 104.5]),
+        ):
+            connection.connect()
+        first_raw.settimeout.assert_called_once_with(1.0)
+        first_raw.close.assert_called_once_with()
+        self.assertAlmostEqual(connect.call_args_list[1].kwargs["timeout"], 0.5)
+        second_raw.settimeout.assert_called_once_with(0.5)
+        connection._context.wrap_socket.assert_called_with(
+            second_raw, server_hostname="example.org"
+        )
+
+    def test_slow_tcp_connect_skips_tls_when_budget_is_gone(self):
+        records = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
+        connection = wf.PublicHTTPS("example.org", timeout=5)
+        connection._context = Mock()
+        raw = Mock()
+        with (
+            patch.object(socket, "getaddrinfo", return_value=records),
+            patch.object(socket, "create_connection", return_value=raw) as connect,
+            patch.object(wf.time, "monotonic", side_effect=[100.0, 100.0, 106.0]),
+        ):
+            with self.assertRaisesRegex(TimeoutError, "connection deadline exceeded"):
+                connection.connect()
+        connect.assert_called_once_with(("93.184.216.34", 443), timeout=5)
+        raw.settimeout.assert_not_called()
+        connection._context.wrap_socket.assert_not_called()
+        raw.close.assert_called_once_with()
 
     def test_html_refresh_is_followed_without_executing_scripts(self):
         first = http_response(
