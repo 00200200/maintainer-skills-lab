@@ -327,6 +327,50 @@ class RetrievalTests(unittest.TestCase):
         self.assertIn("Preview only", text)
         self.assertNotIn("--dry-runPreview", text)
 
+    def test_code_option_and_heading_tokens_are_not_concatenated(self):
+        # Minified docs often place adjacent code spans or select options with no
+        # whitespace; those must stay separate so flag/default diffs stay readable.
+        code = "<h2>Start</h2><code>--dry-run</code><code>false</code><h2>End</h2>"
+        option = (
+            "<h2>Start</h2><select><option>--dry-run</option>"
+            "<option>false</option></select><h2>End</h2>"
+        )
+        changed_option = (
+            "<h2>Start</h2><select><option>--dry-run</option>"
+            "<option>true</option></select><h2>End</h2>"
+        )
+        headings = "<h2>Start</h2><h5>Limits</h5><h6>Defaults</h6><h2>End</h2>"
+        controls = (
+            "<h2>Start</h2><button>Save</button><button>Cancel</button>"
+            "<label>--limit</label>20<details><summary>Flags</summary>"
+            "<kbd>Ctrl</kbd><kbd>C</kbd></details><h2>End</h2>"
+        )
+        for html in (code, option):
+            with self.subTest(html=html[:40]):
+                text = wf.select_text(html, "text/html", "Start", "End")
+                self.assertIn("--dry-run", text)
+                self.assertIn("false", text)
+                self.assertNotIn("--dry-runfalse", text)
+        self.assertNotEqual(
+            wf.select_text(option, "text/html", "Start", "End"),
+            wf.select_text(changed_option, "text/html", "Start", "End"),
+        )
+        heading_text = wf.select_text(headings, "text/html", "Start", "End")
+        self.assertIn("Limits", heading_text)
+        self.assertIn("Defaults", heading_text)
+        self.assertNotIn("LimitsDefaults", heading_text)
+        control_text = wf.select_text(controls, "text/html", "Start", "End")
+        self.assertIn("Save", control_text)
+        self.assertIn("Cancel", control_text)
+        self.assertNotIn("SaveCancel", control_text)
+        self.assertIn("--limit", control_text)
+        self.assertIn("20", control_text)
+        self.assertNotIn("--limit20", control_text)
+        self.assertIn("Flags", control_text)
+        self.assertIn("Ctrl", control_text)
+        self.assertIn("C", control_text)
+        self.assertNotIn("CtrlC", control_text)
+
     def test_ambiguous_missing_and_oversized_selections_fail(self):
         for content, start, end in (
             ("a a b", "a", "b"),
