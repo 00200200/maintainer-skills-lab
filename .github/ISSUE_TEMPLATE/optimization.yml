@@ -1,0 +1,58 @@
+name: "Usage & Token Optimization"
+description: "Propose an optimization to reduce token usage, improve prompt caching, or lower latency"
+title: "[Optimization]: "
+labels: ["optimization", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping make Maintainer Skills Lab faster, lighter, and more cost-effective!
+        Please review existing issues and discussions before opening a new optimization proposal.
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Component"
+      description: "Which part of Maintainer Skills Lab does this optimization target?"
+      options:
+        - "Canonical Skills (skills/)"
+        - "Agent Profiles (agents/)"
+        - "CLI & Exporters (tools/kit.py)"
+        - "Skill Watch & MCP (tools/skill_watch*)"
+        - "Evals & Benchmarks (evals/)"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Current Inefficiency or Usage Problem"
+      description: "Describe what is consuming excessive tokens, causing cache misses, or slowing down workflows."
+      placeholder: "e.g., Skill X injects 1,400 tokens into the prompt, including 500 tokens of redundant formatting..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: "Proposed Optimization"
+      description: "Explain how this can be optimized (e.g., prompt pruning, AST extraction, prompt caching alignment, minification)."
+      placeholder: "Describe your technical approach..."
+    validations:
+      required: true
+  - type: input
+    id: expected-savings
+    attributes:
+      label: "Expected Token / Cost Savings"
+      description: "Estimated percentage or token count reduction (e.g., '~35% token reduction' or '~800 tokens saved per prompt')."
+      placeholder: "e.g. 40% prompt token reduction on startup"
+    validations:
+      required: false
+  - type: textarea
+    id: implementation-steps
+    attributes:
+      label: "Implementation Plan"
+      description: "Checklist of tasks to implement and verify this change."
+      value: |
+        - [ ] Analyze baseline token footprint
+        - [ ] Implement optimization
+        - [ ] Run `python3 tools/kit.py check` and tests
+        - [ ] Verify token savings
