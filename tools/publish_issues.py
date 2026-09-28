@@ -23,7 +23,7 @@ def parse_issue(path: Path) -> dict[str, str | list[str]]:
     labels: list[str] = []
     body_lines: list[str] = []
 
-    for i, line in enumerate(lines):
+    for line in lines:
         if not title and line.startswith("# "):
             title = line.removeprefix("# ").strip()
             continue
@@ -63,15 +63,29 @@ def ensure_labels(required_labels: set[str], dry_run: bool = True):
         print(f"[*] Creating missing GitHub label: '{label}'")
         if not dry_run:
             subprocess.run(
-                ["gh", "label", "create", label, "--description", "Contributor task label", "--color", "1d76db"],
+                [
+                    "gh",
+                    "label",
+                    "create",
+                    label,
+                    "--description",
+                    "Contributor task label",
+                    "--color",
+                    "1d76db",
+                ],
                 capture_output=True,
+                check=False,
             )
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dry-run", action="store_true", default=False, help="Preview without creating issues")
-    parser.add_argument("--publish", action="store_true", default=False, help="Create issues via gh CLI")
+    parser.add_argument(
+        "--dry-run", action="store_true", default=False, help="Preview without creating issues"
+    )
+    parser.add_argument(
+        "--publish", action="store_true", default=False, help="Create issues via gh CLI"
+    )
     parser.add_argument("--issue", help="Publish a single issue by number prefix (e.g. 01)")
     args = parser.parse_args()
 
@@ -103,7 +117,15 @@ def main():
         print(f"Body  : {len(iss['body'])} chars")
 
         if args.publish:
-            cmd = ["gh", "issue", "create", "--title", str(iss["title"]), "--body", str(iss["body"])]
+            cmd = [
+                "gh",
+                "issue",
+                "create",
+                "--title",
+                str(iss["title"]),
+                "--body",
+                str(iss["body"]),
+            ]
             for label in iss["labels"]:
                 cmd.extend(["--label", label])
 
