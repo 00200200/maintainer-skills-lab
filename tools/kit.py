@@ -31,10 +31,91 @@ TARGETS = {
 EXPORT_TARGETS = (*TARGETS, "grok-bot")
 NAME = re.compile(r"mkl-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+FENCE_OPEN = re.compile(r"^( {0,3})(```+|~~~+)(.*)$")
 
 
 class KitError(Exception):
     """Expected input, source, or installation conflict."""
+
+
+def _compact_table_line(line: str) -> str:
+    """Reduce padding inside GFM table rows; leave other lines untouched."""
+    stripped = line.strip()
+    if not stripped.startswith("|") or stripped.count("|") < 2:
+        return line.rstrip(" \t")
+    cells = stripped.split("|")
+    if cells[0] != "" or cells[-1] != "":
+        return line.rstrip(" \t")
+    lead = line[: len(line) - len(line.lstrip(" \t"))]
+    return lead + "| " + " | ".join(cell.strip() for cell in cells[1:-1]) + " |"
+
+
+def _minify_markdown_segment(text: str) -> str:
+    text = HTML_COMMENT.sub("", text)
+    lines = [_compact_table_line(line) for line in text.split("\n")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
+
+
+def minify_markdown(text: str) -> str:
+    """Shrink markdown for LLM prompts; keep fenced code blocks byte-for-byte."""
+    lines = text.split("\n")
+    offsets: list[int] = []
+    position = 0
+    for index, line in enumerate(lines):
+        offsets.append(position)
+        position += len(line)
+        if index < len(lines) - 1:
+            position += 1
+    spans: list[tuple[int, int]] = []
+    index = 0
+    while index < len(lines):
+        open_match = FENCE_OPEN.match(lines[index])
+        if open_match is None:
+            index += 1
+            continue
+        marker = open_match.group(2)[0]
+        fence_len = len(open_match.group(2))
+        close = re.compile(rf"^( {{0,3}})({re.escape(marker)}{{{fence_len},}})[ \t]*$")
+        start = index
+        index += 1
+        closed = False
+        while index < len(lines):
+            if close.match(lines[index]):
+                index += 1
+                closed = True
+                break
+            index += 1
+        if closed:
+            end_offset = offsets[index - 1] + len(lines[index - 1])
+        else:
+            end_offset = len(text)
+        spans.append((offsets[start], end_offset))
+    if not spans:
+        return _minify_markdown_segment(text)
+    protected = []
+    fences: list[str] = []
+    cursor = 0
+    for start, end in spans:
+        protected.append(text[cursor:start])
+        token = f"@@FENCE{len(fences)}@@"
+        fences.append(text[start:end])
+        protected.append(token)
+        cursor = end
+    protected.append(text[cursor:])
+    minified = _minify_markdown_segment("".join(protected))
+    for index, fence in enumerate(fences):
+        minified = minified.replace(f"@@FENCE{index}@@", fence, 1)
+    return minified
+
+
+def _maybe_minify_markdown_bytes(data: bytes, relative: str, minify: bool) -> bytes:
+    if not minify or not relative.endswith(".md"):
+        return data
+    try:
+        return minify_markdown(data.decode("utf-8")).encode("utf-8")
+    except UnicodeDecodeError:
+        return data
 
 
 def canonical_bytes(data: bytes) -> bytes:
@@ -147,13 +228,16 @@ def agent_body(agent: dict, skills: dict) -> str:
     )
 
 
-def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
+def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dict[str, bytes]:
     skills, agents = load_library(root)
     if target == "grok-bot":
         files = source_files(root / "grok-bot")
         if not files:
             raise KitError("Missing Grok Bot setup recipes")
-        exports = {f"grok-bot/{name}": data for name, data in files.items()}
+        exports = {
+            f"grok-bot/{name}": _maybe_minify_markdown_bytes(data, name, minify)
+            for name, data in files.items()
+        }
         for kind, items in (("skills", skills), ("agents", agents)):
             for name, item in items.items():
                 body = item["body"] if kind == "skills" else agent_body(item, skills)
@@ -175,15 +259,21 @@ def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
                     "(https://docs.x.ai/grok-bot/skills-routines-and-automations).\n\n"
                     "## Workflow\n\n" + body + "\n"
                 )
+                if minify:
+                    content = minify_markdown(content)
                 exports[f"{kind}/{name}.md"] = content.encode("utf-8")
         return exports
     skill_dir, agent_dir, extension = TARGETS[target]
     files = {}
     for name, skill in skills.items():
         for relative, data in skill["files"].items():
-            files[f"{skill_dir}/{name}/{relative}"] = data
+            files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
+                data, relative, minify
+            )
     for name, agent in agents.items():
         body = agent_body(agent, skills)
+        if minify:
+            body = minify_markdown(body)
         if target == "codex":
             content = (
                 "\n".join(
@@ -210,6 +300,8 @@ def export_files(target: str, root: Path = ROOT) -> dict[str, bytes]:
                 f"description: {json.dumps(agent['description'], ensure_ascii=False)}\n"
                 "---\n\n" + body + "\n"
             )
+        if minify and extension == ".md":
+            content = minify_markdown(content)
         files[f"{agent_dir}/{name}{extension}"] = content.encode("utf-8")
     return files
 
@@ -260,19 +352,25 @@ def provider_instructions(target: str) -> str:
     )
 
 
-def provider_files(root: Path = ROOT) -> dict[str, bytes]:
+def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, bytes]:
     """The checked-in, browsable catalogue uses the same exports as ZIPs/install."""
     files = {}
     for target in EXPORT_TARGETS:
         files.update(
-            {f"{target}/{name}": data for name, data in export_files(target, root).items()}
+            {
+                f"{target}/{name}": data
+                for name, data in export_files(target, root, minify=minify).items()
+            }
         )
-        files[f"{target}/README.md"] = (
+        readme = (
             f"# {target}\n\n"
             "[All providers and source links](../README.md)\n\n"
             + provider_instructions(target)
             + "\nGenerated by `python3 tools/kit.py sync`. Edit the source, then regenerate.\n"
-        ).encode("utf-8")
+        )
+        if minify:
+            readme = minify_markdown(readme)
+        files[f"{target}/README.md"] = readme.encode("utf-8")
     skills, agents = load_library(root)
     lines = [
         "# Choose your provider",
@@ -309,7 +407,10 @@ def provider_files(root: Path = ROOT) -> dict[str, bytes]:
                     )
                 links.append(f"[{target}]({target}/{relative})")
             lines.append("| " + " | ".join(links) + " |")
-    files["README.md"] = ("\n".join(lines) + "\n").encode("utf-8")
+    catalogue = "\n".join(lines) + "\n"
+    if minify:
+        catalogue = minify_markdown(catalogue)
+    files["README.md"] = catalogue.encode("utf-8")
     return files
 
 
@@ -341,12 +442,12 @@ def provider_path(relative: str) -> bool:
     return rest.startswith("grok-bot/") and len(path.parts) >= 3
 
 
-def sync_providers(root: Path = ROOT, check: bool = False) -> dict:
+def sync_providers(root: Path = ROOT, check: bool = False, *, minify: bool = False) -> dict:
     root = root.resolve()
     destination = checked_path(root, "providers")
     if destination.exists() and not destination.is_dir():
         raise KitError("providers must be a directory")
-    desired = provider_files(root)
+    desired = provider_files(root, minify=minify)
     manifest = checked_path(root, "providers/.manifest.json")
     old = {}
     if manifest.exists():
@@ -637,14 +738,16 @@ def uninstall(
     }
 
 
-def build(target: str, output: Path, root: Path = ROOT) -> Path:
-    files = export_files(target, root)
+def build(target: str, output: Path, root: Path = ROOT, *, minify: bool = False) -> Path:
+    files = export_files(target, root, minify=minify)
     prefix = f"maintainer-skills-lab-{target}"
     instructions = (
         "# Installation\n\nExtract this archive into a temporary directory.\n\n"
         + provider_instructions(target)
         + "\nSource: https://github.com/00200200/maintainer-skills-lab\n"
     )
+    if minify:
+        instructions = minify_markdown(instructions)
     files["INSTALL.md"] = instructions.encode()
     files["LICENSE"] = (root / "LICENSE").read_bytes()
     output.mkdir(parents=True, exist_ok=True)
@@ -666,9 +769,19 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("check", help="Validate this library and generate exports in memory")
     sync_parser = commands.add_parser("sync", help="Regenerate the browsable provider catalogue")
     sync_parser.add_argument("--check", action="store_true", help="Fail on drift without writing")
+    sync_parser.add_argument(
+        "--minify",
+        action="store_true",
+        help="Minify exported markdown (whitespace, tables, HTML comments)",
+    )
     build_parser = commands.add_parser("build", help="Build deterministic installation archives")
     build_parser.add_argument("--target", choices=[*EXPORT_TARGETS, "all"], default="all")
     build_parser.add_argument("--output", type=Path, default=ROOT / "dist")
+    build_parser.add_argument(
+        "--minify",
+        action="store_true",
+        help="Minify exported markdown (whitespace, tables, HTML comments)",
+    )
     for action in ("install", "uninstall"):
         action_parser = commands.add_parser(action, help=f"{action.title()} in one project")
         action_parser.add_argument("--target", choices=TARGETS, required=True)
@@ -712,7 +825,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
         elif args.command == "sync":
-            result = sync_providers(check=args.check)
+            result = sync_providers(check=args.check, minify=args.minify)
             print(json.dumps(result, indent=2))
             if args.check and not result["up_to_date"]:
                 return 1
@@ -720,7 +833,13 @@ def main(argv: list[str] | None = None) -> int:
             targets = EXPORT_TARGETS if args.target == "all" else [args.target]
             print(
                 json.dumps(
-                    {"archives": [str(build(target, args.output)) for target in targets]}, indent=2
+                    {
+                        "archives": [
+                            str(build(target, args.output, minify=args.minify))
+                            for target in targets
+                        ]
+                    },
+                    indent=2,
                 )
             )
         elif args.command == "install":
