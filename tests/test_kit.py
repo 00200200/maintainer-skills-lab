@@ -115,6 +115,66 @@ class LibraryTests(unittest.TestCase):
                     self.assertIn(f"maintainer-skills-lab-{target}/LICENSE", handle.namelist())
 
 
+class MinifyMarkdownTests(unittest.TestCase):
+    def test_preserves_fenced_code_byte_for_byte(self):
+        fence = "```python\ndef f():\n    return 1\n\n\nx =  |  padded  |\n<!-- keep -->\n```"
+        text = f"# Title\n\n\nIntro   \n\n{fence}\n\n\nDone\n"
+        result = kit.minify_markdown(text)
+        self.assertIn(fence, result)
+        self.assertNotIn("Intro   ", result)
+        self.assertIn("# Title\n\nIntro\n\n```", result)
+        self.assertIn("```\n\nDone\n", result)
+
+    def test_strips_html_comments_outside_fences(self):
+        text = "Hello <!-- hidden note --> world\n<!--\nmultiline\n-->\nEnd\n"
+        result = kit.minify_markdown(text)
+        self.assertNotIn("hidden", result)
+        self.assertNotIn("multiline", result)
+        self.assertNotIn("<!--", result)
+        self.assertIn("Hello", result)
+        self.assertIn("world", result)
+        self.assertIn("End", result)
+
+    def test_collapses_blank_lines_and_trailing_spaces(self):
+        text = "A  \n\n\n\nB   \n"
+        self.assertEqual(kit.minify_markdown(text), "A\n\nB\n")
+
+    def test_compacts_table_padding(self):
+        text = "|  Cell 1   |   Cell 2   |\n| --- | --- |\n|  a  |  b  |\n"
+        result = kit.minify_markdown(text)
+        self.assertIn("| Cell 1 | Cell 2 |", result)
+        self.assertIn("| a | b |", result)
+        self.assertNotIn("|  Cell 1   |", result)
+
+    def test_headers_and_semantic_text_remain(self):
+        text = "## Steps\n\n\n1. One\n2. Two\n"
+        result = kit.minify_markdown(text)
+        self.assertIn("## Steps", result)
+        self.assertIn("1. One", result)
+        self.assertIn("2. Two", result)
+
+    def test_sync_minify_check_reports_drift_then_matches(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            copy_library(root)
+            source = root / "skills/mkl-humanize/SKILL.md"
+            source.write_text(
+                source.read_text() + "\n\n\n<!-- maintainer note -->\n|  padded  |  cells  |\n"
+            )
+            kit.sync_providers(root)
+            before = snapshot(root)
+            preview = kit.sync_providers(root, check=True, minify=True)
+            self.assertFalse(preview["up_to_date"])
+            self.assertEqual(snapshot(root), before)
+            kit.sync_providers(root, minify=True)
+            checked = kit.sync_providers(root, check=True, minify=True)
+            self.assertTrue(checked["up_to_date"])
+            self.assertEqual(checked["written"], [])
+            exported = (root / "providers/claude/.claude/skills/mkl-humanize/SKILL.md").read_text()
+            self.assertNotIn("maintainer note", exported)
+            self.assertIn("| padded | cells |", exported)
+
+
 class ProviderTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()

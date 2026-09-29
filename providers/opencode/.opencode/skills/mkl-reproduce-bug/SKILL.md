@@ -9,7 +9,7 @@ Start from the supplied report and repository instructions. Identify the intende
 
 Use a disposable workspace for experiments. A temporary directory is not a security sandbox: do not run an unfamiliar repository merely because it was copied there. Use the execution controls available in the host and the user's authorized scope.
 
-Inspect the entrypoint and dependencies before choosing a command. Keep environment setup failures separate from application failures. Record the interpreter or runtime version, working directory, command arguments, input, exit status, and relevant output.
+Inspect the entrypoint and dependencies before choosing a command. Keep environment setup failures separate from application failures. When running a Python test suite, use concise defaults (`pytest -q --tb=short -x`, or `python3 tools/test_fast.py`) instead of a bare `pytest`/`unittest` that dumps full tracebacks; for unittest use `python3 -m unittest discover -s tests -q -f`. Prefer `npm test -- --bail --silent` or `cargo test -- --nocapture=false` when those ecosystems apply. Record the interpreter or runtime version, working directory, command arguments, input, exit status, and relevant output.
 
 Reduce the example while preserving the same observable failure. Stop when it is small enough to explain and independently rerun. Do not change production code to manufacture a reproduction. If repeated executions disagree, report the variation rather than selecting a convenient run.
 

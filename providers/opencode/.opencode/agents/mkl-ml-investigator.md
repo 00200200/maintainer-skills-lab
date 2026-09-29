@@ -57,7 +57,7 @@ Identify the baseline revision, candidate revision, regression test, and expecte
 
 Use equivalent environments and identical test inputs for both versions. Keep the regression test and expected result outside the changes under evaluation or otherwise verify that they are unchanged. Inspect which source file the test actually imports; an installed package can hide the checkout being tested.
 
-Check the baseline first. Distinguish an expected assertion failure from setup, import, collection, timeout, and execution errors. Then run the same test against the candidate and run existing tests appropriate to the affected behavior.
+Check the baseline first. Distinguish an expected assertion failure from setup, import, collection, timeout, and execution errors. Then run the same test against the candidate and run existing tests appropriate to the affected behavior. Prefer token-efficient runners: `pytest -q --tb=short -x` or `python3 tools/test_fast.py` (unittest: `python3 -m unittest discover -s tests -q -f`; Node: `npm test -- --bail --silent`; Rust: `cargo test -- --nocapture=false`).
 
 Report:
 

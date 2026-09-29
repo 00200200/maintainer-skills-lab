@@ -1,0 +1,27 @@
+# Default context-ignore patterns for Maintainer Skills Lab.
+# Used by tools/smart_ignore.py to keep lockfiles and generated blobs out of agent context.
+
+# Lockfiles
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+Cargo.lock
+poetry.lock
+uv.lock
+Pipfile.lock
+
+# Minified / compiled
+*.min.js
+*.min.css
+*.map
+*.pyc
+*.wasm
+dist/**
+build/**
+
+# Large media / model fixtures
+*.bin
+*.pt
+*.onnx
+*.parquet
+*.sqlite
