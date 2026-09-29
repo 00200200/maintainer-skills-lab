@@ -1,6 +1,6 @@
 {
   "files": {
-    "README.md": "043ba22226407fb1fd3319df3071b4e5ecb7f36d403f0384b3a649d5b6dc2be8",
+    "README.md": "0707aea3fc980d8245c94aff28cdf735aa4402bbbb73acd823ef7c94f9a60afd",
     "claude/.claude/agents/mkl-bug-investigator.md": "9e1638e8bee55ae5fecb16711ea4f1a3b911ed6db475219818ab67ad2225f2fe",
     "claude/.claude/agents/mkl-ml-investigator.md": "8b281c6191ffa1249e5897df32745a82b81769f91d645fe9405e134de30e661d",
     "claude/.claude/agents/mkl-pr-reviewer.md": "3e68fb5b3420dab425ce924fc3b0fae659b66b7534273dd05a6702c070d6fdae",
@@ -53,6 +53,8 @@
     "codex/.codex/agents/mkl-source-reviewer.toml": "89a0b83512b724867c8977600bab5dfb4fd6ef4cc7ca5b7a08db08e9e1ee6f36",
     "codex/.codex/agents/mkl-writing-editor.toml": "00f869c02f419964973bd1785893c499b08769f977aa14b3087a71bb09adc808",
     "codex/README.md": "8f03d3d3a3143415e83317f457f73d668db49f2c9fa79f2cc049d58f809abbf9",
+    "copilot/.github/copilot-instructions.md": "a24871378cb4324b257d4c9b499db45db8259f06a7dad1030c1448dad173f317",
+    "copilot/README.md": "880d18351320c100fde6e5bd63f1f95e10aa1e1efb081a8041002d0651783ca5",
     "cursor/.cursor/agents/mkl-bug-investigator.md": "9e1638e8bee55ae5fecb16711ea4f1a3b911ed6db475219818ab67ad2225f2fe",
     "cursor/.cursor/agents/mkl-ml-investigator.md": "8b281c6191ffa1249e5897df32745a82b81769f91d645fe9405e134de30e661d",
     "cursor/.cursor/agents/mkl-pr-reviewer.md": "3e68fb5b3420dab425ce924fc3b0fae659b66b7534273dd05a6702c070d6fdae",
