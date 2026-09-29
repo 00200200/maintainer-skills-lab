@@ -79,7 +79,7 @@ class SmartIgnoreTests(unittest.TestCase):
     def test_omission_message_for_lockfile(self):
         with tempfile.TemporaryDirectory() as temporary:
             lockfile = Path(temporary) / "package-lock.json"
-            lockfile.write_text("{\n}\n" + ("  \"a\": 1,\n" * 3), encoding="utf-8")
+            lockfile.write_text("{\n}\n" + ('  "a": 1,\n' * 3), encoding="utf-8")
             message = smart_ignore.omission_message(lockfile)
             self.assertIn("package-lock.json", message)
             self.assertIn("lockfile", message)
