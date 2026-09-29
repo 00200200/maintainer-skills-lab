@@ -138,6 +138,26 @@ class ProviderTests(unittest.TestCase):
                         self.assertIn(skills[dependency]["body"], content)
         self.assertNotIn("groq", kit.EXPORT_TARGETS)
 
+    def test_copilot_instructions_use_verbatim_skill_excerpts(self):
+        skills, _agents = kit.load_library(self.root)
+        files = kit.export_files("copilot", self.root)
+        self.assertEqual(set(files), {kit.COPILOT_INSTRUCTIONS})
+        content = files[kit.COPILOT_INSTRUCTIONS].decode()
+        self.assertLessEqual(kit.approximate_tokens(content), kit.COPILOT_TOKEN_BUDGET)
+        for name in kit.COPILOT_SKILLS:
+            self.assertIn(f"## {name}", content)
+            self.assertIn(skills[name]["description"], content)
+            excerpt = kit.skill_excerpt(skills[name]["body"])
+            self.assertIn(excerpt, content)
+            # Compact export keeps excerpts; it does not embed full skill bodies.
+            self.assertNotIn(skills[name]["body"], content)
+        kit.sync_providers(self.root)
+        exported = self.root / "providers/copilot" / kit.COPILOT_INSTRUCTIONS
+        self.assertEqual(exported.read_bytes(), files[kit.COPILOT_INSTRUCTIONS])
+        catalogue = (self.root / "providers/README.md").read_text()
+        self.assertIn("[copilot](copilot/README.md)", catalogue)
+        self.assertIn(f"[copilot](copilot/{kit.COPILOT_INSTRUCTIONS})", catalogue)
+
     def test_retired_groq_exports_removed_only_when_unchanged(self):
         kit.sync_providers(self.root)
         old_files = {
@@ -382,6 +402,28 @@ class InstallationTests(unittest.TestCase):
                 )
                 kit.uninstall(target, self.project)
                 self.assertEqual(snapshot(self.project), {})
+
+    def test_copilot_install_uninstall_and_rejects_skill_selection(self):
+        exported = kit.export_files("copilot")
+        result = kit.install("copilot", self.project)
+        self.assertEqual(set(result["written"]), set(exported))
+        path = self.project / kit.COPILOT_INSTRUCTIONS
+        self.assertEqual(path.read_bytes(), exported[kit.COPILOT_INSTRUCTIONS])
+        with self.assertRaisesRegex(kit.KitError, "--skill is unsupported"):
+            kit.install("copilot", self.project, skill_names=["mkl-review-pr"])
+        command = [
+            sys.executable,
+            str(ROOT / "tools/kit.py"),
+            "install",
+            "--target",
+            "copilot",
+            "--project",
+            str(self.project),
+        ]
+        cli = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertEqual(cli.returncode, 0, cli.stderr)
+        kit.uninstall("copilot", self.project)
+        self.assertEqual(snapshot(self.project), {})
 
     def test_dry_run_has_no_side_effects(self):
         result = kit.install("codex", self.project, dry_run=True)
