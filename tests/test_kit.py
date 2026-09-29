@@ -198,6 +198,34 @@ class ProviderTests(unittest.TestCase):
                         self.assertIn(skills[dependency]["body"], content)
         self.assertNotIn("groq", kit.EXPORT_TARGETS)
 
+    def test_windsurf_exports_skills_agents_and_consolidated_rules(self):
+        skills, agents = kit.load_library(self.root)
+        files = kit.export_files("windsurf", self.root)
+        skill_dir, agent_dir, extension = kit.TARGETS["windsurf"]
+        self.assertEqual(
+            (skill_dir, agent_dir, extension), (".windsurf/skills", ".windsurf/agents", ".md")
+        )
+        for name in skills:
+            self.assertEqual(
+                files[f"{skill_dir}/{name}/SKILL.md"], skills[name]["files"]["SKILL.md"]
+            )
+        for name in agents:
+            self.assertIn(f"{agent_dir}/{name}{extension}", files)
+        self.assertIn(kit.WINDSURF_RULES, files)
+        content = files[kit.WINDSURF_RULES].decode()
+        for name in kit.WINDSURF_SKILLS:
+            self.assertIn(f"## {name}", content)
+            self.assertIn(skills[name]["description"], content)
+            excerpt = kit.skill_excerpt(skills[name]["body"])
+            self.assertIn(excerpt, content)
+            self.assertNotIn(skills[name]["body"], content)
+        kit.sync_providers(self.root)
+        exported = self.root / "providers/windsurf" / kit.WINDSURF_RULES
+        self.assertEqual(exported.read_bytes(), files[kit.WINDSURF_RULES])
+        catalogue = (self.root / "providers/README.md").read_text()
+        self.assertIn("[windsurf](windsurf/README.md)", catalogue)
+        self.assertIn("Windsurf", catalogue)
+
     def test_copilot_instructions_use_verbatim_skill_excerpts(self):
         skills, _agents = kit.load_library(self.root)
         files = kit.export_files("copilot", self.root)
@@ -296,6 +324,8 @@ class ProviderTests(unittest.TestCase):
             "cursor/.cursor/agents/mkl-writing-editor.md",
             "opencode/.opencode/skills/mkl-humanize/SKILL.md",
             "opencode/.opencode/agents/mkl-writing-editor.md",
+            "windsurf/.windsurf/skills/mkl-humanize/SKILL.md",
+            "windsurf/.windsurf/agents/mkl-writing-editor.md",
             "grok-bot/skills/mkl-humanize.md",
             "grok-bot/agents/mkl-writing-editor.md",
         }
@@ -323,6 +353,7 @@ class ProviderTests(unittest.TestCase):
                 "claude/.claude/skills/mkl-write-tutorial/SKILL.md",
                 "cursor/.cursor/skills/mkl-write-tutorial/SKILL.md",
                 "opencode/.opencode/skills/mkl-write-tutorial/SKILL.md",
+                "windsurf/.windsurf/skills/mkl-write-tutorial/SKILL.md",
                 "grok-bot/skills/mkl-write-tutorial.md",
             },
         )
@@ -333,6 +364,7 @@ class ProviderTests(unittest.TestCase):
             "claude/.claude/skills/mkl-write-tutorial",
             "cursor/.cursor/skills/mkl-write-tutorial",
             "opencode/.opencode/skills/mkl-write-tutorial",
+            "windsurf/.windsurf/skills/mkl-write-tutorial",
         ):
             self.assertFalse(
                 (self.root / "providers" / relative).exists(),
@@ -462,6 +494,22 @@ class InstallationTests(unittest.TestCase):
                 )
                 kit.uninstall(target, self.project)
                 self.assertEqual(snapshot(self.project), {})
+
+    def test_windsurf_full_install_includes_rules_skill_only_omits_them(self):
+        exported = kit.export_files("windsurf")
+        result = kit.install("windsurf", self.project)
+        self.assertIn(kit.WINDSURF_RULES, result["written"])
+        self.assertEqual(
+            (self.project / kit.WINDSURF_RULES).read_bytes(),
+            exported[kit.WINDSURF_RULES],
+        )
+        kit.uninstall("windsurf", self.project)
+        self.assertEqual(snapshot(self.project), {})
+        selected = kit.install("windsurf", self.project, skill_names=["mkl-humanize"])
+        self.assertNotIn(kit.WINDSURF_RULES, selected["written"])
+        self.assertFalse((self.project / kit.WINDSURF_RULES).exists())
+        kit.uninstall("windsurf", self.project, skill_names=["mkl-humanize"])
+        self.assertEqual(list(self.project.iterdir()), [])
 
     def test_copilot_install_uninstall_and_rejects_skill_selection(self):
         exported = kit.export_files("copilot")

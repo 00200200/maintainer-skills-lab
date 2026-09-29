@@ -27,6 +27,7 @@ TARGETS = {
     "claude": (".claude/skills", ".claude/agents", ".md"),
     "cursor": (".cursor/skills", ".cursor/agents", ".md"),
     "opencode": (".opencode/skills", ".opencode/agents", ".md"),
+    "windsurf": (".windsurf/skills", ".windsurf/agents", ".md"),
 }
 # Copilot installs a single consolidated instructions file; Grok Bot is sync/build only.
 EXPORT_TARGETS = (*TARGETS, "grok-bot", "copilot")
@@ -36,6 +37,7 @@ PROVIDER_LABELS = {
     "claude": "Claude Code",
     "cursor": "Cursor",
     "opencode": "OpenCode",
+    "windsurf": "Windsurf",
     "grok-bot": "Grok Bot",
     "copilot": "Copilot",
 }
@@ -43,6 +45,8 @@ COPILOT_SKILLS = ("mkl-review-pr", "mkl-write-regression", "mkl-write-maintainer
 COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
 COPILOT_TOKEN_BUDGET = 800
 COPILOT_PARAGRAPHS_PER_SKILL = 2
+WINDSURF_RULES = ".windsurfrules"
+WINDSURF_SKILLS = COPILOT_SKILLS
 NAME = re.compile(r"mkl-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
@@ -291,6 +295,32 @@ def build_copilot_instructions(skills: dict) -> str:
     return content
 
 
+def build_windsurf_rules(skills: dict) -> str:
+    """Compile selected core skills into one Windsurf project rules file."""
+    missing = [name for name in WINDSURF_SKILLS if name not in skills]
+    if missing:
+        raise KitError(f"Missing Windsurf source skills: {', '.join(missing)}")
+    sections = [
+        "# Maintainer Skills Lab",
+        "",
+        "Project rules for Windsurf Cascade, compiled from selected source "
+        "skills. Prefer concrete defects, focused regression tests, and calm "
+        "evidence-based replies.",
+        "",
+    ]
+    for name in WINDSURF_SKILLS:
+        skill = skills[name]
+        sections += [
+            f"## {name}",
+            "",
+            skill["description"],
+            "",
+            skill_excerpt(skill["body"]),
+            "",
+        ]
+    return "\n".join(sections).rstrip() + "\n"
+
+
 def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dict[str, bytes]:
     skills, agents = load_library(root)
     if target == "copilot":
@@ -368,6 +398,11 @@ def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dic
         if minify and extension == ".md":
             content = minify_markdown(content)
         files[f"{agent_dir}/{name}{extension}"] = content.encode("utf-8")
+    if target == "windsurf":
+        rules = build_windsurf_rules(skills)
+        if minify:
+            rules = minify_markdown(rules)
+        files[WINDSURF_RULES] = rules.encode("utf-8")
     return files
 
 
@@ -428,6 +463,15 @@ def provider_instructions(target: str) -> str:
             if target == "opencode"
             else ""
         )
+        + (
+            "\nAlso writes a consolidated `.windsurfrules` at the project root with "
+            "verbatim excerpts from core maintainer skills (PR review, regression "
+            "tests, and maintainer replies) for Cascade single-file rules. "
+            "Skill-only installs omit that file and keep or update only the selected "
+            "`.windsurf/skills/` directories.\n"
+            if target == "windsurf"
+            else ""
+        )
     )
 
 
@@ -460,7 +504,8 @@ def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, byte
         "",
         " | ".join(f"[{target}]({target}/README.md)" for target in EXPORT_TARGETS),
         "",
-        "Codex, Claude Code, Cursor, and OpenCode get native files. Grok Bot (SpaceXAI) gets",
+        "Codex, Claude Code, Cursor, OpenCode, and Windsurf get native files. Windsurf also",
+        "gets a consolidated `.windsurfrules` from core skills. Grok Bot (SpaceXAI) gets",
         "a Markdown setup recipe for every skill and agent. Copilot gets one compact",
         "`.github/copilot-instructions.md` compiled from core skills. Format checks do not",
         "establish live-client behavior.",
@@ -611,6 +656,8 @@ def managed_path(relative: str, target: str) -> bool:
         return False
     if target == "copilot":
         return relative == COPILOT_INSTRUCTIONS
+    if target == "windsurf" and relative == WINDSURF_RULES:
+        return True
     skill_dir, agent_dir, extension = TARGETS[target]
     try:
         parts = path.relative_to(skill_dir).parts
