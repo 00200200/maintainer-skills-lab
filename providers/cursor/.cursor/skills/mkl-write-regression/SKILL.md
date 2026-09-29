@@ -9,7 +9,7 @@ Read the reproduction, expected public behavior, and nearby test conventions. De
 
 Write the smallest test that captures the defect. Use deterministic inputs and existing project dependencies where practical. Do not mock away the faulty path. Place supporting fixtures beside the test and explain any environment requirements.
 
-Run the test against the affected implementation before accepting it as a regression test. Inspect why it failed: an assertion about the reported behavior is evidence; an import error, collection failure, permission problem, or timeout is not the intended proof. Keep the test unchanged when evaluating the fix.
+Run the test against the affected implementation before accepting it as a regression test. Use concise output flags (`pytest -q --tb=short -x`, or `python3 tools/test_fast.py`; unittest: `-q -f`) so failures stay readable instead of dumping full local-variable tracebacks. Inspect why it failed: an assertion about the reported behavior is evidence; an import error, collection failure, permission problem, or timeout is not the intended proof. Keep the test unchanged when evaluating the fix.
 
 If the fix is already present, use an isolated checkout or an equivalent preserved baseline to test the pre-fix version. Preserve the user's current checkout and uncommitted work. Do not revert their working tree merely to get a red test.
 

@@ -22,7 +22,9 @@ implementation change:
 ```sh
 python3 tools/kit.py check
 python3 tools/kit.py sync --check
-python3 -m unittest discover -s tests -v
+python3 tools/test_fast.py --runner unittest
+# Or: pytest -q --tb=short -x
+# Verbose CI-style: python3 -m unittest discover -s tests -v
 python3 examples/bugfix/run.py
 python3 tools/kit.py build
 ```
