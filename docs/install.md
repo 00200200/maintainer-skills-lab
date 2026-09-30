@@ -115,7 +115,7 @@ python3 tools/kit.py install --target codex --project /existing/project --skill 
 python3 tools/kit.py install --target codex --project /existing/project --skill mkl-humanize
 ```
 
-Use `--target claude`, `--target cursor`, or `--target opencode` for the other coding clients. The
+Use `--target claude`, `--target cursor`, `--target opencode`, or `--target windsurf` for the other coding clients. The
 selection copies the whole skill directory, including supporting resources,
 and records only newly owned files. It preserves other skills, native agents,
 client settings, and files managed by another installer. Conflicting edits in
@@ -163,6 +163,11 @@ python3 tools/kit.py install --target codex --project /existing/project
 | `claude` | `.claude/skills/mkl-*/` | `.claude/agents/mkl-*.md` |
 | `cursor` | `.cursor/skills/mkl-*/` | `.cursor/agents/mkl-*.md` |
 | `opencode` | `.opencode/skills/mkl-*/` | `.opencode/agents/mkl-*.md` |
+| `windsurf` | `.windsurf/skills/mkl-*/` | `.windsurf/agents/mkl-*.md` |
+
+A full `windsurf` install also writes a consolidated `.windsurfrules` at the
+project root with excerpts from core maintainer skills. Skill-only installs omit
+that file.
 
 Without `--skill`, this installer adds the full library for one target. Global
 installation and automatic changes to client
