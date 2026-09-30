@@ -32,6 +32,103 @@ def http_response(data, kind="text/html", status=200, headers=None):
     return response
 
 
+class DiffPruningTests(unittest.TestCase):
+    def test_context_compaction_keeps_requested_context_and_rewrites_ranges(self):
+        diff = (
+            "--- baseline\n"
+            "+++ current\n"
+            "@@ -1,9 +1,9 @@\n"
+            " context 1\n"
+            " context 2\n"
+            " context 3\n"
+            " context 4\n"
+            "-old value\n"
+            "+new value\n"
+            " context 6\n"
+            " context 7\n"
+            " context 8\n"
+            " context 9\n"
+        )
+        result, shortened = sw.prune_unified_diff(diff, context_lines=1, max_chars=1000)
+        self.assertTrue(shortened)
+        self.assertEqual(
+            result,
+            "--- baseline\n"
+            "+++ current\n"
+            "@@ -4,3 +4,3 @@\n"
+            " context 4\n"
+            "-old value\n"
+            "+new value\n"
+            " context 6\n",
+        )
+
+    def test_distant_changes_become_independent_valid_hunks(self):
+        diff = (
+            "--- baseline\n"
+            "+++ current\n"
+            "@@ -1,6 +1,6 @@\n"
+            " context 1\n"
+            "-old one\n"
+            "+new one\n"
+            " context 2\n"
+            " context 3\n"
+            "-old two\n"
+            "+new two\n"
+            " context 4\n"
+        )
+        result, shortened = sw.prune_unified_diff(diff, context_lines=0, max_chars=1000)
+        self.assertTrue(shortened)
+        self.assertEqual(
+            result,
+            "--- baseline\n"
+            "+++ current\n"
+            "@@ -2,1 +2,1 @@\n"
+            "-old one\n"
+            "+new one\n"
+            "@@ -5,1 +5,1 @@\n"
+            "-old two\n"
+            "+new two\n",
+        )
+
+    def test_character_limit_omits_only_complete_hunks(self):
+        payload = "x" * 90
+        diff = (
+            "--- baseline\n+++ current\n"
+            "@@ -1,1 +1,1 @@\n"
+            f"-{payload}\n+{payload}\n"
+            "@@ -100,1 +100,1 @@\n"
+            f"-{payload}\n+{payload}\n"
+        )
+        result, shortened = sw.prune_unified_diff(diff, max_chars=320)
+        self.assertTrue(shortened)
+        self.assertLessEqual(len(result), 320)
+        self.assertEqual(result.count("@@ "), 1)
+        self.assertIn("1 change hunk(s) omitted", result)
+        self.assertIn(f"-{payload}\n+{payload}\n", result)
+
+    def test_oversized_hunk_is_omitted_without_slicing(self):
+        payload = "x" * 300
+        diff = "--- baseline\n+++ current\n@@ -1,1 +1,1 @@\n" + f"-{payload}\n+{payload}\n"
+        result, shortened = sw.prune_unified_diff(diff, max_chars=128)
+        self.assertTrue(shortened)
+        self.assertLessEqual(len(result), 128)
+        self.assertNotIn(payload, result)
+        self.assertIn("1 change hunk(s) omitted", result)
+
+    def test_non_diff_text_is_never_cut_arbitrarily(self):
+        result, shortened = sw.prune_unified_diff("x" * 300, max_chars=128)
+        self.assertTrue(shortened)
+        self.assertEqual(result, "[Diff omitted; increase max_chars or inspect locally.]")
+
+    def test_diff_budget_is_bounded_and_validated(self):
+        with self.assertRaises(sw.WatchError):
+            sw.prune_unified_diff("", max_chars=127)
+        with self.assertRaises(sw.WatchError):
+            sw.prune_unified_diff("", max_chars=12_001)
+        with self.assertRaises(sw.WatchError):
+            sw.prune_unified_diff("", context_lines=-1)
+
+
 class WatchTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()

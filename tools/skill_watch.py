@@ -26,7 +26,10 @@ from watch_fetch import MAX_BYTES, MAX_TEXT, WatchError, fetch, select_text, val
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_BASELINE_BYTES = 6_000_000
+MAX_MCP_DIFF_CHARS = 12_000
+DEFAULT_MCP_DIFF_CHARS = 8_000
 ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+DIFF_HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$")
 PROVIDERS = {
     "codex": (".agents/skills", ".codex/agents", ".toml"),
     "claude": (".claude/skills", ".claude/agents", ".md"),
@@ -38,6 +41,146 @@ PROVIDERS = {
 
 def digest(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _compact_hunk(header, body, context_lines):
+    match = DIFF_HUNK.fullmatch(header.rstrip("\r\n"))
+    if match is None:
+        raise WatchError("Cannot safely compact an invalid unified diff hunk")
+    old_cursor, new_cursor = int(match[1]), int(match[3])
+    declared_old = int(match[2]) if match[2] is not None else 1
+    declared_new = int(match[4]) if match[4] is not None else 1
+    suffix = match[5]
+    records = []
+    for line in body:
+        if line.startswith("\\"):
+            if not records:
+                raise WatchError("Cannot safely compact an unanchored diff marker")
+            records[-1]["lines"].append(line)
+            continue
+        kind = line[:1]
+        if kind not in (" ", "+", "-"):
+            raise WatchError("Cannot safely compact an invalid unified diff line")
+        record = {
+            "lines": [line],
+            "kind": kind,
+            "old_before": old_cursor,
+            "new_before": new_cursor,
+            "old_line": old_cursor if kind in (" ", "-") else None,
+            "new_line": new_cursor if kind in (" ", "+") else None,
+        }
+        records.append(record)
+        if kind in (" ", "-"):
+            old_cursor += 1
+        if kind in (" ", "+"):
+            new_cursor += 1
+
+    changed = [index for index, record in enumerate(records) if record["kind"] != " "]
+    if (
+        sum(record["old_line"] is not None for record in records) != declared_old
+        or sum(record["new_line"] is not None for record in records) != declared_new
+    ):
+        raise WatchError("Cannot safely compact a unified diff with inconsistent hunk counts")
+    if not changed:
+        return [header + "".join(line for record in records for line in record["lines"])]
+
+    retained = set()
+    for index in changed:
+        retained.update(
+            range(max(0, index - context_lines), min(len(records), index + context_lines + 1))
+        )
+    if len(retained) == len(records):
+        return [header + "".join(line for record in records for line in record["lines"])]
+
+    groups = []
+    for index in sorted(retained):
+        if not groups or index > groups[-1][-1] + 1:
+            groups.append([index])
+        else:
+            groups[-1].append(index)
+
+    line_ending = "\r\n" if header.endswith("\r\n") else "\n"
+    compacted = []
+    for group_index, group in enumerate(groups):
+        selected = [records[index] for index in group]
+        old_count = sum(record["old_line"] is not None for record in selected)
+        new_count = sum(record["new_line"] is not None for record in selected)
+        first = selected[0]
+        old_start = first["old_before"] if old_count else max(0, first["old_before"] - 1)
+        new_start = first["new_before"] if new_count else max(0, first["new_before"] - 1)
+        section = suffix if group_index == 0 else ""
+        compacted_header = (
+            f"@@ -{old_start},{old_count} +{new_start},{new_count} @@{section}{line_ending}"
+        )
+        compacted.append(
+            compacted_header + "".join(line for record in selected for line in record["lines"])
+        )
+    return compacted
+
+
+def prune_unified_diff(
+    diff_text: str,
+    context_lines: int = 3,
+    max_chars: int = DEFAULT_MCP_DIFF_CHARS,
+) -> tuple[str, bool]:
+    """Keep compact unified-diff hunks intact under a bounded character budget."""
+    if not isinstance(diff_text, str):
+        raise WatchError("Diff must be text")
+    if (
+        isinstance(context_lines, bool)
+        or not isinstance(context_lines, int)
+        or not 0 <= context_lines <= 20
+    ):
+        raise WatchError("context_lines must be an integer from 0 to 20")
+    if (
+        isinstance(max_chars, bool)
+        or not isinstance(max_chars, int)
+        or not 128 <= max_chars <= MAX_MCP_DIFF_CHARS
+    ):
+        raise WatchError(f"max_chars must be an integer from 128 to {MAX_MCP_DIFF_CHARS}")
+
+    lines = diff_text.splitlines(keepends=True)
+    headers = [index for index, line in enumerate(lines) if DIFF_HUNK.match(line.rstrip("\r\n"))]
+    if not headers:
+        if len(diff_text) <= max_chars:
+            return diff_text, False
+        return "[Diff omitted; increase max_chars or inspect locally.]", True
+
+    prefix = "".join(lines[: headers[0]])
+    hunks = []
+    original_hunks = []
+    for position, start in enumerate(headers):
+        stop = headers[position + 1] if position + 1 < len(headers) else len(lines)
+        original_hunks.append("".join(lines[start:stop]))
+        hunks.extend(_compact_hunk(lines[start], lines[start + 1 : stop], context_lines))
+    was_pruned = hunks != original_hunks
+
+    included = []
+    omitted = 0
+    output_length = len(prefix)
+    for index, hunk in enumerate(hunks):
+        if output_length + len(hunk) <= max_chars:
+            included.append(hunk)
+            output_length += len(hunk)
+        else:
+            omitted = len(hunks) - index
+            break
+
+    if omitted:
+        marker = (
+            f"[{omitted} change hunk(s) omitted; request a larger max_chars or inspect locally.]\n"
+        )
+        while included and len(prefix) + sum(map(len, included)) + len(marker) > max_chars:
+            included.pop()
+            omitted += 1
+            marker = f"[{omitted} change hunk(s) omitted; request a larger max_chars or inspect locally.]\n"
+        output = prefix + "".join(included) + marker
+        if len(output) > max_chars:
+            output = "[Diff omitted; increase max_chars or inspect locally.]"
+        return output, True
+
+    output = prefix + "".join(included)
+    return output, was_pruned
 
 
 def local_path(root, relative):
@@ -353,9 +496,10 @@ def display(result, as_json=False):
         if source.get("status") == "new-source":
             print("    No baseline yet. Review this source before snapshot or accept.")
         elif source.get("diff"):
-            print(source["diff"][:12_000])
-            if len(source["diff"]) > 12_000:
-                print("    Diff truncated; use --json for the full comparison.")
+            diff, shortened = prune_unified_diff(source["diff"], max_chars=MAX_MCP_DIFF_CHARS)
+            print(diff)
+            if shortened:
+                print("    Diff shortened on hunk boundaries; use --json for the full comparison.")
     if result.get("unconfigured_baselines"):
         print("Not checked (removed from config): " + ", ".join(result["unconfigured_baselines"]))
 
