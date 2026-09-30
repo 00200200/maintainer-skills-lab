@@ -28,6 +28,9 @@ TARGETS = {
     "cursor": (".cursor/skills", ".cursor/agents", ".md"),
     "opencode": (".opencode/skills", ".opencode/agents", ".md"),
     "windsurf": (".windsurf/skills", ".windsurf/agents", ".md"),
+    # Gemini CLI / Google Antigravity: target id is gemini; skills discovery uses
+    # .gemini/antigravity/skills/<name>/SKILL.md (agents under .gemini/antigravity/agents/).
+    "gemini": (".gemini/antigravity/skills", ".gemini/antigravity/agents", ".md"),
 }
 # Copilot installs a single consolidated instructions file; Grok Bot is sync/build only.
 EXPORT_TARGETS = (*TARGETS, "grok-bot", "copilot")
@@ -38,6 +41,7 @@ PROVIDER_LABELS = {
     "cursor": "Cursor",
     "opencode": "OpenCode",
     "windsurf": "Windsurf",
+    "gemini": "Gemini",
     "grok-bot": "Grok Bot",
     "copilot": "Copilot",
 }
@@ -472,6 +476,14 @@ def provider_instructions(target: str) -> str:
             if target == "windsurf"
             else ""
         )
+        + (
+            "\nTarget id is `gemini` (not `antigravity`). Skills use Antigravity / "
+            "Gemini CLI discovery paths under `.gemini/antigravity/skills/`; agents "
+            "install beside them under `.gemini/antigravity/agents/` as Markdown "
+            "profiles with `name`/`description` frontmatter.\n"
+            if target == "gemini"
+            else ""
+        )
     )
 
 
@@ -504,11 +516,12 @@ def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, byte
         "",
         " | ".join(f"[{target}]({target}/README.md)" for target in EXPORT_TARGETS),
         "",
-        "Codex, Claude Code, Cursor, OpenCode, and Windsurf get native files. Windsurf also",
-        "gets a consolidated `.windsurfrules` from core skills. Grok Bot (SpaceXAI) gets",
-        "a Markdown setup recipe for every skill and agent. Copilot gets one compact",
-        "`.github/copilot-instructions.md` compiled from core skills. Format checks do not",
-        "establish live-client behavior.",
+        "Codex, Claude Code, Cursor, OpenCode, Windsurf, and Gemini get native files.",
+        "Gemini installs under `.gemini/antigravity/` for Antigravity / Gemini CLI skill",
+        "discovery. Windsurf also gets a consolidated `.windsurfrules` from core skills.",
+        "Grok Bot (SpaceXAI) gets a Markdown setup recipe for every skill and agent.",
+        "Copilot gets one compact `.github/copilot-instructions.md` compiled from core",
+        "skills. Format checks do not establish live-client behavior.",
     ]
     for kind, items in (("skills", skills), ("agents", agents)):
         lines += [
