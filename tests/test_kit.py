@@ -226,6 +226,42 @@ class ProviderTests(unittest.TestCase):
         self.assertIn("[windsurf](windsurf/README.md)", catalogue)
         self.assertIn("Windsurf", catalogue)
 
+    def test_gemini_exports_antigravity_skills_and_agents(self):
+        skills, agents = kit.load_library(self.root)
+        files = kit.export_files("gemini", self.root)
+        skill_dir, agent_dir, extension = kit.TARGETS["gemini"]
+        self.assertEqual(
+            (skill_dir, agent_dir, extension),
+            (".gemini/antigravity/skills", ".gemini/antigravity/agents", ".md"),
+        )
+        self.assertNotIn("antigravity", kit.TARGETS)
+        self.assertIn("gemini", kit.INSTALL_TARGETS)
+        self.assertIn("gemini", kit.EXPORT_TARGETS)
+        for name in skills:
+            relative = f"{skill_dir}/{name}/SKILL.md"
+            self.assertEqual(files[relative], skills[name]["files"]["SKILL.md"])
+            content = files[relative].decode()
+            self.assertTrue(content.startswith("---\n"))
+            self.assertIn(f'name: "{name}"', content)
+            self.assertIn("description:", content)
+        for name, agent in agents.items():
+            relative = f"{agent_dir}/{name}{extension}"
+            self.assertIn(relative, files)
+            content = files[relative].decode()
+            self.assertTrue(content.startswith("---\n"))
+            self.assertIn(f'name: "{name}"', content)
+            self.assertIn(agent["description"], content)
+        kit.sync_providers(self.root)
+        exported = self.root / "providers/gemini/.gemini/antigravity/skills/mkl-humanize/SKILL.md"
+        self.assertEqual(
+            exported.read_bytes(),
+            files[f"{skill_dir}/mkl-humanize/SKILL.md"],
+        )
+        catalogue = (self.root / "providers/README.md").read_text()
+        self.assertIn("[gemini](gemini/README.md)", catalogue)
+        self.assertIn("Gemini", catalogue)
+        self.assertIn(".gemini/antigravity/", catalogue)
+
     def test_copilot_instructions_use_verbatim_skill_excerpts(self):
         skills, _agents = kit.load_library(self.root)
         files = kit.export_files("copilot", self.root)
@@ -326,6 +362,8 @@ class ProviderTests(unittest.TestCase):
             "opencode/.opencode/agents/mkl-writing-editor.md",
             "windsurf/.windsurf/skills/mkl-humanize/SKILL.md",
             "windsurf/.windsurf/agents/mkl-writing-editor.md",
+            "gemini/.gemini/antigravity/skills/mkl-humanize/SKILL.md",
+            "gemini/.gemini/antigravity/agents/mkl-writing-editor.md",
             "grok-bot/skills/mkl-humanize.md",
             "grok-bot/agents/mkl-writing-editor.md",
         }
@@ -354,6 +392,7 @@ class ProviderTests(unittest.TestCase):
                 "cursor/.cursor/skills/mkl-write-tutorial/SKILL.md",
                 "opencode/.opencode/skills/mkl-write-tutorial/SKILL.md",
                 "windsurf/.windsurf/skills/mkl-write-tutorial/SKILL.md",
+                "gemini/.gemini/antigravity/skills/mkl-write-tutorial/SKILL.md",
                 "grok-bot/skills/mkl-write-tutorial.md",
             },
         )
@@ -365,6 +404,7 @@ class ProviderTests(unittest.TestCase):
             "cursor/.cursor/skills/mkl-write-tutorial",
             "opencode/.opencode/skills/mkl-write-tutorial",
             "windsurf/.windsurf/skills/mkl-write-tutorial",
+            "gemini/.gemini/antigravity/skills/mkl-write-tutorial",
         ):
             self.assertFalse(
                 (self.root / "providers" / relative).exists(),
