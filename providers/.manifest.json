@@ -1,6 +1,6 @@
 {
   "files": {
-    "README.md": "a71e5770f19ecd03e571e9a71413b4a64efaf5498355dd457a1b4bb61a2966b2",
+    "README.md": "054df31a57d46b3651a96c9d1052db5cd82bbf61e3ed2b14a0e7a924b02b18da",
     "claude/.claude/agents/mkl-bug-investigator.md": "9e1638e8bee55ae5fecb16711ea4f1a3b911ed6db475219818ab67ad2225f2fe",
     "claude/.claude/agents/mkl-ml-investigator.md": "8b281c6191ffa1249e5897df32745a82b81769f91d645fe9405e134de30e661d",
     "claude/.claude/agents/mkl-pr-reviewer.md": "3e68fb5b3420dab425ce924fc3b0fae659b66b7534273dd05a6702c070d6fdae",
@@ -186,7 +186,25 @@
     "windsurf/.windsurf/skills/mkl-write-tutorial/SKILL.md": "85abeaef798928a70dfa1727e675540e7c0d1af3254aefa9a0bb03f0512c1e2c",
     "windsurf/.windsurf/skills/mkl-write-ux-copy/SKILL.md": "69eb7b51642117fd6b77587134e915eb13d3bfd6e62dbbc4f2c52b56b8bd6eb5",
     "windsurf/.windsurfrules": "088155633d09f70883d5809c2732d9f0866602852b53058f5801b2f19bc0fcb3",
-    "windsurf/README.md": "306c03f1565aff116116956e57d58742daac6a7b3c0fb174decbcaaaffc5d14f"
+    "windsurf/README.md": "306c03f1565aff116116956e57d58742daac6a7b3c0fb174decbcaaaffc5d14f",
+    "zed/.zed/prompts/mkl-debug-ml-training.md": "cf7f1dca3fdd110a1af63c6b0022f57a270cb1a79e075ace881de9d2885344a6",
+    "zed/.zed/prompts/mkl-humanize.md": "c8b42cbfa6ab6021cc47f2e93391da05ecb67c1573b49f8852097012a4a27e55",
+    "zed/.zed/prompts/mkl-localize-pl-en.md": "2b9f09ad5042402fe24c09bd2e929373731868c90b4cc47f3fff6c9194698444",
+    "zed/.zed/prompts/mkl-match-voice.md": "63ab3b0b7bfbef9d7992bb6c5cc5c805302b2b33b3a2e90119fcc630ddf9d8e1",
+    "zed/.zed/prompts/mkl-prepare-release.md": "25b8e1f8f25bec8083d8ffca889c9e4c1b9552af775a74d60f120e413d88aaca",
+    "zed/.zed/prompts/mkl-reproduce-bug.md": "709dd33cf98b3ab0cddab66fbf8ee69b017c91d0404cb49ebbdc4449054512c9",
+    "zed/.zed/prompts/mkl-review-dependency.md": "7d6a664a56a0f485616222bacddc1986d6d94669ed0b3bdece765277ab98ad5d",
+    "zed/.zed/prompts/mkl-review-pr.md": "4b1f55f3ef0b63da084eb86e0494201bb7216e06660fd52bb0de7b13b6b95c91",
+    "zed/.zed/prompts/mkl-review-source-change.md": "468c5483f7075250dd462c1f6096331be16c695f50c60c7ecbeccd178f790291",
+    "zed/.zed/prompts/mkl-triage-issue.md": "83de86766669f6e9ce0042f9b349c232c2c6bf7bea7b70685c3c74e47dcbaabf",
+    "zed/.zed/prompts/mkl-verify-fix.md": "0ccb087a6ab732c7dddd119ad134ee2a7f7ca12fd92727383653ad16f1663715",
+    "zed/.zed/prompts/mkl-write-launch-post.md": "48809f569b0db0735ab465c75ce8a3410c2a0b8224a48baf5b3be20c180040cf",
+    "zed/.zed/prompts/mkl-write-maintainer-reply.md": "e1ac79cae3876b7ad27a40518b63ec9c056cf88e82423d0e150b3330a92a005c",
+    "zed/.zed/prompts/mkl-write-readme.md": "2a3aef131376119f6ec8759e8fa05cf97ee6f5f34494891bdf2174a5fd1c5990",
+    "zed/.zed/prompts/mkl-write-regression.md": "652fc2654735b4c60fa58111f5f1961398f74e26eaf251fa581b45c77820dfc5",
+    "zed/.zed/prompts/mkl-write-tutorial.md": "e49ca83fc5f418e4d023823ce5440d81259a1b9839bf9379eced3dfc862b27a6",
+    "zed/.zed/prompts/mkl-write-ux-copy.md": "081e3f7492582b2390220e6d173e810bebb348494dee7bf5e30c9d6c91c04fc2",
+    "zed/README.md": "1b8c3d8588f3a0c5ca091f9cf8e5b683ff18a8df1337af1a0d697a4c98cec74f"
   },
   "schema_version": 1
 }

@@ -33,8 +33,9 @@ TARGETS = {
     "gemini": (".gemini/antigravity/skills", ".gemini/antigravity/agents", ".md"),
 }
 # Copilot installs a single consolidated instructions file; Grok Bot is sync/build only.
-EXPORT_TARGETS = (*TARGETS, "grok-bot", "copilot")
-INSTALL_TARGETS = (*TARGETS, "copilot")
+# Zed installs flat Assistant prompts (no separate agents directory).
+EXPORT_TARGETS = (*TARGETS, "grok-bot", "copilot", "zed")
+INSTALL_TARGETS = (*TARGETS, "copilot", "zed")
 PROVIDER_LABELS = {
     "codex": "Codex",
     "claude": "Claude Code",
@@ -44,6 +45,7 @@ PROVIDER_LABELS = {
     "gemini": "Gemini",
     "grok-bot": "Grok Bot",
     "copilot": "Copilot",
+    "zed": "Zed",
 }
 COPILOT_SKILLS = ("mkl-review-pr", "mkl-write-regression", "mkl-write-maintainer-reply")
 COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
@@ -51,6 +53,7 @@ COPILOT_TOKEN_BUDGET = 800
 COPILOT_PARAGRAPHS_PER_SKILL = 2
 WINDSURF_RULES = ".windsurfrules"
 WINDSURF_SKILLS = COPILOT_SKILLS
+ZED_PROMPTS = ".zed/prompts"
 NAME = re.compile(r"mkl-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
@@ -325,10 +328,29 @@ def build_windsurf_rules(skills: dict) -> str:
     return "\n".join(sections).rstrip() + "\n"
 
 
+def build_zed_prompt(name: str, skill: dict) -> str:
+    """One Zed Assistant prompt per skill; keep skill prose unchanged."""
+    return (
+        "<!-- Attach context with /file or /tab in the Zed Assistant panel. -->\n\n"
+        f"# {name}\n\n"
+        f"{skill['description']}\n\n"
+        f"{skill['body'].rstrip()}\n"
+    )
+
+
 def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dict[str, bytes]:
     skills, agents = load_library(root)
     if target == "copilot":
         return {COPILOT_INSTRUCTIONS: build_copilot_instructions(skills).encode("utf-8")}
+    if target == "zed":
+        # Zed has no separate agents directory; emit one Assistant prompt per skill.
+        files = {}
+        for name, skill in skills.items():
+            content = build_zed_prompt(name, skill)
+            if minify:
+                content = minify_markdown(content)
+            files[f"{ZED_PROMPTS}/{name}.md"] = content.encode("utf-8")
+        return files
     if target == "grok-bot":
         files = source_files(root / "grok-bot")
         if not files:
@@ -425,6 +447,24 @@ def provider_instructions(target: str) -> str:
             "The installer writes one file and does not support `--skill` selection. "
             "Live-client discovery and task outcomes have not yet been evaluated.\n"
         )
+    if target == "zed":
+        return (
+            "Install Markdown prompt templates into `.zed/prompts/` for the Zed "
+            "Assistant panel (accessible via `/`). Each skill becomes one "
+            "`mkl-*.md` file. Zed has no separate agents directory, so agent "
+            "profiles are not exported.\n\n"
+            "For conflict detection, updates, and removal, use the installer from "
+            "the source clone:\n\n"
+            "```sh\n"
+            "python3 tools/kit.py install --target zed --project /existing/project\n"
+            "```\n\n"
+            "The installer reads the canonical source and installs every skill prompt "
+            "by default. Add `--skill mkl-humanize` to install or update only that "
+            "prompt; repeat `--skill` to select more. Other prompts are preserved.\n\n"
+            "Generated prompts include a short header comment mentioning `/file` and "
+            "`/tab` for attaching context; skill prose is unchanged. Live-client "
+            "discovery and task outcomes have not yet been evaluated.\n"
+        )
     if target == "grok-bot":
         return (
             "Follow [the setup guide](grok-bot/README.md) to configure a Bot and "
@@ -516,9 +556,10 @@ def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, byte
         "",
         " | ".join(f"[{target}]({target}/README.md)" for target in EXPORT_TARGETS),
         "",
-        "Codex, Claude Code, Cursor, OpenCode, Windsurf, and Gemini get native files.",
+        "Codex, Claude Code, Cursor, OpenCode, Windsurf, Gemini, and Zed get native files.",
         "Gemini installs under `.gemini/antigravity/` for Antigravity / Gemini CLI skill",
         "discovery. Windsurf also gets a consolidated `.windsurfrules` from core skills.",
+        "Zed gets Assistant prompts under `.zed/prompts/` (no separate agents directory).",
         "Grok Bot (SpaceXAI) gets a Markdown setup recipe for every skill and agent.",
         "Copilot gets one compact `.github/copilot-instructions.md` compiled from core",
         "skills. Format checks do not establish live-client behavior.",
@@ -538,6 +579,13 @@ def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, byte
                 if target == "copilot":
                     if kind == "skills" and name in COPILOT_SKILLS:
                         links.append(f"[copilot](copilot/{COPILOT_INSTRUCTIONS})")
+                    else:
+                        links.append("—")
+                    continue
+                if target == "zed":
+                    # Zed exports skill prompts only; agents have no home in `.zed/`.
+                    if kind == "skills":
+                        links.append(f"[zed](zed/{ZED_PROMPTS}/{name}.md)")
                     else:
                         links.append("—")
                     continue
@@ -575,6 +623,8 @@ def provider_path(relative: str) -> bool:
     if rest == "README.md":
         return True
     if target in TARGETS:
+        return managed_path(rest, target)
+    if target == "zed":
         return managed_path(rest, target)
     if target == "copilot":
         return rest == COPILOT_INSTRUCTIONS
@@ -669,6 +719,12 @@ def managed_path(relative: str, target: str) -> bool:
         return False
     if target == "copilot":
         return relative == COPILOT_INSTRUCTIONS
+    if target == "zed":
+        return (
+            path.parent.as_posix() == ZED_PROMPTS
+            and path.suffix == ".md"
+            and NAME.fullmatch(path.stem) is not None
+        )
     if target == "windsurf" and relative == WINDSURF_RULES:
         return True
     skill_dir, agent_dir, extension = TARGETS[target]
@@ -750,6 +806,8 @@ def skill_prefixes(target: str, skill_names: list[str] | None) -> tuple[str, ...
         not isinstance(name, str) or not NAME.fullmatch(name) for name in skill_names
     ):
         raise KitError("Select at least one valid mkl-* skill name")
+    if target == "zed":
+        return tuple(f"{ZED_PROMPTS}/{name}.md" for name in sorted(set(skill_names)))
     return tuple(f"{TARGETS[target][0]}/{name}/" for name in sorted(set(skill_names)))
 
 
@@ -772,10 +830,16 @@ def install(
     prefixes = skill_prefixes(target, skill_names)
     desired = export_files(target, root)
     if prefixes is not None:
-        for prefix in prefixes:
-            if prefix + "SKILL.md" not in desired:
-                raise KitError(f"Unknown source skill: {prefix.split('/')[-2]}")
-        desired = {name: data for name, data in desired.items() if name.startswith(prefixes)}
+        if target == "zed":
+            for relative in prefixes:
+                if relative not in desired:
+                    raise KitError(f"Unknown source skill: {PurePosixPath(relative).stem}")
+            desired = {name: data for name, data in desired.items() if name in prefixes}
+        else:
+            for prefix in prefixes:
+                if prefix + "SKILL.md" not in desired:
+                    raise KitError(f"Unknown source skill: {prefix.split('/')[-2]}")
+            desired = {name: data for name, data in desired.items() if name.startswith(prefixes)}
     manifest_path, old = installed_state(project, target)
     # Keep other workflows' ownership hashes, even when their local files were edited.
     owned = {
