@@ -12,7 +12,15 @@ from typing import Any
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
-from skill_watch import ROOT, Watch, WatchError, discover, impact
+from skill_watch import (
+    DEFAULT_MCP_DIFF_CHARS,
+    ROOT,
+    Watch,
+    WatchError,
+    discover,
+    impact,
+    prune_unified_diff,
+)
 
 
 def create_server(project, config, state):
@@ -47,20 +55,24 @@ def create_server(project, config, state):
         }
 
     @server.tool(annotations=remote_read, structured_output=True)
-    def skill_watch_check(source_id: str) -> dict[str, Any]:
+    def skill_watch_check(
+        source_id: str, max_chars: int = DEFAULT_MCP_DIFF_CHARS
+    ) -> dict[str, Any]:
         """Check one configured source ID and return the text diff and affected files. Never updates the baseline. May make bounded public HTTPS requests for that source."""
         try:
+            # Reject invalid budgets before making a remote read request.
+            prune_unified_diff("", max_chars=max_chars)
             result = watch.check(source_id)
+            for source in result["sources"]:
+                # Keep the evidence hashes and a bounded diff in the model's context.
+                for key in ("baseline", "current"):
+                    if source.get(key):
+                        source[key].pop("text", None)
+                source["diff"], source["diff_truncated"] = prune_unified_diff(
+                    source.get("diff", ""), max_chars=max_chars
+                )
         except (WatchError, OSError, ValueError) as error:
             raise ToolError(str(error)) from error
-        for source in result["sources"]:
-            # Keep the evidence hashes and a bounded diff in the model's context.
-            for key in ("baseline", "current"):
-                if source.get(key):
-                    source[key].pop("text", None)
-            diff = source.get("diff", "")
-            source["diff_truncated"] = len(diff) > 12_000
-            source["diff"] = diff[:12_000]
         return result
 
     return server
