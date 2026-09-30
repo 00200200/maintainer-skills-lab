@@ -96,5 +96,13 @@ python3 -m unittest discover -s tests -v
 ```
 </details>
 
+## Contribute
+
+See the [contributor guide](CONTRIBUTING.md), [suggest a workflow](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml),
+[report a bug](https://github.com/00200200/maintainer-skills-lab/issues/new?template=bug_report.yml),
+or [propose a token or latency optimization](https://github.com/00200200/maintainer-skills-lab/issues/new?template=optimization.yml).
+You can also browse [help-wanted](https://github.com/00200200/maintainer-skills-lab/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+and [good first issues](https://github.com/00200200/maintainer-skills-lab/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22).
+
 ## 📄 License
 [MIT](LICENSE). This is an independent community project.

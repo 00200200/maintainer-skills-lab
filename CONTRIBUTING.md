@@ -5,7 +5,8 @@ improve an example, report a client mismatch, or send a focused pull request.
 No need to support every client by hand: the generator does that part.
 
 **[Suggest a skill, agent, or hook](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml)** ·
-**[Report a bug](https://github.com/00200200/maintainer-skills-lab/issues/new?template=bug_report.yml)**
+**[Report a bug](https://github.com/00200200/maintainer-skills-lab/issues/new?template=bug_report.yml)** ·
+**[Propose an optimization](https://github.com/00200200/maintainer-skills-lab/issues/new?template=optimization.yml)**
 
 Search existing issues and the [catalogue](providers/README.md) before starting.
 For a small fix, a PR is welcome directly. For a larger workflow, an issue with
@@ -30,6 +31,32 @@ Keep attribution for any reused material and check that its license permits reus
 Submit one focused PR, with your authorship preserved in Git history. A gallery
 edit does not need regenerated provider files unless the canonical skill also
 changes. Check relative links and confirm the prompt fits the linked skill.
+
+## Write token-efficient workflows
+
+Keep frequently loaded skill descriptions focused; use 60 approximate tokens as
+a working target, not a universal limit. Put required actions before background,
+remove repeated instructions and conversational filler, and keep examples only
+when they clarify a decision or show an important edge case. Preserve facts,
+technical terms, safety constraints, and useful failure cases when shortening.
+
+Compare the canonical source and affected generated files before and after a
+change. Use the target model's tokenizer when you need an exact token count. For
+a quick, rough comparison, count about one token per four characters:
+
+```sh
+python3 -c "from pathlib import Path; p = Path('skills/mkl-example/SKILL.md'); print((len(p.read_text(encoding='utf-8')) + 3) // 4)"
+```
+
+Replace the path with the file you want to measure. This estimate is roughly one
+token per four characters; report it as an estimate, not a measured model-token
+count. `kit.py tokens` is not currently a command. When proposing an
+optimization, include the before/after counts, the files measured, and the
+client/tokenizer or estimation method.
+
+Browse [open help-wanted issues](https://github.com/00200200/maintainer-skills-lab/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+or [good first issues](https://github.com/00200200/maintainer-skills-lab/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+before starting a task.
 
 ## Add a skill once
 
