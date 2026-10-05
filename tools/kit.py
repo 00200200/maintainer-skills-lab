@@ -33,9 +33,9 @@ TARGETS = {
     "gemini": (".gemini/antigravity/skills", ".gemini/antigravity/agents", ".md"),
 }
 # Copilot installs a single consolidated instructions file; Grok Bot is sync/build only.
-# Zed installs flat Assistant prompts (no separate agents directory).
-EXPORT_TARGETS = (*TARGETS, "grok-bot", "copilot", "zed")
-INSTALL_TARGETS = (*TARGETS, "copilot", "zed")
+# Zed and Continue install flat prompt files (no separate agents directory).
+EXPORT_TARGETS = (*TARGETS, "grok-bot", "copilot", "zed", "continue")
+INSTALL_TARGETS = (*TARGETS, "copilot", "zed", "continue")
 PROVIDER_LABELS = {
     "codex": "Codex",
     "claude": "Claude Code",
@@ -46,6 +46,7 @@ PROVIDER_LABELS = {
     "grok-bot": "Grok Bot",
     "copilot": "Copilot",
     "zed": "Zed",
+    "continue": "Continue",
 }
 COPILOT_SKILLS = ("mkl-review-pr", "mkl-write-regression", "mkl-write-maintainer-reply")
 COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
@@ -54,6 +55,8 @@ COPILOT_PARAGRAPHS_PER_SKILL = 2
 WINDSURF_RULES = ".windsurfrules"
 WINDSURF_SKILLS = COPILOT_SKILLS
 ZED_PROMPTS = ".zed/prompts"
+CONTINUE_PROMPTS = ".continue/prompts"
+FLAT_PROMPT_TARGETS = frozenset({"zed", "continue"})
 NAME = re.compile(r"mkl-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
@@ -338,6 +341,21 @@ def build_zed_prompt(name: str, skill: dict) -> str:
     )
 
 
+def build_continue_prompt(name: str, skill: dict) -> str:
+    """One Continue slash-command prompt per skill; keep skill prose unchanged."""
+    return (
+        "---\n"
+        f"name: {json.dumps(name)}\n"
+        f"description: {json.dumps(skill['description'], ensure_ascii=False)}\n"
+        "invokable: true\n"
+        "---\n\n"
+        f"# {name}\n\n"
+        f"{skill['description']}\n\n"
+        f"{skill['body'].rstrip()}\n\n"
+        "{{{ input }}}\n"
+    )
+
+
 def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dict[str, bytes]:
     skills, agents = load_library(root)
     if target == "copilot":
@@ -350,6 +368,15 @@ def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dic
             if minify:
                 content = minify_markdown(content)
             files[f"{ZED_PROMPTS}/{name}.md"] = content.encode("utf-8")
+        return files
+    if target == "continue":
+        # Continue has no separate agents directory; emit one invokable .prompt per skill.
+        files = {}
+        for name, skill in skills.items():
+            content = build_continue_prompt(name, skill)
+            if minify:
+                content = minify_markdown(content)
+            files[f"{CONTINUE_PROMPTS}/{name}.prompt"] = content.encode("utf-8")
         return files
     if target == "grok-bot":
         files = source_files(root / "grok-bot")
@@ -465,6 +492,25 @@ def provider_instructions(target: str) -> str:
             "`/tab` for attaching context; skill prose is unchanged. Live-client "
             "discovery and task outcomes have not yet been evaluated.\n"
         )
+    if target == "continue":
+        return (
+            "Install Continue.dev prompt files into `.continue/prompts/` as invokable "
+            "slash commands (type `/` in Chat, Plan, or Agent mode). Each skill becomes "
+            "one `mkl-*.prompt` file with YAML frontmatter (`name`, `description`, "
+            "`invokable: true`) and a `{{{ input }}}` placeholder for extra instructions. "
+            "Continue has no separate agents directory here, so agent profiles are not "
+            "exported.\n\n"
+            "For conflict detection, updates, and removal, use the installer from "
+            "the source clone:\n\n"
+            "```sh\n"
+            "python3 tools/kit.py install --target continue --project /existing/project\n"
+            "```\n\n"
+            "The installer reads the canonical source and installs every skill prompt "
+            "by default. Add `--skill mkl-humanize` to install or update only that "
+            "prompt; repeat `--skill` to select more. Other prompts are preserved.\n\n"
+            "Skill prose is unchanged aside from frontmatter and the input placeholder. "
+            "Live-client discovery and task outcomes have not yet been evaluated.\n"
+        )
     if target == "grok-bot":
         return (
             "Follow [the setup guide](grok-bot/README.md) to configure a Bot and "
@@ -556,13 +602,15 @@ def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, byte
         "",
         " | ".join(f"[{target}]({target}/README.md)" for target in EXPORT_TARGETS),
         "",
-        "Codex, Claude Code, Cursor, OpenCode, Windsurf, Gemini, and Zed get native files.",
-        "Gemini installs under `.gemini/antigravity/` for Antigravity / Gemini CLI skill",
-        "discovery. Windsurf also gets a consolidated `.windsurfrules` from core skills.",
-        "Zed gets Assistant prompts under `.zed/prompts/` (no separate agents directory).",
-        "Grok Bot (SpaceXAI) gets a Markdown setup recipe for every skill and agent.",
-        "Copilot gets one compact `.github/copilot-instructions.md` compiled from core",
-        "skills. Format checks do not establish live-client behavior.",
+        "Codex, Claude Code, Cursor, OpenCode, Windsurf, Gemini, Zed, and Continue get",
+        "native files. Gemini installs under `.gemini/antigravity/` for Antigravity /",
+        "Gemini CLI skill discovery. Windsurf also gets a consolidated `.windsurfrules`",
+        "from core skills. Zed gets Assistant prompts under `.zed/prompts/` (no separate",
+        "agents directory). Continue gets invokable prompts under `.continue/prompts/`",
+        "(agents skipped; catalogue shows —). Grok Bot (SpaceXAI) gets a Markdown setup",
+        "recipe for every skill and agent. Copilot gets one compact",
+        "`.github/copilot-instructions.md` compiled from core skills. Format checks do",
+        "not establish live-client behavior.",
     ]
     for kind, items in (("skills", skills), ("agents", agents)):
         lines += [
@@ -586,6 +634,13 @@ def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, byte
                     # Zed exports skill prompts only; agents have no home in `.zed/`.
                     if kind == "skills":
                         links.append(f"[zed](zed/{ZED_PROMPTS}/{name}.md)")
+                    else:
+                        links.append("—")
+                    continue
+                if target == "continue":
+                    # Continue exports skill prompts only; agents are skipped.
+                    if kind == "skills":
+                        links.append(f"[continue](continue/{CONTINUE_PROMPTS}/{name}.prompt)")
                     else:
                         links.append("—")
                     continue
@@ -624,7 +679,7 @@ def provider_path(relative: str) -> bool:
         return True
     if target in TARGETS:
         return managed_path(rest, target)
-    if target == "zed":
+    if target in FLAT_PROMPT_TARGETS:
         return managed_path(rest, target)
     if target == "copilot":
         return rest == COPILOT_INSTRUCTIONS
@@ -725,6 +780,12 @@ def managed_path(relative: str, target: str) -> bool:
             and path.suffix == ".md"
             and NAME.fullmatch(path.stem) is not None
         )
+    if target == "continue":
+        return (
+            path.parent.as_posix() == CONTINUE_PROMPTS
+            and path.suffix == ".prompt"
+            and NAME.fullmatch(path.stem) is not None
+        )
     if target == "windsurf" and relative == WINDSURF_RULES:
         return True
     skill_dir, agent_dir, extension = TARGETS[target]
@@ -808,6 +869,8 @@ def skill_prefixes(target: str, skill_names: list[str] | None) -> tuple[str, ...
         raise KitError("Select at least one valid mkl-* skill name")
     if target == "zed":
         return tuple(f"{ZED_PROMPTS}/{name}.md" for name in sorted(set(skill_names)))
+    if target == "continue":
+        return tuple(f"{CONTINUE_PROMPTS}/{name}.prompt" for name in sorted(set(skill_names)))
     return tuple(f"{TARGETS[target][0]}/{name}/" for name in sorted(set(skill_names)))
 
 
@@ -830,7 +893,7 @@ def install(
     prefixes = skill_prefixes(target, skill_names)
     desired = export_files(target, root)
     if prefixes is not None:
-        if target == "zed":
+        if target in FLAT_PROMPT_TARGETS:
             for relative in prefixes:
                 if relative not in desired:
                     raise KitError(f"Unknown source skill: {PurePosixPath(relative).stem}")
