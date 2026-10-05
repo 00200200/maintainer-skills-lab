@@ -701,6 +701,59 @@ class RetrievalTests(unittest.TestCase):
             with self.assertRaises(wf.WatchError):
                 wf.fetch("https://example.org")
 
+    def test_http_conditional_request_with_etag_and_last_modified_304(self):
+        with patch.object(wf, "PublicHTTPS") as connection:
+            connection.return_value.getresponse.return_value = http_response(
+                b"",
+                kind="text/plain",
+                status=304,
+                headers={"ETag": '"abc123"', "Last-Modified": "Wed, 21 Oct 2026 07:28:00 GMT"},
+            )
+            result = wf.fetch(
+                "https://example.org/docs",
+                etag='"abc123"',
+                last_modified="Wed, 21 Oct 2026 07:28:00 GMT",
+            )
+            self.assertTrue(result.not_modified)
+            self.assertIsNone(result.content)
+            self.assertEqual(result.etag, '"abc123"')
+            connection.return_value.request.assert_called_once_with(
+                "GET",
+                "/docs",
+                headers={
+                    "User-Agent": "Maintainer-Skills-Lab-Skill-Watch/0.1",
+                    "If-None-Match": '"abc123"',
+                    "If-Modified-Since": "Wed, 21 Oct 2026 07:28:00 GMT",
+                },
+            )
+
+    def test_watch_check_returns_cached_on_304(self):
+        watch = sw.Watch(project=ROOT)
+        with patch.object(watch, "capture", return_value=None):
+            with patch.object(
+                watch,
+                "baseline",
+                return_value=(
+                    {
+                        "version": 1,
+                        "sources": {
+                            "pytorch-reproducibility": {
+                                "selector": {},
+                                "resolved": "https://docs.pytorch.org",
+                                "sha256": "123",
+                                "text": "test",
+                                "captured_at": "2026-10-01T00:00:00Z",
+                                "etag": '"abc"',
+                            }
+                        },
+                    },
+                    "raw",
+                ),
+            ):
+                report = watch.check("pytorch-reproducibility")
+                self.assertEqual(report["status"], "unchanged")
+                self.assertTrue(report["sources"][0].get("cached"))
+
 
 if __name__ == "__main__":
     unittest.main()
