@@ -288,6 +288,38 @@ class ProviderTests(unittest.TestCase):
         writing = next(line for line in agent_section.splitlines() if "mkl-writing-editor" in line)
         self.assertTrue(writing.rstrip().endswith("| — |") or writing.endswith("| — |"))
 
+    def test_continue_exports_invokable_prompts_without_agents(self):
+        kit.sync_providers(self.root)
+        files = kit.export_files("continue", self.root)
+        self.assertIn("continue", kit.INSTALL_TARGETS)
+        self.assertIn("continue", kit.EXPORT_TARGETS)
+        self.assertTrue(all(name.startswith(f"{kit.CONTINUE_PROMPTS}/") for name in files))
+        self.assertTrue(all(name.endswith(".prompt") for name in files))
+        skills, agents = kit.load_library(self.root)
+        self.assertEqual(len(files), len(skills))
+        self.assertFalse(any("/agents/" in name for name in files))
+        prompt = files[f"{kit.CONTINUE_PROMPTS}/mkl-humanize.prompt"].decode()
+        self.assertTrue(prompt.startswith("---\n"))
+        self.assertIn('name: "mkl-humanize"', prompt)
+        self.assertIn("description:", prompt)
+        self.assertIn("invokable: true", prompt)
+        self.assertIn("{{{ input }}}", prompt)
+        self.assertIn(skills["mkl-humanize"]["description"], prompt)
+        self.assertIn(skills["mkl-humanize"]["body"].rstrip(), prompt)
+        for name in agents:
+            self.assertNotIn(f"{kit.CONTINUE_PROMPTS}/{name}.prompt", files)
+        exported = self.root / "providers/continue/.continue/prompts/mkl-humanize.prompt"
+        self.assertEqual(
+            exported.read_bytes(),
+            files[f"{kit.CONTINUE_PROMPTS}/mkl-humanize.prompt"],
+        )
+        catalogue = (self.root / "providers/README.md").read_text()
+        self.assertIn("[continue](continue/README.md)", catalogue)
+        self.assertIn(".continue/prompts/", catalogue)
+        agent_section = catalogue.split("## Agents", 1)[1]
+        writing = next(line for line in agent_section.splitlines() if "mkl-writing-editor" in line)
+        self.assertTrue(writing.rstrip().endswith("| — |") or writing.endswith("| — |"))
+
     def test_copilot_instructions_use_verbatim_skill_excerpts(self):
         skills, _agents = kit.load_library(self.root)
         files = kit.export_files("copilot", self.root)
@@ -393,6 +425,7 @@ class ProviderTests(unittest.TestCase):
             "grok-bot/skills/mkl-humanize.md",
             "grok-bot/agents/mkl-writing-editor.md",
             "zed/.zed/prompts/mkl-humanize.md",
+            "continue/.continue/prompts/mkl-humanize.prompt",
         }
         self.assertEqual(set(result["written"]), expected)
         after = snapshot(self.root / "providers")
@@ -422,6 +455,7 @@ class ProviderTests(unittest.TestCase):
                 "gemini/.gemini/antigravity/skills/mkl-write-tutorial/SKILL.md",
                 "grok-bot/skills/mkl-write-tutorial.md",
                 "zed/.zed/prompts/mkl-write-tutorial.md",
+                "continue/.continue/prompts/mkl-write-tutorial.prompt",
             },
         )
         self.assertEqual(note.read_text(), "Keep this unrelated file")
@@ -615,6 +649,24 @@ class InstallationTests(unittest.TestCase):
         self.assertTrue(prompt.is_file())
         self.assertFalse((self.project / kit.ZED_PROMPTS / "mkl-review-pr.md").exists())
         kit.uninstall("zed", self.project, skill_names=["mkl-humanize"])
+        self.assertFalse(prompt.exists())
+
+    def test_continue_install_uninstall_and_skill_selection(self):
+        exported = kit.export_files("continue")
+        result = kit.install("continue", self.project)
+        self.assertEqual(set(result["written"]), set(exported))
+        prompt = self.project / kit.CONTINUE_PROMPTS / "mkl-humanize.prompt"
+        self.assertTrue(prompt.is_file())
+        text = prompt.read_text()
+        self.assertIn("invokable: true", text)
+        self.assertIn("{{{ input }}}", text)
+        self.assertFalse((self.project / ".continue/agents").exists())
+        kit.uninstall("continue", self.project)
+        selected = kit.install("continue", self.project, skill_names=["mkl-humanize"])
+        self.assertEqual(selected["written"], [f"{kit.CONTINUE_PROMPTS}/mkl-humanize.prompt"])
+        self.assertTrue(prompt.is_file())
+        self.assertFalse((self.project / kit.CONTINUE_PROMPTS / "mkl-review-pr.prompt").exists())
+        kit.uninstall("continue", self.project, skill_names=["mkl-humanize"])
         self.assertFalse(prompt.exists())
 
     def test_dry_run_has_no_side_effects(self):

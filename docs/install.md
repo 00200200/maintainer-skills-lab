@@ -116,11 +116,11 @@ python3 tools/kit.py install --target codex --project /existing/project --skill 
 ```
 
 Use `--target claude`, `--target cursor`, `--target opencode`, `--target windsurf`,
-`--target gemini`, or `--target zed` for the other coding clients. The
-selection copies the whole skill directory, including supporting resources,
-and records only newly owned files. It preserves other skills, native agents,
-client settings, and files managed by another installer. Conflicting edits in
-the selected skill stop the operation before files are written.
+`--target gemini`, `--target zed`, or `--target continue` for the other coding
+clients. The selection copies the whole skill directory, including supporting
+resources, and records only newly owned files. It preserves other skills, native
+agents, client settings, and files managed by another installer. Conflicting
+edits in the selected skill stop the operation before files are written.
 
 Repeat the option to add or update several skills:
 
@@ -167,13 +167,17 @@ python3 tools/kit.py install --target codex --project /existing/project
 | `windsurf` | `.windsurf/skills/mkl-*/` | `.windsurf/agents/mkl-*.md` |
 | `gemini` | `.gemini/antigravity/skills/mkl-*/` | `.gemini/antigravity/agents/mkl-*.md` |
 | `zed` | `.zed/prompts/mkl-*.md` | — (no agents directory) |
+| `continue` | `.continue/prompts/mkl-*.prompt` | — (no agents directory) |
 
 A full `windsurf` install also writes a consolidated `.windsurfrules` at the
 project root with excerpts from core maintainer skills. Skill-only installs omit
 that file. The `gemini` target is for Google Antigravity / Gemini CLI; skills
 keep YAML `name`/`description` frontmatter under the Antigravity discovery path.
 The `zed` target writes one Assistant prompt per skill under `.zed/prompts/`;
-agent profiles are skipped because Zed has no separate agents directory.
+agent profiles are skipped because Zed has no separate agents directory. The
+`continue` target writes one invokable Continue.dev prompt per skill under
+`.continue/prompts/` (`name`/`description`/`invokable: true` frontmatter and a
+`{{{ input }}}` placeholder); agent profiles are skipped the same way.
 
 Without `--skill`, this installer adds the full library for one target. Global
 installation and automatic changes to client
