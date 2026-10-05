@@ -137,7 +137,13 @@ def fetch(url, etag=None, last_modified=None):
                 current = urldefrag(urljoin(current, location))[0]
                 continue
             if response.status == 304:
-                return FetchResult(None, None, current, response.getheader("ETag"), response.getheader("Last-Modified"))
+                return FetchResult(
+                    None,
+                    None,
+                    current,
+                    response.getheader("ETag"),
+                    response.getheader("Last-Modified"),
+                )
             if response.status != 200:
                 raise WatchError(f"Source returned HTTP {response.status}")
             media_type = response.getheader("Content-Type", "").split(";", 1)[0].strip()
