@@ -16,6 +16,21 @@ MAX_TEXT = 60_000
 TIMEOUT = 15
 
 
+class FetchResult(tuple):
+    def __new__(cls, content, media_type, resolved, etag=None, last_modified=None):
+        instance = super().__new__(cls, (content, media_type, resolved))
+        instance.content = content
+        instance.media_type = media_type
+        instance.resolved = resolved
+        instance.etag = etag
+        instance.last_modified = last_modified
+        return instance
+
+    @property
+    def not_modified(self):
+        return self.content is None
+
+
 class WatchError(Exception):
     """An input, retrieval, or baseline error that must not look like no change."""
 
@@ -93,7 +108,7 @@ class RefreshTarget(HTMLParser):
                 self.target = match[1].strip(" \"'")
 
 
-def fetch(url):
+def fetch(url, etag=None, last_modified=None):
     current = urldefrag(url)[0]
     deadline = time.monotonic() + TIMEOUT
     for _ in range(4):
@@ -108,9 +123,12 @@ def fetch(url):
             target = parsed.path or "/"
             if parsed.query:
                 target += "?" + parsed.query
-            connection.request(
-                "GET", target, headers={"User-Agent": "Maintainer-Skills-Lab-Skill-Watch/0.1"}
-            )
+            headers = {"User-Agent": "Maintainer-Skills-Lab-Skill-Watch/0.1"}
+            if etag:
+                headers["If-None-Match"] = etag
+            if last_modified:
+                headers["If-Modified-Since"] = last_modified
+            connection.request("GET", target, headers=headers)
             response = connection.getresponse()
             if response.status in (301, 302, 303, 307, 308):
                 location = response.getheader("Location")
@@ -118,6 +136,8 @@ def fetch(url):
                     raise WatchError("Redirect has no destination")
                 current = urldefrag(urljoin(current, location))[0]
                 continue
+            if response.status == 304:
+                return FetchResult(None, None, current, response.getheader("ETag"), response.getheader("Last-Modified"))
             if response.status != 200:
                 raise WatchError(f"Source returned HTTP {response.status}")
             media_type = response.getheader("Content-Type", "").split(";", 1)[0].strip()
@@ -125,6 +145,8 @@ def fetch(url):
                 raise WatchError(f"Unsupported content type: {media_type or 'missing'}")
             if response.getheader("Content-Encoding", "identity") != "identity":
                 raise WatchError("Compressed responses are unsupported")
+            res_etag = response.getheader("ETag")
+            res_last_modified = response.getheader("Last-Modified")
             chunks, size = [], 0
             while True:
                 remaining = deadline - time.monotonic()
@@ -150,7 +172,7 @@ def fetch(url):
                 if refresh.target is not None:
                     current = urldefrag(urljoin(current, refresh.target))[0]
                     continue
-            return content, media_type, current
+            return FetchResult(content, media_type, current, res_etag, res_last_modified)
         except (OSError, http.client.HTTPException, UnicodeError, LookupError) as error:
             raise WatchError(f"Source retrieval failed ({type(error).__name__})") from error
         finally:

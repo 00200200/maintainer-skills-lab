@@ -309,10 +309,19 @@ class Watch:
             raise WatchError(f"Unknown configured source: {name}")
         return self.sources[name]
 
-    def capture(self, name):
+    def capture(self, name, etag=None, last_modified=None):
         source = self.source(name)
+        res_etag = None
+        res_last_modified = None
         if "url" in source:
-            text, media_type, resolved = fetch(source["url"])
+            fetch_res = fetch(source["url"], etag=etag, last_modified=last_modified)
+            if getattr(fetch_res, "not_modified", False) or fetch_res[0] is None:
+                return None
+            text = fetch_res[0]
+            media_type = fetch_res[1]
+            resolved = fetch_res[2]
+            res_etag = getattr(fetch_res, "etag", None)
+            res_last_modified = getattr(fetch_res, "last_modified", None)
         else:
             text = read_text(local_path(self.root, source["file"]))
             media_type = "text/html" if source.get("format") == "html" else "text/plain"
@@ -321,13 +330,18 @@ class Watch:
         selector = {
             key: source[key] for key in ("url", "file", "format", "start", "end") if key in source
         }
-        return {
+        res = {
             "selector": selector,
             "resolved": resolved,
             "sha256": digest(selected),
             "text": selected,
             "captured_at": datetime.now(UTC).isoformat(),
         }
+        if res_etag:
+            res["etag"] = res_etag
+        if res_last_modified:
+            res["last_modified"] = res_last_modified
+        return res
 
     def baseline(self):
         # Recheck containment and symlinks for a long-running MCP process.
@@ -342,14 +356,20 @@ class Watch:
             or not isinstance(state.get("sources"), dict)
         ):
             raise WatchError("Invalid baseline structure")
+        allowed_keys = {
+            "selector",
+            "resolved",
+            "sha256",
+            "text",
+            "captured_at",
+            "etag",
+            "last_modified",
+        }
         for item in state["sources"].values():
-            if not isinstance(item, dict) or set(item) != {
-                "selector",
-                "resolved",
-                "sha256",
-                "text",
-                "captured_at",
-            }:
+            if not isinstance(item, dict) or set(item) - allowed_keys:
+                raise WatchError("Invalid baseline entry")
+            required_keys = {"selector", "resolved", "sha256", "text", "captured_at"}
+            if not required_keys.issubset(set(item)):
                 raise WatchError("Invalid baseline entry")
             if (
                 not isinstance(item["text"], str)
@@ -411,8 +431,23 @@ class Watch:
             source = self.source(source_id)
             result = {"id": source_id, **impact(self.root, source["owners"])}
             try:
-                current = self.capture(source_id)
                 previous = baseline["sources"].get(source_id)
+                current = self.capture(
+                    source_id,
+                    etag=previous.get("etag") if previous else None,
+                    last_modified=previous.get("last_modified") if previous else None,
+                )
+                if current is None:  # HTTP 304 Not Modified
+                    result.update(
+                        status="unchanged",
+                        cached=True,
+                        current=previous,
+                        baseline=previous,
+                        diff="",
+                    )
+                    results.append(result)
+                    continue
+
                 status = "new-source"
                 if previous:
                     if previous["selector"] != current["selector"]:
