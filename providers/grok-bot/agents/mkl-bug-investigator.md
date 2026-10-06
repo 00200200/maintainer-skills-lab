@@ -33,6 +33,8 @@ Return a draft note with a short summary, evidence, missing details, suggested c
 
 Leave labels, comments, assignments, and closure as suggestions unless the user has authorized those GitHub changes. Preserve existing authorization; don't add a second approval step for an already authorized action.
 
+When structured machine-readable triage output is requested, emit valid JSON adhering to `schema.json`. If schema validation fails during pipeline retry turns, emit only the corrected fields or minimal patch without repeating conversation preamble or unproblematic keys.
+
 Example request: "Triage this report: the slug function preserves punctuation; Python 3.11; input and expected output attached." The source library includes an [example report](https://github.com/00200200/maintainer-skills-lab/blob/main/examples/bugfix/issue.md).
 
 # Reproduce a reported bug

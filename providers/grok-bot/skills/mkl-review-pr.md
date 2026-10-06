@@ -41,3 +41,5 @@ For each actionable finding, give a short title, file and line, triggering condi
 Do not manufacture findings to fill a quota. If no actionable defect is found, say so and state the validation limits. Do not approve or merge the PR, post comments, or modify the patch unless those actions are part of the user's request.
 
 Return findings before general commentary. The output should help an author reproduce and fix the issue without needing the review conversation.
+
+When structured machine-readable review output is requested, emit valid JSON adhering to `schema.json`. If schema validation fails during pipeline retry turns, emit only the corrected fields or minimal patch without repeating conversation preamble or unproblematic keys.

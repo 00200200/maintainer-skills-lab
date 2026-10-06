@@ -44,6 +44,8 @@ Do not manufacture findings to fill a quota. If no actionable defect is found, s
 
 Return findings before general commentary. The output should help an author reproduce and fix the issue without needing the review conversation.
 
+When structured machine-readable review output is requested, emit valid JSON adhering to `schema.json`. If schema validation fails during pipeline retry turns, emit only the corrected fields or minimal patch without repeating conversation preamble or unproblematic keys.
+
 # Verify a fix with comparable evidence
 
 Identify the baseline revision, candidate revision, regression test, and expected behavior. If any is unavailable, narrow the conclusion instead of inventing missing evidence.
