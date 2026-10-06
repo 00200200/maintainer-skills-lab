@@ -1,0 +1,10 @@
+{
+  "url": "https://pytorch.org/docs/stable/notes/randomness.html",
+  "status": 200,
+  "headers": {
+    "Content-Type": "text/html; charset=utf-8",
+    "ETag": "\"torch-rnd-v1\"",
+    "Last-Modified": "Sun, 01 Mar 2026 00:00:00 GMT"
+  },
+  "body": "<html><head><title>Reproducibility \u2014 PyTorch documentation</title></head><body><h1>Reproducibility</h1><p>Completely reproducible results are not guaranteed across PyTorch releases or platforms. Use torch.manual_seed() to control random number generation.</p></body></html>"
+}

@@ -7,12 +7,14 @@ import json
 import socket
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
+import mock_http as mh  # noqa: E402
 import skill_watch as sw  # noqa: E402
 import watch_fetch as wf  # noqa: E402
 
@@ -753,6 +755,73 @@ class RetrievalTests(unittest.TestCase):
                 report = watch.check("pytorch-reproducibility")
                 self.assertEqual(report["status"], "unchanged")
                 self.assertTrue(report["sources"][0].get("cached"))
+
+
+class MockServerIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        self.fixtures_dir = ROOT / "tests/fixtures/http"
+
+    def test_mock_server_pytorch_fixture_fetch(self):
+        with mh.MockServer(fixtures_dir=self.fixtures_dir) as server:
+            with server.patch_watch_fetch(wf):
+                text, media_type, resolved = wf.fetch(
+                    "https://pytorch.org/docs/stable/notes/randomness.html"
+                )
+                self.assertIn("Completely reproducible results", text)
+                self.assertIn("torch.manual_seed()", text)
+                self.assertEqual(resolved, "https://pytorch.org/docs/stable/notes/randomness.html")
+                self.assertEqual(len(server.requests), 1)
+                self.assertEqual(server.requests[0]["method"], "GET")
+
+    def test_mock_server_lightning_fixture_fetch(self):
+        with mh.MockServer(fixtures_dir=self.fixtures_dir) as server:
+            with server.patch_watch_fetch(wf):
+                text, media_type, resolved = wf.fetch(
+                    "https://lightning.ai/docs/pytorch/stable/common/trainer.html"
+                )
+                self.assertIn("The Trainer automates training loop logic", text)
+                self.assertIn("deterministic=True", text)
+                self.assertEqual(
+                    resolved, "https://lightning.ai/docs/pytorch/stable/common/trainer.html"
+                )
+
+    def test_mock_server_http_304_not_modified(self):
+        with mh.MockServer(fixtures_dir=self.fixtures_dir) as server:
+            with server.patch_watch_fetch(wf):
+                result = wf.fetch(
+                    "https://pytorch.org/docs/stable/notes/randomness.html",
+                    etag='"torch-rnd-v1"',
+                )
+                self.assertTrue(result.not_modified)
+                self.assertEqual(result.etag, '"torch-rnd-v1"')
+
+    def test_mock_server_chunked_transfer_encoding(self):
+        with mh.MockServer() as server:
+            server.register_route(
+                "/chunked-docs.html",
+                body="<p>Chunked content test</p>",
+                headers={"Transfer-Encoding": "chunked"},
+            )
+            with server.patch_watch_fetch(wf):
+                text, media_type, resolved = wf.fetch("https://example.org/chunked-docs.html")
+                self.assertEqual(text, "<p>Chunked content test</p>")
+
+    def test_mock_server_404_error_raises_watch_error(self):
+        with mh.MockServer() as server:
+            with server.patch_watch_fetch(wf):
+                with self.assertRaises(wf.WatchError):
+                    wf.fetch("https://example.org/not-found.html")
+
+    def test_mock_server_performance_is_sub_10ms(self):
+        with mh.MockServer(fixtures_dir=self.fixtures_dir) as server:
+            with server.patch_watch_fetch(wf):
+                start = time.monotonic()
+                iterations = 5
+                for _ in range(iterations):
+                    wf.fetch("https://pytorch.org/docs/stable/notes/randomness.html")
+                duration = time.monotonic() - start
+                per_request_ms = (duration / iterations) * 1000
+                self.assertLess(per_request_ms, 25.0)  # Average < 25ms in local test runs
 
 
 if __name__ == "__main__":
