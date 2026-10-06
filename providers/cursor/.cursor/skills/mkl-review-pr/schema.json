@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PullRequestReviewReport",
+  "description": "Structured correctness review findings for a pull request",
+  "type": "object",
+  "required": [
+    "summary",
+    "verdict",
+    "findings"
+  ],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Short executive summary of the review"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "approve",
+        "request_changes",
+        "comment"
+      ],
+      "description": "Overall review recommendation"
+    },
+    "reviewed_scope": {
+      "type": "object",
+      "properties": {
+        "base_ref": {
+          "type": "string"
+        },
+        "head_ref": {
+          "type": "string"
+        },
+        "files_inspected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "title",
+          "severity",
+          "file",
+          "line",
+          "trigger",
+          "consequence"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Short title describing the finding"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "defect",
+              "regression",
+              "suggestion",
+              "question"
+            ],
+            "description": "Defect classification"
+          },
+          "file": {
+            "type": "string",
+            "description": "File path where finding is located"
+          },
+          "line": {
+            "type": "integer",
+            "description": "Line number in the file"
+          },
+          "trigger": {
+            "type": "string",
+            "description": "Triggering condition causing the issue"
+          },
+          "consequence": {
+            "type": "string",
+            "description": "User-visible consequence or correctness impact"
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Supporting code traces or test reproduction"
+          },
+          "suggested_fix": {
+            "type": "string",
+            "description": "Optional recommended fix without introducing personal style"
+          }
+        }
+      },
+      "description": "Actionable correctness findings"
+    },
+    "reproducibility": {
+      "type": "object",
+      "properties": {
+        "checked": {
+          "type": "boolean"
+        },
+        "tool": {
+          "type": "string"
+        },
+        "findings_count": {
+          "type": "integer"
+        },
+        "details": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

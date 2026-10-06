@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IssueTriageReport",
+  "description": "Evidence-backed structured triage note for an issue report",
+  "type": "object",
+  "required": [
+    "summary",
+    "category",
+    "severity",
+    "reproduction",
+    "evidence",
+    "next_action"
+  ],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Short summary of observed vs expected issue behavior"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "bug",
+        "feature",
+        "question",
+        "documentation",
+        "chore",
+        "needs_info"
+      ],
+      "description": "Suggested issue classification"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "unknown"
+      ],
+      "description": "User impact severity supported by evidence"
+    },
+    "affected_version": {
+      "type": "string",
+      "description": "Reported version or commit if specified"
+    },
+    "reproduction": {
+      "type": "object",
+      "required": [
+        "expected",
+        "observed",
+        "reproduced"
+      ],
+      "properties": {
+        "expected": {
+          "type": "string",
+          "description": "Expected behavior"
+        },
+        "observed": {
+          "type": "string",
+          "description": "Observed behavior"
+        },
+        "reproduced": {
+          "type": "boolean",
+          "description": "True only if actual run verified the bug"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reproduction steps provided or attempted"
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "location",
+          "finding",
+          "is_hypothesis"
+        ],
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "File path, line number, or link"
+          },
+          "finding": {
+            "type": "string",
+            "description": "Concrete code finding or behavior observed"
+          },
+          "is_hypothesis": {
+            "type": "boolean",
+            "description": "True if finding is unverified hypothesis"
+          }
+        }
+      },
+      "description": "Citations of code, logs, or documentation"
+    },
+    "missing_details": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Specific missing reproduction info changing diagnosis"
+    },
+    "potential_duplicates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "URLs or numbers of confirmed duplicate issues"
+    },
+    "next_action": {
+      "type": "object",
+      "required": [
+        "action",
+        "description"
+      ],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "request_info",
+            "reproduce",
+            "accept_bug",
+            "close_as_duplicate",
+            "redirect_to_docs"
+          ],
+          "description": "Smallest next recommended step"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed explanation of next action"
+        },
+        "info_requested": {
+          "type": "string",
+          "description": "Exact targeted question or minimal input needed"
+        }
+      }
+    }
+  }
+}
