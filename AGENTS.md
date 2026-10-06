@@ -42,6 +42,24 @@ files parse. Native agent exports inherit model and execution policy.
 - Test hooks with actual Git operations in disposable repositories. Client protocol
   fixtures do not establish live-client hook discovery or execution.
 
+## Command Sandbox & Safety
+
+Before executing arbitrary shell commands, autonomous agents and maintainer scripts
+can evaluate proposed commands against `tools/sandbox_check.py`:
+
+```sh
+python3 tools/sandbox_check.py "git push --force origin main"
+# Output: {"verdict": "BLOCKED", "category": "HIGH_RISK", ...}
+
+# Fail with non-zero exit code if BLOCKED:
+python3 tools/sandbox_check.py --strict "git status"
+```
+
+Safety verdicts:
+- `READ_ONLY` (Auto-Safe): inspection operations (`git status`, `git diff`, `cat`, `grep`, `ruff check`, `pytest`).
+- `LOCAL_MUTATION` (Safe with warning): workspace edits (`git add`, `touch`, `mkdir`, `ruff format`).
+- `BLOCKED` (High Risk): destructive operations requiring confirmation (`rm -rf /`, `git push --force`, `curl | sh`, `DROP TABLE`).
+
 ## Maintenance
 
 - Prefer one useful, complete improvement over activity-only changes.
