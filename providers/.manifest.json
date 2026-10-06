@@ -1,6 +1,6 @@
 {
   "files": {
-    "README.md": "11002d81cb81dba3c2909db19be93e7f60fbdd506db03b2b04ed9f505f2760ba",
+    "README.md": "db20280d321c704f66d4642fa62e5b5587ddc173ea4e865aa90d9b995b59e743",
     "claude/.claude/agents/mkl-bug-investigator.md": "9e1638e8bee55ae5fecb16711ea4f1a3b911ed6db475219818ab67ad2225f2fe",
     "claude/.claude/agents/mkl-ml-investigator.md": "8b281c6191ffa1249e5897df32745a82b81769f91d645fe9405e134de30e661d",
     "claude/.claude/agents/mkl-pr-reviewer.md": "3e68fb5b3420dab425ce924fc3b0fae659b66b7534273dd05a6702c070d6fdae",
@@ -27,6 +27,8 @@
     "claude/.claude/skills/mkl-write-tutorial/SKILL.md": "85abeaef798928a70dfa1727e675540e7c0d1af3254aefa9a0bb03f0512c1e2c",
     "claude/.claude/skills/mkl-write-ux-copy/SKILL.md": "69eb7b51642117fd6b77587134e915eb13d3bfd6e62dbbc4f2c52b56b8bd6eb5",
     "claude/README.md": "b5828d8ee4476484aef76bc5d8672fd932d33b1d022f658e048e9e76485de0a4",
+    "cline/.roomodes": "dd17bbe9f00274148be5414b9ebaeab22f739d458c66e100f74b2c75e5401f97",
+    "cline/README.md": "bb9c5c572f5a67bc46c9a18697c0e82ec3b2a2122871accc576d7c6cb804fafa",
     "codex/.agents/skills/mkl-debug-ml-training/SKILL.md": "bd88eb1957e931fcc90454af5f1edfb3e7572277fbc0aee3e40d4110a3f6faa8",
     "codex/.agents/skills/mkl-humanize/SKILL.md": "c3dce7d98b4c2176879767905ad22eba98b95cb093b9612be62086710ec4d837",
     "codex/.agents/skills/mkl-humanize/references/pl.md": "b442047a7dd30499856c127b75768a1cba722e561ede1ff169550db290e2ed5c",
