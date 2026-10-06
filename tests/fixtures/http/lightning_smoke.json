@@ -1,0 +1,10 @@
+{
+  "url": "https://lightning.ai/docs/pytorch/stable/common/trainer.html",
+  "status": 200,
+  "headers": {
+    "Content-Type": "text/html; charset=utf-8",
+    "ETag": "\"pl-smoke-v2\"",
+    "Last-Modified": "Mon, 02 Mar 2026 00:00:00 GMT"
+  },
+  "body": "<html><head><title>Trainer \u2014 PyTorch Lightning documentation</title></head><body><h1>Trainer</h1><p>The Trainer automates training loop logic. Set deterministic=True for reproducible training.</p></body></html>"
+}
