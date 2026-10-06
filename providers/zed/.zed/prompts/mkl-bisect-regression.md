@@ -1,0 +1,149 @@
+<!-- Attach context with /file or /tab in the Zed Assistant panel. -->
+
+# mkl-bisect-regression
+
+Pinpoint regressions using automated git bisect test scripts with zero prompt token waste.
+
+# Pinpoint regressions with automated git bisect
+
+When a bug or performance regression appears between two releases or commits, never attempt to
+manually read git commit diffs across days or weeks of history. Reading hundreds of commits burns
+tens of thousands of LLM prompt tokens, causes hallucinated attributions, and exhausts the context
+window.
+
+Instead, leverage Git's logarithmic binary search: `git bisect run <test_script>`. The local shell
+automatically tests commits in $\mathcal{O}(\log_2 N)$ steps with zero intermediate tokens sent to
+the model. Once Git outputs the breaking commit hash, inspect only that single commit diff.
+
+## 1. Author a standalone bisect test script
+
+Author an executable script (e.g., `bisect_test.sh`) in the repository root or temporary directory.
+The script must be completely non-interactive and return standard Git exit codes:
+
+- **Exit code `0` (Good)**: The commit is good (the bug or regression is absent).
+- **Exit code `1` through `124`, `126` through `255` (Bad)**: The commit is bad (regression observed).
+- **Exit code `125` (Skip)**: The commit cannot be tested (e.g. broken build, syntax error unrelated
+  to the bug, missing dependency). Git will choose an adjacent commit without marking it good or bad.
+
+### Flakiness and build mitigation in the script
+
+To prevent flaky tests or broken intermediate commits from misleading the binary search:
+
+1. **Trap compilation/build failures**: Return `125` if prerequisites or compilation fail so Git skips
+   the commit instead of misclassifying it as a bug.
+2. **Loop flaky checks**: If the regression is non-deterministic or timing-sensitive, run the test 5
+   to 10 times in a tight shell loop. If any run fails, exit with failure.
+3. **Clean artifacts**: Remove transient cache files, bytecode (`.pyc`), or object files between steps.
+
+```bash
+#!/usr/bin/env bash
+set -e
+
+# 1. Verify build or dependency health; skip untestable commits
+if ! python3 -m py_compile $(git ls-files '*.py') >/dev/null 2>&1; then
+    echo "[bisect] Intermediate syntax or build error; skipping commit."
+    exit 125
+fi
+
+# 2. Run targeted reproducer test (repeat 3 times to rule out test flakiness)
+for i in {1..3}; do
+    if ! python3 -m pytest tests/test_regression.py -q >/dev/null 2>&1; then
+        echo "[bisect] Regression reproduced on attempt $i!"
+        exit 1
+    fi
+done
+
+echo "[bisect] Regression absent; commit is clean."
+exit 0
+```
+
+Mark the script executable before launching bisect:
+
+```bash
+chmod +x bisect_test.sh
+```
+
+## 2. Execute automated git bisect
+
+Identify the known good commit (or release tag) and the known bad commit (typically `HEAD`):
+
+```bash
+# Start bisect session specifying bad and good endpoints
+git bisect start <bad_commit> <good_commit>
+
+# Launch the automated runner
+git bisect run ./bisect_test.sh
+```
+
+During execution, Git checks out each pivot commit, runs `./bisect_test.sh`, and evaluates the exit
+code. It repeats until it pinpoints the boundary.
+
+Git will terminate with a clear identification:
+
+```text
+<commit_sha> is the first bad commit
+commit <commit_sha>
+Author: Contributor <contributor@example.com>
+Date:   ...
+
+    refactor: optimize cache eviction pipeline
+```
+
+Always end the bisect session after capturing the culprit hash to return your working branch to
+its original state:
+
+```bash
+git bisect reset
+```
+
+## 3. Targeted culprit analysis
+
+Once the single culprit commit hash is identified, inspect only that commit's changes:
+
+```bash
+# View affected files and diffstat
+git show --stat <commit_sha>
+
+# View targeted diff
+git show <commit_sha>
+```
+
+Analyze the exact causal mechanism:
+- Which specific logic, type conversion, or assumption changed?
+- Was an invariant broken, a default parameter modified, or an edge case dropped?
+- Author a minimal regression test capturing the exact scenario before proposing a fix.
+
+## 4. Worked example: Bisecting a memory leak
+
+Assume a benchmark detects that `worker.process_batch()` leaks memory somewhere between `v2.4.0`
+and `HEAD`:
+
+1. Write `test_leak.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Exit 125 if package installation fails
+pip install -e . -q >/dev/null 2>&1 || exit 125
+
+# Execute memory benchmark; exits with 0 if within budget, 1 if leaked
+python3 -c "
+import worker, tracemalloc
+tracemalloc.start()
+worker.process_batch(size=1000)
+current, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+if peak > 50 * 1024 * 1024:
+    raise SystemExit(1)
+"
+```
+
+2. Run bisect:
+
+```bash
+chmod +x test_leak.sh
+git bisect start HEAD v2.4.0
+git bisect run ./test_leak.sh
+git bisect reset
+```
+
+3. Read the single culprit commit diff and resolve the regression.

@@ -76,6 +76,16 @@ class LibraryTests(unittest.TestCase):
         self.assertIn("cumtime", perf_skill["body"])
         self.assertIn("ncalls", perf_skill["body"])
 
+    def test_bisect_regression_skill_attributes(self):
+        skills, _ = kit.load_library()
+        self.assertIn("mkl-bisect-regression", skills)
+        bisect_skill = skills["mkl-bisect-regression"]
+        self.assertEqual(bisect_skill["name"], "mkl-bisect-regression")
+        self.assertIn("bisect", bisect_skill["description"])
+        self.assertIn("git bisect run", bisect_skill["body"])
+        self.assertIn("exit 125", bisect_skill["body"])
+        self.assertIn("bisect_test.sh", bisect_skill["body"])
+
     def test_unknown_dependency_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
