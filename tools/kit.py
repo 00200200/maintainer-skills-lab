@@ -34,8 +34,9 @@ TARGETS = {
 }
 # Copilot installs a single consolidated instructions file; Grok Bot is sync/build only.
 # Zed and Continue install flat prompt files (no separate agents directory).
-EXPORT_TARGETS = (*TARGETS, "grok-bot", "copilot", "zed", "continue")
-INSTALL_TARGETS = (*TARGETS, "copilot", "zed", "continue")
+# Cline installs a consolidated .roomodes custom modes definition file.
+EXPORT_TARGETS = (*TARGETS, "grok-bot", "copilot", "zed", "continue", "cline")
+INSTALL_TARGETS = (*TARGETS, "copilot", "zed", "continue", "cline")
 PROVIDER_LABELS = {
     "codex": "Codex",
     "claude": "Claude Code",
@@ -47,11 +48,13 @@ PROVIDER_LABELS = {
     "copilot": "Copilot",
     "zed": "Zed",
     "continue": "Continue",
+    "cline": "Cline",
 }
 COPILOT_SKILLS = ("mkl-review-pr", "mkl-write-regression", "mkl-write-maintainer-reply")
 COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
 COPILOT_TOKEN_BUDGET = 800
 COPILOT_PARAGRAPHS_PER_SKILL = 2
+CLINE_ROOMODES = ".roomodes"
 WINDSURF_RULES = ".windsurfrules"
 WINDSURF_SKILLS = COPILOT_SKILLS
 ZED_PROMPTS = ".zed/prompts"
@@ -356,10 +359,32 @@ def build_continue_prompt(name: str, skill: dict) -> str:
     )
 
 
+def build_roomodes(agents: dict, skills: dict, *, minify: bool = False) -> str:
+    """Compile agent profiles into a valid Roo Code / Cline .roomodes JSON configuration."""
+    modes = []
+    for name in sorted(agents):
+        agent = agents[name]
+        instructions = agent_body(agent, skills)
+        if minify:
+            instructions = minify_markdown(instructions)
+        modes.append(
+            {
+                "slug": agent["name"],
+                "name": agent["name"],
+                "roleDefinition": agent["description"],
+                "groups": ["read", "edit", "browser", "command", "mcp"],
+                "customInstructions": instructions,
+            }
+        )
+    return json.dumps({"customModes": modes}, indent=2, ensure_ascii=False) + "\n"
+
+
 def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dict[str, bytes]:
     skills, agents = load_library(root)
     if target == "copilot":
         return {COPILOT_INSTRUCTIONS: build_copilot_instructions(skills).encode("utf-8")}
+    if target == "cline":
+        return {CLINE_ROOMODES: build_roomodes(agents, skills, minify=minify).encode("utf-8")}
     if target == "zed":
         # Zed has no separate agents directory; emit one Assistant prompt per skill.
         files = {}
@@ -511,6 +536,19 @@ def provider_instructions(target: str) -> str:
             "Skill prose is unchanged aside from frontmatter and the input placeholder. "
             "Live-client discovery and task outcomes have not yet been evaluated.\n"
         )
+    if target == "cline":
+        return (
+            "Install a consolidated `.roomodes` custom modes definition file for Cline and "
+            "Roo Code. Each agent profile becomes a dedicated custom mode with its embedded "
+            "maintainer skills in `customInstructions`.\n\n"
+            "For conflict detection, updates, and removal, use the installer from "
+            "the source clone:\n\n"
+            "```sh\n"
+            "python3 tools/kit.py install --target cline --project /existing/project\n"
+            "```\n\n"
+            "The installer writes `.roomodes` at the project root and does not support "
+            "`--skill` selection. Live-client discovery and task outcomes have not yet been evaluated.\n"
+        )
     if target == "grok-bot":
         return (
             "Follow [the setup guide](grok-bot/README.md) to configure a Bot and "
@@ -602,15 +640,16 @@ def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, byte
         "",
         " | ".join(f"[{target}]({target}/README.md)" for target in EXPORT_TARGETS),
         "",
-        "Codex, Claude Code, Cursor, OpenCode, Windsurf, Gemini, Zed, and Continue get",
-        "native files. Gemini installs under `.gemini/antigravity/` for Antigravity /",
-        "Gemini CLI skill discovery. Windsurf also gets a consolidated `.windsurfrules`",
-        "from core skills. Zed gets Assistant prompts under `.zed/prompts/` (no separate",
-        "agents directory). Continue gets invokable prompts under `.continue/prompts/`",
-        "(agents skipped; catalogue shows —). Grok Bot (SpaceXAI) gets a Markdown setup",
-        "recipe for every skill and agent. Copilot gets one compact",
-        "`.github/copilot-instructions.md` compiled from core skills. Format checks do",
-        "not establish live-client behavior.",
+        "Codex, Claude Code, Cursor, OpenCode, Windsurf, Gemini, Zed, Continue, and",
+        "Cline get native files. Gemini installs under `.gemini/antigravity/` for",
+        "Antigravity / Gemini CLI skill discovery. Windsurf also gets a consolidated",
+        "`.windsurfrules` from core skills. Zed gets Assistant prompts under",
+        "`.zed/prompts/` (no separate agents directory). Continue gets invokable",
+        "prompts under `.continue/prompts/` (agents skipped; catalogue shows —).",
+        "Cline gets a consolidated `.roomodes` custom modes file (skills embedded;",
+        "catalogue shows —). Grok Bot (SpaceXAI) gets a Markdown setup recipe for every",
+        "skill and agent. Copilot gets one compact `.github/copilot-instructions.md`",
+        "compiled from core skills. Format checks do not establish live-client behavior.",
     ]
     for kind, items in (("skills", skills), ("agents", agents)):
         lines += [
@@ -627,6 +666,12 @@ def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, byte
                 if target == "copilot":
                     if kind == "skills" and name in COPILOT_SKILLS:
                         links.append(f"[copilot](copilot/{COPILOT_INSTRUCTIONS})")
+                    else:
+                        links.append("—")
+                    continue
+                if target == "cline":
+                    if kind == "agents":
+                        links.append(f"[cline](cline/{CLINE_ROOMODES})")
                     else:
                         links.append("—")
                     continue
@@ -683,6 +728,8 @@ def provider_path(relative: str) -> bool:
         return managed_path(rest, target)
     if target == "copilot":
         return rest == COPILOT_INSTRUCTIONS
+    if target == "cline":
+        return rest == CLINE_ROOMODES
     # Accept retired Groq paths only so sync can remove unchanged, manifest-owned files.
     if target == "groq" or path.parts[1] in {"skills", "agents"}:
         return (
@@ -774,6 +821,8 @@ def managed_path(relative: str, target: str) -> bool:
         return False
     if target == "copilot":
         return relative == COPILOT_INSTRUCTIONS
+    if target == "cline":
+        return relative == CLINE_ROOMODES
     if target == "zed":
         return (
             path.parent.as_posix() == ZED_PROMPTS
@@ -861,8 +910,8 @@ def atomic_write(path: Path, data: bytes) -> None:
 def skill_prefixes(target: str, skill_names: list[str] | None) -> tuple[str, ...] | None:
     if skill_names is None:
         return None
-    if target == "copilot":
-        raise KitError("copilot exports a single instructions file; --skill is unsupported")
+    if target in {"copilot", "cline"}:
+        raise KitError(f"{target} exports a single instructions file; --skill is unsupported")
     if not skill_names or any(
         not isinstance(name, str) or not NAME.fullmatch(name) for name in skill_names
     ):
@@ -1055,7 +1104,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Minify exported markdown (whitespace, tables, HTML comments)",
     )
     build_parser = commands.add_parser("build", help="Build deterministic installation archives")
-    build_parser.add_argument("--target", choices=[*EXPORT_TARGETS, "all"], default="all")
+    build_parser.add_argument(
+        "--target", choices=[*EXPORT_TARGETS, "roo", "roomodes", "all"], default="all"
+    )
     build_parser.add_argument("--output", type=Path, default=ROOT / "dist")
     build_parser.add_argument(
         "--minify",
@@ -1064,7 +1115,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     for action in ("install", "uninstall"):
         action_parser = commands.add_parser(action, help=f"{action.title()} in one project")
-        action_parser.add_argument("--target", choices=INSTALL_TARGETS, required=True)
+        action_parser.add_argument(
+            "--target", choices=[*INSTALL_TARGETS, "roo", "roomodes"], required=True
+        )
         action_parser.add_argument("--project", type=Path, required=True)
         action_parser.add_argument("--dry-run", action="store_true")
         action_parser.add_argument(
@@ -1075,6 +1128,8 @@ def main(argv: list[str] | None = None) -> int:
             help="Limit changes to this skill; repeat to select more. Other workflows are preserved.",
         )
     args = parser.parse_args(argv)
+    if getattr(args, "target", None) in {"roo", "roomodes"}:
+        args.target = "cline"
     try:
         if args.command == "list":
             skills, agents = load_library()

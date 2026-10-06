@@ -286,7 +286,7 @@ class ProviderTests(unittest.TestCase):
         self.assertIn(".zed/prompts/", catalogue)
         agent_section = catalogue.split("## Agents", 1)[1]
         writing = next(line for line in agent_section.splitlines() if "mkl-writing-editor" in line)
-        self.assertTrue(writing.rstrip().endswith("| — |") or writing.endswith("| — |"))
+        self.assertIn("| — |", writing)
 
     def test_continue_exports_invokable_prompts_without_agents(self):
         kit.sync_providers(self.root)
@@ -318,7 +318,7 @@ class ProviderTests(unittest.TestCase):
         self.assertIn(".continue/prompts/", catalogue)
         agent_section = catalogue.split("## Agents", 1)[1]
         writing = next(line for line in agent_section.splitlines() if "mkl-writing-editor" in line)
-        self.assertTrue(writing.rstrip().endswith("| — |") or writing.endswith("| — |"))
+        self.assertIn("| — |", writing)
 
     def test_copilot_instructions_use_verbatim_skill_excerpts(self):
         skills, _agents = kit.load_library(self.root)
@@ -339,6 +339,31 @@ class ProviderTests(unittest.TestCase):
         catalogue = (self.root / "providers/README.md").read_text()
         self.assertIn("[copilot](copilot/README.md)", catalogue)
         self.assertIn(f"[copilot](copilot/{kit.COPILOT_INSTRUCTIONS})", catalogue)
+
+    def test_cline_exports_valid_roomodes(self):
+        skills, agents = kit.load_library(self.root)
+        files = kit.export_files("cline", self.root)
+        self.assertEqual(set(files), {kit.CLINE_ROOMODES})
+        payload = json.loads(files[kit.CLINE_ROOMODES].decode())
+        self.assertIn("customModes", payload)
+        self.assertEqual(len(payload["customModes"]), len(agents))
+        for mode in payload["customModes"]:
+            self.assertIn("slug", mode)
+            self.assertIn(mode["slug"], agents)
+            self.assertIn("name", mode)
+            self.assertIn("roleDefinition", mode)
+            self.assertEqual(mode["groups"], ["read", "edit", "browser", "command", "mcp"])
+            self.assertIn("customInstructions", mode)
+            agent = agents[mode["slug"]]
+            self.assertEqual(mode["roleDefinition"], agent["description"])
+            for dep in agent["skills"]:
+                self.assertIn(skills[dep]["body"], mode["customInstructions"])
+        kit.sync_providers(self.root)
+        exported = self.root / "providers/cline" / kit.CLINE_ROOMODES
+        self.assertEqual(exported.read_bytes(), files[kit.CLINE_ROOMODES])
+        catalogue = (self.root / "providers/README.md").read_text()
+        self.assertIn("[cline](cline/README.md)", catalogue)
+        self.assertIn(f"[cline](cline/{kit.CLINE_ROOMODES})", catalogue)
 
     def test_retired_groq_exports_removed_only_when_unchanged(self):
         kit.sync_providers(self.root)
@@ -426,6 +451,7 @@ class ProviderTests(unittest.TestCase):
             "grok-bot/agents/mkl-writing-editor.md",
             "zed/.zed/prompts/mkl-humanize.md",
             "continue/.continue/prompts/mkl-humanize.prompt",
+            "cline/.roomodes",
         }
         self.assertEqual(set(result["written"]), expected)
         after = snapshot(self.root / "providers")
@@ -437,6 +463,8 @@ class ProviderTests(unittest.TestCase):
         self.assertIn(detail.strip(), native["developer_instructions"])
         grok = after["grok-bot/agents/mkl-writing-editor.md"].decode()
         self.assertIn(detail.strip(), grok)
+        cline_mode = after["cline/.roomodes"].decode()
+        self.assertIn(detail.strip(), cline_mode)
 
     def test_removed_source_cleans_only_owned_exports(self):
         kit.sync_providers(self.root)
@@ -633,6 +661,40 @@ class InstallationTests(unittest.TestCase):
         cli = subprocess.run(command, capture_output=True, text=True, check=False)
         self.assertEqual(cli.returncode, 0, cli.stderr)
         kit.uninstall("copilot", self.project)
+        self.assertEqual(snapshot(self.project), {})
+
+    def test_cline_install_uninstall_and_rejects_skill_selection(self):
+        exported = kit.export_files("cline")
+        result = kit.install("cline", self.project)
+        self.assertEqual(set(result["written"]), set(exported))
+        path = self.project / kit.CLINE_ROOMODES
+        self.assertEqual(path.read_bytes(), exported[kit.CLINE_ROOMODES])
+        with self.assertRaisesRegex(kit.KitError, "--skill is unsupported"):
+            kit.install("cline", self.project, skill_names=["mkl-review-pr"])
+        command = [
+            sys.executable,
+            str(ROOT / "tools/kit.py"),
+            "install",
+            "--target",
+            "cline",
+            "--project",
+            str(self.project),
+        ]
+        cli = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertEqual(cli.returncode, 0, cli.stderr)
+        # Test alias --target roo
+        command_roo = [
+            sys.executable,
+            str(ROOT / "tools/kit.py"),
+            "install",
+            "--target",
+            "roo",
+            "--project",
+            str(self.project),
+        ]
+        cli_roo = subprocess.run(command_roo, capture_output=True, text=True, check=False)
+        self.assertEqual(cli_roo.returncode, 0, cli_roo.stderr)
+        kit.uninstall("cline", self.project)
         self.assertEqual(snapshot(self.project), {})
 
     def test_zed_install_uninstall_and_skill_selection(self):
