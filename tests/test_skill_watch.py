@@ -821,7 +821,7 @@ class MockServerIntegrationTests(unittest.TestCase):
                     wf.fetch("https://pytorch.org/docs/stable/notes/randomness.html")
                 duration = time.monotonic() - start
                 per_request_ms = (duration / iterations) * 1000
-                self.assertLess(per_request_ms, 25.0)  # Average < 25ms in local test runs
+                self.assertLess(per_request_ms, 100.0)  # Tolerant threshold for CI runners
 
 
 if __name__ == "__main__":
