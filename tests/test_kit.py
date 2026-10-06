@@ -66,6 +66,16 @@ class LibraryTests(unittest.TestCase):
                 for dependency in agent["skills"]:
                     self.assertIn(skills[dependency]["body"], body)
 
+    def test_profile_performance_skill_attributes(self):
+        skills, _ = kit.load_library()
+        self.assertIn("mkl-profile-performance", skills)
+        perf_skill = skills["mkl-profile-performance"]
+        self.assertEqual(perf_skill["name"], "mkl-profile-performance")
+        self.assertIn("cProfile", perf_skill["description"])
+        self.assertIn("tottime", perf_skill["body"])
+        self.assertIn("cumtime", perf_skill["body"])
+        self.assertIn("ncalls", perf_skill["body"])
+
     def test_unknown_dependency_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
