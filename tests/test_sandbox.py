@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import importlib.util
 import json
 import subprocess
 import sys
@@ -5,14 +8,16 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools"))
+spec = importlib.util.spec_from_file_location("sandbox_check", ROOT / "tools/sandbox_check.py")
+if spec is None or spec.loader is None:
+    raise ImportError("Failed to load tools/sandbox_check.py")
+sandbox_check = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(sandbox_check)
 
-from sandbox_check import (
-    BLOCKED,
-    LOCAL_MUTATION,
-    READ_ONLY,
-    classify_command,
-)
+BLOCKED = sandbox_check.BLOCKED
+LOCAL_MUTATION = sandbox_check.LOCAL_MUTATION
+READ_ONLY = sandbox_check.READ_ONLY
+classify_command = sandbox_check.classify_command
 
 
 class SandboxCheckTests(unittest.TestCase):
@@ -152,7 +157,7 @@ class SandboxCheckTests(unittest.TestCase):
             ("shutdown -h now", "Host system shutdown/reboot command"),
             ("reboot", "Host system shutdown/reboot command"),
         ]
-        for cmd, reason_substr in destructive_cases:
+        for cmd, expected_descriptor in destructive_cases:
             with self.subTest(cmd=cmd):
                 result = classify_command(cmd)
                 self.assertEqual(
@@ -163,7 +168,7 @@ class SandboxCheckTests(unittest.TestCase):
                 self.assertEqual(result["category"], "HIGH_RISK")
                 self.assertTrue(
                     len(result["reason"]) > 0,
-                    f"Reason should not be empty for {cmd}",
+                    f"Reason should not be empty for {cmd} (expected: {expected_descriptor})",
                 )
 
     def test_compound_scripts_and_pipelines(self):
@@ -205,6 +210,7 @@ class SandboxCheckTests(unittest.TestCase):
             [sys.executable, str(ROOT / "tools/sandbox_check.py"), "--strict", "git status"],
             capture_output=True,
             text=True,
+            check=False,
         )
         self.assertEqual(safe_proc.returncode, 0)
 
@@ -213,6 +219,7 @@ class SandboxCheckTests(unittest.TestCase):
             [sys.executable, str(ROOT / "tools/sandbox_check.py"), "--strict", "rm -rf /"],
             capture_output=True,
             text=True,
+            check=False,
         )
         self.assertEqual(blocked_proc.returncode, 1)
 
