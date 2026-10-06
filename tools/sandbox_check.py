@@ -43,7 +43,9 @@ DESTRUCTIVE_GLOBAL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "Destructive recursive deletion of root, home, parent directories, or wildcard root",
     ),
     (
-        re.compile(r"\b(?:curl|wget|fetch)\b[^|;&\n]*\|\s*(?:sudo\s+)?(?:sh|bash|zsh|dash|python\d?|perl|ruby)\b"),
+        re.compile(
+            r"\b(?:curl|wget|fetch)\b[^|;&\n]*\|\s*(?:sudo\s+)?(?:sh|bash|zsh|dash|python\d?|perl|ruby)\b"
+        ),
         "Remote script piping directly to shell execution (curl | sh)",
     ),
     (
@@ -113,119 +115,127 @@ DESTRUCTIVE_GLOBAL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 # Common CLI tools classified by default nature
-READ_ONLY_COMMANDS = frozenset({
-    "cat",
-    "head",
-    "tail",
-    "more",
-    "less",
-    "ls",
-    "dir",
-    "grep",
-    "egrep",
-    "fgrep",
-    "rg",
-    "ag",
-    "find",
-    "wc",
-    "stat",
-    "file",
-    "which",
-    "where",
-    "whereis",
-    "type",
-    "pwd",
-    "echo",
-    "printf",
-    "env",
-    "printenv",
-    "diff",
-    "cmp",
-    "md5",
-    "md5sum",
-    "shasum",
-    "sha256sum",
-    "sha1sum",
-    "cksum",
-    "true",
-    "false",
-    "test",
-    "[",
-    "sleep",
-    "date",
-    "uname",
-    "whoami",
-    "id",
-    "cut",
-    "sort",
-    "uniq",
-    "tr",
-    "awk",
-    "sed",
-    "column",
-    "tree",
-    "basename",
-    "dirname",
-    "realpath",
-    "readlink",
-})
+READ_ONLY_COMMANDS = frozenset(
+    {
+        "cat",
+        "head",
+        "tail",
+        "more",
+        "less",
+        "ls",
+        "dir",
+        "grep",
+        "egrep",
+        "fgrep",
+        "rg",
+        "ag",
+        "find",
+        "wc",
+        "stat",
+        "file",
+        "which",
+        "where",
+        "whereis",
+        "type",
+        "pwd",
+        "echo",
+        "printf",
+        "env",
+        "printenv",
+        "diff",
+        "cmp",
+        "md5",
+        "md5sum",
+        "shasum",
+        "sha256sum",
+        "sha1sum",
+        "cksum",
+        "true",
+        "false",
+        "test",
+        "[",
+        "sleep",
+        "date",
+        "uname",
+        "whoami",
+        "id",
+        "cut",
+        "sort",
+        "uniq",
+        "tr",
+        "awk",
+        "sed",
+        "column",
+        "tree",
+        "basename",
+        "dirname",
+        "realpath",
+        "readlink",
+    }
+)
 
 # Git subcommands that are read-only
-GIT_READ_ONLY_SUBCOMMANDS = frozenset({
-    "status",
-    "diff",
-    "log",
-    "show",
-    "branch",
-    "tag",
-    "describe",
-    "rev-parse",
-    "remote",
-    "ls-files",
-    "ls-tree",
-    "cat-file",
-    "config",
-    "check-ref-format",
-    "check-ignore",
-    "blame",
-    "shortlog",
-    "help",
-    "version",
-})
+GIT_READ_ONLY_SUBCOMMANDS = frozenset(
+    {
+        "status",
+        "diff",
+        "log",
+        "show",
+        "branch",
+        "tag",
+        "describe",
+        "rev-parse",
+        "remote",
+        "ls-files",
+        "ls-tree",
+        "cat-file",
+        "config",
+        "check-ref-format",
+        "check-ignore",
+        "blame",
+        "shortlog",
+        "help",
+        "version",
+    }
+)
 
 # Git subcommands that are local workspace mutations
-GIT_LOCAL_MUTATION_SUBCOMMANDS = frozenset({
-    "add",
-    "commit",
-    "checkout",
-    "switch",
-    "restore",
-    "stash",
-    "merge",
-    "rebase",
-    "cherry-pick",
-    "fetch",
-    "pull",
-    "push",
-    "clone",
-    "init",
-    "clean",
-    "reset",
-    "branch",
-    "mv",
-    "rm",
-})
+GIT_LOCAL_MUTATION_SUBCOMMANDS = frozenset(
+    {
+        "add",
+        "commit",
+        "checkout",
+        "switch",
+        "restore",
+        "stash",
+        "merge",
+        "rebase",
+        "cherry-pick",
+        "fetch",
+        "pull",
+        "push",
+        "clone",
+        "init",
+        "clean",
+        "reset",
+        "branch",
+        "mv",
+        "rm",
+    }
+)
 
 # Read-only linters and static analyzers (unless formatting flags passed)
-LINTER_READ_ONLY = frozenset({
-    "ruff",
-    "flake8",
-    "mypy",
-    "pylint",
-    "pyright",
-    "bandit",
-    "shellcheck",
-})
+LINTER_READ_ONLY = frozenset(
+    {
+        "ruff",
+        "flake8",
+        "mypy",
+        "pylint",
+        "pyright",
+        "bandit",
+        "shellcheck",
+    }
+)
 
 
 def _strip_quotes(token: str) -> str:
@@ -386,7 +396,11 @@ def _analyze_tokens(tokens: list[str]) -> tuple[str, str]:
     # Python execution
     if base_cmd in ("python", "python3", "py"):
         joined = " ".join(cleaned_tokens)
-        if "tools/kit.py check" in joined or "tools/kit.py list" in joined or "sync --check" in joined:
+        if (
+            "tools/kit.py check" in joined
+            or "tools/kit.py list" in joined
+            or "sync --check" in joined
+        ):
             return READ_ONLY, "Read-only kit inspection"
         if "tools/sandbox_check.py" in joined:
             return READ_ONLY, "Sandbox security check"
@@ -418,7 +432,9 @@ def _analyze_tokens(tokens: list[str]) -> tuple[str, str]:
         joined = " ".join(cleaned_tokens)
         if any(sub in joined for sub in ("install", "add", "remove", "update", "upgrade", "build")):
             return LOCAL_MUTATION, f"Package management or build: {base_cmd}"
-        if any(sub in joined for sub in ("list", "show", "search", "tree", "check", "audit", "test")):
+        if any(
+            sub in joined for sub in ("list", "show", "search", "tree", "check", "audit", "test")
+        ):
             return READ_ONLY, f"Package inspection: {base_cmd}"
         return LOCAL_MUTATION, f"Package manager command: {base_cmd}"
 
