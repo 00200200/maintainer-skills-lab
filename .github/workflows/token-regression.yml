@@ -1,0 +1,103 @@
+name: Token Regression Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  token-drift-check:
+    name: Token Footprint & Prompt Drift Detector
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full git history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Check override label
+        id: check-label
+        run: |
+          APPROVED="${{ contains(github.event.pull_request.labels.*.name, 'token-increase-approved') }}"
+          echo "approved=$APPROVED" >> "$GITHUB_OUTPUT"
+
+      - name: Run Token Regression Check
+        id: run-check
+        shell: bash
+        run: |
+          BASE_REF="origin/${{ github.base_ref }}"
+          if [ "${{ steps.check-label.outputs.approved }}" = "true" ]; then
+            APPROVED_FLAG="--approved"
+          else
+            APPROVED_FLAG=""
+          fi
+
+          set +e
+          python tools/token_diff.py \
+            --base "$BASE_REF" \
+            --head HEAD \
+            --output-comment pr_token_report.md \
+            --output-json pr_token_report.json \
+            $APPROVED_FLAG
+          EXIT_CODE=$?
+          set -e
+
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Post or update PR comment
+        if: always() && steps.run-check.outcome != 'skipped'
+        continue-on-error: true
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('pr_token_report.md')) {
+              return;
+            }
+            const body = fs.readFileSync('pr_token_report.md', 'utf8');
+            const prNumber = context.payload.pull_request.number;
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const botComment = comments.data.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.includes('Token Footprint Regression Report')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+
+      - name: Gate Enforcement
+        run: |
+          if [ "${{ steps.run-check.outputs.exit_code }}" -ne 0 ]; then
+            echo "::error::Token regression detected without approval override label."
+            exit 1
+          fi
