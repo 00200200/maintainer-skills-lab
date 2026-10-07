@@ -46,6 +46,49 @@ Inspect unexpected `detach()`, `.item()`, tensor reconstruction, and optimizer p
 
 Seed controls do not promise identical results across releases or CPU/GPU execution. Deterministic algorithms can cost performance or reject unsupported operations. See [PyTorch reproducibility](https://docs.pytorch.org/docs/stable/notes/randomness.html).
 
+#### Minify PyTorch Autograd & Dispatcher Tracebacks
+
+PyTorch and CUDA autograd errors frequently generate 100+ line tracebacks dominated by
+internal C++ dispatcher layers (`torch/nn/modules/*`, `torch/autograd/*`, `torch/_tensor.py`).
+Wasting thousands of prompt tokens parsing internal dispatchers obscures the true error.
+
+1. **Filter internal frames**: Strip framework dispatchers to expose only user model definitions
+   (e.g., `MyTransformer.forward`) and the terminal exception message.
+2. **Extract terminal shape mismatches**: Pinpoint exact tensor dimensions at the failure boundary
+   (e.g., `mat1 and mat2 shapes cannot be multiplied (32x128 and 256x512)`).
+3. **Use the trace minifier**:
+   ```bash
+   python3 tools/minify_torch_trace.py traceback.log
+   ```
+
+#### NaN & Non-Finite Gradient Checkpoint Recipe
+
+When loss or gradients explode into `NaN` or `Inf`, do not blindly lower the learning rate or insert
+gradient clipping. Locate the exact layer introducing non-finite values:
+
+1. **Immediate Loss Guard**:
+   Halt immediately prior to `backward()` to prevent corrupted gradients:
+   ```python
+   if not torch.isfinite(loss).all():
+       raise FloatingPointError(f"Non-finite loss detected at step {step}: {loss.item()}")
+   ```
+2. **First-Layer Gradient Inspector**:
+   Identify the offending layer immediately after `loss.backward()`:
+   ```python
+   for name, param in model.named_parameters():
+       if param.grad is not None and not torch.isfinite(param.grad).all():
+           print(f"[NaN Alert] Non-finite gradient first produced in: {name}")
+           break
+   ```
+3. **Autograd Anomaly Detection**:
+   When NaNs emerge inside backward graph operations (e.g. division by zero, `log(0)`, or unstable
+   normalization), enable anomaly detection to link the backward crash to its forward origin:
+   ```python
+   with torch.autograd.set_detect_anomaly(True):
+       loss = model(inputs)
+       loss.backward()
+   ```
+
 ### Lightning
 
 `Trainer(fast_dev_run=True)` is useful for a loop smoke test, but disables loggers and checkpoint/early-stopping callbacks. For bugs involving those features, keep the affected configuration and bound work with integer `limit_train_batches` and `limit_val_batches` instead.
