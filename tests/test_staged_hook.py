@@ -12,7 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class StagedHookTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix="mkl hook test ")
+        self.temporary = tempfile.TemporaryDirectory(
+            prefix="mkl hook test ", ignore_cleanup_errors=True
+        )
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         # A test repo must not inherit the calling hook's repository or alternate index.
@@ -29,6 +31,7 @@ class StagedHookTests(unittest.TestCase):
         self.git("config", "user.name", "Hook fixture")
         self.git("config", "user.email", "fixture@example.invalid")
         self.git("config", "core.hooksPath", "hooks")
+        self.git("config", "gc.auto", "0")
         self.git("add", ".")
         self.git("commit", "-qm", "Initial fixture")
 
@@ -55,7 +58,9 @@ class StagedHookTests(unittest.TestCase):
         )
 
     def old_python3(self):
-        directory = tempfile.TemporaryDirectory(prefix="mkl hook python ")
+        directory = tempfile.TemporaryDirectory(
+            prefix="mkl hook python ", ignore_cleanup_errors=True
+        )
         self.addCleanup(directory.cleanup)
         python3 = Path(directory.name) / "python3"
         python3.write_text("#!/bin/sh\necho 'Python 3.9.6' >&2\nexit 1\n")
