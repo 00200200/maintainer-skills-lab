@@ -12,6 +12,12 @@ spec = importlib.util.spec_from_file_location("ml_example", ROOT / "examples/ml-
 example = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(example)
 
+minifier_spec = importlib.util.spec_from_file_location(
+    "minify_torch_trace", ROOT / "tools/minify_torch_trace.py"
+)
+minifier = importlib.util.module_from_spec(minifier_spec)
+minifier_spec.loader.exec_module(minifier)
+
 BASELINE = {
     "residual_shape": [2, 2],
     "loss": 2.0,
@@ -68,6 +74,58 @@ class MLExampleTests(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertEqual(report["outcome"], "execution-error")
         self.assertFalse(report["verified"])
+
+    def test_minify_torch_trace_compresses_dispatcher_frames(self):
+        # Build 150-line PyTorch autograd traceback dominated by dispatcher frames
+        lines = ["Traceback (most recent call last):"]
+        lines.append('  File "train.py", line 42, in <module>')
+        lines.append("    loss = model(inputs)")
+
+        # 50 internal module dispatcher frames
+        for step in range(50):
+            lines.append(
+                f'  File "/site-packages/torch/nn/modules/module.py", line {1000 + step}, in _call_impl'
+            )
+            lines.append("    return forward_call(*args, **kwargs)")
+
+        lines.append('  File "models/transformer.py", line 88, in forward')
+        lines.append("    return self.proj(attn_out)")
+
+        # 25 internal autograd dispatcher frames
+        for step in range(25):
+            lines.append(
+                f'  File "/site-packages/torch/autograd/__init__.py", line {200 + step}, in backward'
+            )
+            lines.append("    Variable._execution_engine.run_backward(...)")
+
+        lines.append("RuntimeError: mat1 and mat2 shapes cannot be multiplied (32x128 and 256x512)")
+
+        raw_traceback = "\n".join(lines)
+        self.assertGreater(len(lines), 150)
+
+        minified = minifier.minify_trace(raw_traceback)
+        minified_lines = minified.splitlines()
+
+        # Compressed to < 15 lines of actionable user-code stack frames
+        self.assertLess(len(minified_lines), 15)
+        self.assertIn('File "train.py", line 42', minified)
+        self.assertIn('File "models/transformer.py", line 88', minified)
+        self.assertIn("skipped 50 internal PyTorch/dispatcher frames", minified)
+        self.assertIn("skipped 25 internal PyTorch/dispatcher frames", minified)
+        self.assertIn(
+            "RuntimeError: mat1 and mat2 shapes cannot be multiplied (32x128 and 256x512)",
+            minified,
+        )
+
+    def test_minify_trace_empty_and_clean(self):
+        self.assertEqual(minifier.minify_trace(""), "")
+        clean_trace = (
+            "Traceback (most recent call last):\n"
+            '  File "test.py", line 10, in run\n'
+            "    raise ValueError('invalid input')\n"
+            "ValueError: invalid input"
+        )
+        self.assertEqual(minifier.minify_trace(clean_trace), clean_trace)
 
 
 if __name__ == "__main__":
