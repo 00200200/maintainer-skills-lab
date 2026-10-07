@@ -1,0 +1,154 @@
+<!-- Attach context with /file or /tab in the Zed Assistant panel. -->
+
+# mkl-audit-cve
+
+Audit CVE advisories against codebase usage with minimal token context.
+
+# Audit CVE advisories against codebase usage
+
+Maintainers regularly receive automated security alerts from Dependabot, Renovate, or GitHub
+Security Advisories (GHSA). Auditing these alerts must not dump entire dependencies or extensive
+vulnerability databases into LLM context, which exhausts token budgets and causes hallucinated
+risk assessments.
+
+Instead, execute a targeted, token-optimized audit to answer two questions:
+1. Is our codebase actually importing or calling the vulnerable code path?
+2. What is the immediate maintainer action (safe routine upgrade vs. urgent remediation)?
+
+## 1. Targeted Extraction
+
+Do not ingest full advisory markdown or dependency source trees. Extract only the essential
+attributes from the CVE, GHSA, or vulnerability disclosure:
+
+- **Advisory identifier**: CVE ID (e.g., `CVE-2020-14343`) or GHSA ID (e.g., `GHSA-879x-5383-x4jp`).
+- **Affected package & ecosystem**: Package name (e.g., `pyyaml`, `lodash`, `tokio`) and version
+  range.
+- **Vulnerable symbol or API**: Specific function, method, class, or subpath identified as
+  vulnerable (e.g., `yaml.load`, `_.defaultsDeep`, `tokio::sync::oneshot`).
+- **Trigger mechanism**: Specific input pattern causing exploitability (e.g., untrusted serialized
+  payload, object key prototype injection, data race under concurrent cancellation).
+
+## 2. Usage Verification via targeted search
+
+Run ripgrep (`rg`) or AST search across application source code. Avoid full file dumps; search
+strictly for the vulnerable symbol and import entrypoints. Exclude test fixtures, vendor bundles,
+and lockfiles via `.mklignore` or targeted paths.
+
+### Ecosystem search patterns
+
+- **Python**:
+  - Import detection: `rg -n "^\s*(import\s+<pkg>|from\s+<pkg>(\.\S+)?\s+import\s+.*\b<symbol>\b)"`
+  - Invocation search: `rg -n "\b<symbol>\s*\("`
+- **Node.js / TypeScript**:
+  - Import detection: `rg -n "(require\(['\"]<pkg>['\"]|from\s+['\"]<pkg>['\"])"`
+  - Invocation search: `rg -n "\b<symbol>\s*\("`
+- **Rust**:
+  - Usage / import: `rg -n "^\s*use\s+<crate>::.*\b<symbol>\b"`
+  - Invocation search: `rg -n "\b<symbol>\s*::|\b<symbol>\s*\("`
+
+Determine dependency relationship:
+- **Direct dependency**: Declared directly in `pyproject.toml`, `package.json`, or `Cargo.toml`.
+- **Transitive dependency**: Present only in lockfiles (`uv.lock`, `package-lock.json`,
+  `Cargo.lock`) pulled by an intermediate library.
+
+## 3. Verdict Generation
+
+Formulate a concise verdict based on empirical usage verification:
+
+- **If not called / uninvoked**: Mark as `Low Immediate Risk / Trivial Upgrade`.
+  - Exploitability is absent in current application execution paths.
+  - Schedule dependency update during regular dependency maintenance or automated bump PR merge.
+- **If called / invoked**: Highlight the exact invocation site (`file:line`).
+  - Mark as `High Immediate Risk / Active Vulnerability`.
+  - Recommend an immediate non-breaking patched version upgrade.
+  - If an upstream fix is unavailable or introduces breaking API changes, provide an immediate
+    input sanitization or defensive configuration workaround (e.g., switching to safe parser).
+
+## 4. Output Constraint
+
+All audit summaries must strictly obey:
+- **Word count**: Maximum 200 words.
+- **Token budget**: Under 260 tokens (approx. 4 characters per token).
+
+### Standard Audit Output Schema
+
+```text
+### CVE Audit: <CVE-ID> (<package> <vulnerable_version>)
+- **Vulnerable Symbol**: `<symbol>`
+- **Reachability**: [Direct invocation at <file>:<line> | Uninvoked in application code]
+- **Dependency Kind**: [Direct | Transitive via <parent_pkg>]
+- **Verdict**: [Low Immediate Risk / Trivial Upgrade | High Immediate Risk / Active Vulnerability]
+- **Action**: <Immediate recommendation or workaround>
+```
+
+## 5. Worked Examples
+
+### Example 1: Python — Direct Vulnerability (Invoked)
+
+**Scenario**: Dependabot alerts on `CVE-2020-14343` (`PyYAML < 5.4`). Vulnerable symbol is
+`yaml.load()` without `SafeLoader`.
+
+**Verification**:
+```bash
+rg -n "\byaml\.load\(" src/
+```
+Result: `src/config/loader.py:42: config = yaml.load(user_stream)`
+
+**Audit Output** (68 words, ~85 tokens):
+```text
+### CVE Audit: CVE-2020-14343 (PyYAML 5.3.1)
+- **Vulnerable Symbol**: `yaml.load()`
+- **Reachability**: Direct invocation at `src/config/loader.py:42`
+- **Dependency Kind**: Direct (`pyproject.toml`)
+- **Verdict**: High Immediate Risk / Active Vulnerability
+- **Action**: Unsafe YAML deserialization allows arbitrary code execution. Immediately upgrade
+  PyYAML to `>= 5.4` or replace line 42 with `yaml.safe_load(user_stream)` to sanitize input.
+```
+
+### Example 2: Node.js — Transitive Vulnerability (Uninvoked)
+
+**Scenario**: Security alert on `CVE-2020-28500` (`lodash < 4.17.21`). Vulnerable symbol is
+`_.defaultsDeep` or `_.template` prototype pollution.
+
+**Verification**:
+```bash
+rg -n "\b(defaultsDeep|template)\b" src/
+```
+Result: No matches found in application source code (`src/`). `lodash` is only pulled transitively
+via `winston-transport`.
+
+**Audit Output** (65 words, ~82 tokens):
+```text
+### CVE Audit: CVE-2020-28500 (lodash 4.17.20)
+- **Vulnerable Symbol**: `lodash.defaultsDeep` / `template`
+- **Reachability**: Uninvoked in application code
+- **Dependency Kind**: Transitive via `winston-transport`
+- **Verdict**: Low Immediate Risk / Trivial Upgrade
+- **Action**: Codebase does not import or invoke vulnerable deep-merge symbols. Zero immediate
+  exploitability path. Run `npm update lodash` or merge standard Renovate lockfile bump without
+  emergency patching.
+```
+
+### Example 3: Rust — Transitive Vulnerability (Uninvoked) vs Direct
+
+**Scenario**: Advisory `RUSTSEC-2021-0139` (`tokio < 1.8.4`). Vulnerable symbol is
+`tokio::sync::oneshot` channel drop memory race condition under async cancellation.
+
+**Verification**:
+```bash
+rg -n "\b(sync::oneshot|oneshot::channel)\b" src/
+```
+Result: No matches in `src/`. Crate `tokio` is used purely for `rt-multi-thread` and
+`net::TcpListener`.
+
+**Audit Output** (65 words, ~80 tokens):
+```text
+### CVE Audit: RUSTSEC-2021-0139 (tokio 1.8.0)
+- **Vulnerable Symbol**: `tokio::sync::oneshot`
+- **Reachability**: Uninvoked in application code
+- **Dependency Kind**: Direct crate, but affected module unused
+- **Verdict**: Low Immediate Risk / Trivial Upgrade
+- **Action**: Application utilizes `TcpListener` without `oneshot` cancellation channels. Memory
+  corruption path is unreachable. Upgrade to `tokio = "1.8.4"` in `Cargo.toml` as routine
+  maintenance; no temporary code mitigation required.
+```

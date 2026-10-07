@@ -86,6 +86,17 @@ class LibraryTests(unittest.TestCase):
         self.assertIn("exit 125", bisect_skill["body"])
         self.assertIn("bisect_test.sh", bisect_skill["body"])
 
+    def test_audit_cve_skill_attributes(self):
+        skills, _ = kit.load_library()
+        self.assertIn("mkl-audit-cve", skills)
+        cve_skill = skills["mkl-audit-cve"]
+        self.assertEqual(cve_skill["name"], "mkl-audit-cve")
+        self.assertIn("Audit CVE advisories", cve_skill["description"])
+        self.assertIn("Targeted Extraction", cve_skill["body"])
+        self.assertIn("Usage Verification", cve_skill["body"])
+        self.assertIn("Low Immediate Risk / Trivial Upgrade", cve_skill["body"])
+        self.assertIn("High Immediate Risk / Active Vulnerability", cve_skill["body"])
+
     def test_unknown_dependency_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
