@@ -64,9 +64,9 @@ cat session_stats.json | python3 tools/budget_allocator.py --pipe
 
    governor = ContextBudgetGovernor(model="claude-3-7-sonnet", used_tokens=150_000)
    print(governor.tier)  # WindowTier.CRITICAL
-   print(governor.get_tool_budget("repomap"))        # 250
-   print(governor.get_tool_budget("log_compressor")) # 400
-   print(governor.should_compact())                  # False (True if > 90%)
+   print(governor.get_tool_budget("repomap"))  # 250
+   print(governor.get_tool_budget("log_compressor"))  # 400
+   print(governor.should_compact())  # False (True if > 90%)
    ```
 
 ## Implementation Tasks

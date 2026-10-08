@@ -97,6 +97,16 @@ class LibraryTests(unittest.TestCase):
         self.assertIn("Low Immediate Risk / Trivial Upgrade", cve_skill["body"])
         self.assertIn("High Immediate Risk / Active Vulnerability", cve_skill["body"])
 
+    def test_generate_changelog_skill_attributes(self):
+        skills, _ = kit.load_library()
+        self.assertIn("mkl-generate-changelog", skills)
+        changelog_skill = skills["mkl-generate-changelog"]
+        self.assertEqual(changelog_skill["name"], "mkl-generate-changelog")
+        self.assertIn("changelogs and release notes", changelog_skill["description"])
+        self.assertIn("Log Extraction", changelog_skill["body"])
+        self.assertIn("Breaking Changes", changelog_skill["body"])
+        self.assertIn("400 words", changelog_skill["body"])
+
     def test_unknown_dependency_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
