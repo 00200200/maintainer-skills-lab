@@ -107,14 +107,30 @@ def main():
     all_labels = {lbl for iss in issues for lbl in iss["labels"]}
 
     print(f"Found {len(issues)} contributor issues in {TASKS_DIR}")
+    existing_titles = set()
     if args.publish:
         ensure_labels(all_labels, dry_run=False)
+        try:
+            res = subprocess.run(
+                ["gh", "issue", "list", "--state", "all", "--limit", "200", "--json", "title"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            import json
+            existing_titles = {item["title"].strip() for item in json.loads(res.stdout)}
+        except Exception as e:
+            print(f"[!] Warning: Could not fetch existing issues: {e}")
 
     for idx, iss in enumerate(issues, start=1):
         print(f"\n--- [{idx}/{len(issues)}] {iss['file']} ---")
         print(f"Title : {iss['title']}")
         print(f"Labels: {', '.join(iss['labels'])}")
         print(f"Body  : {len(iss['body'])} chars")
+
+        if iss["title"].strip() in existing_titles:
+            print("[⏩] Skipped: Issue with this title already exists on GitHub.")
+            continue
 
         if args.publish:
             cmd = [
