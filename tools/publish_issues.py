@@ -118,6 +118,7 @@ def main():
                 check=True,
             )
             import json
+
             existing_titles = {item["title"].strip() for item in json.loads(res.stdout)}
         except Exception as e:
             print(f"[!] Warning: Could not fetch existing issues: {e}")

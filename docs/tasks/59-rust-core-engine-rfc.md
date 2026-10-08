@@ -26,6 +26,7 @@ Introduce `msl-core`, a native Rust extension with Python bindings via PyO3, pac
      ```python
      try:
          import msl_core
+
          HAS_RUST_CORE = True
      except ImportError:
          HAS_RUST_CORE = False
