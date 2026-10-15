@@ -28,15 +28,15 @@ class TestSymbolExtraction(unittest.TestCase):
             py_file = base / "sample.py"
             py_file.write_text(
                 '"""Module docstring."""\n\n'
-                'class TokenGovernor:\n'
+                "class TokenGovernor:\n"
                 '    """Manages token budgets."""\n'
-                '    def __init__(self, limit: int = 1000):\n'
-                '        self.limit = limit\n\n'
-                '    def get_remaining(self, used: int) -> int:\n'
+                "    def __init__(self, limit: int = 1000):\n"
+                "        self.limit = limit\n\n"
+                "    def get_remaining(self, used: int) -> int:\n"
                 '        """Calculate remaining tokens."""\n'
-                '        return max(0, self.limit - used)\n\n'
-                'async def fetch_metrics() -> dict:\n'
-                '    return {}\n',
+                "        return max(0, self.limit - used)\n\n"
+                "async def fetch_metrics() -> dict:\n"
+                "    return {}\n",
                 encoding="utf-8",
             )
 
@@ -60,7 +60,10 @@ class TestSymbolExtraction(unittest.TestCase):
             base = Path(td)
             # TypeScript
             ts_file = base / "service.ts"
-            ts_file.write_text("export interface UserProfile {\n  id: string;\n}\nexport async function fetchUser() {}\n", encoding="utf-8")
+            ts_file.write_text(
+                "export interface UserProfile {\n  id: string;\n}\nexport async function fetchUser() {}\n",
+                encoding="utf-8",
+            )
             ts_symbols = extract_regex_symbols(ts_file, base)
             self.assertEqual(len(ts_symbols), 2)
             self.assertEqual(ts_symbols[0].symbol_name, "UserProfile")
@@ -68,7 +71,9 @@ class TestSymbolExtraction(unittest.TestCase):
 
             # Go
             go_file = base / "main.go"
-            go_file.write_text("package main\nfunc ExecuteTask() {}\ntype TaskConfig struct {}\n", encoding="utf-8")
+            go_file.write_text(
+                "package main\nfunc ExecuteTask() {}\ntype TaskConfig struct {}\n", encoding="utf-8"
+            )
             go_symbols = extract_regex_symbols(go_file, base)
             self.assertEqual(len(go_symbols), 2)
             self.assertEqual(go_symbols[0].symbol_name, "ExecuteTask")

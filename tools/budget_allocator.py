@@ -12,11 +12,9 @@ import argparse
 import json
 import sys
 from dataclasses import asdict, dataclass
-from enum import Enum
-from typing import Any, Dict, Optional
+from enum import StrEnum
 
-
-MODEL_REGISTRY: Dict[str, int] = {
+MODEL_REGISTRY: dict[str, int] = {
     # Anthropic Claude
     "claude-3-7-sonnet": 200_000,
     "claude-3-5-sonnet": 200_000,
@@ -46,15 +44,15 @@ MODEL_REGISTRY: Dict[str, int] = {
 DEFAULT_FALLBACK_WINDOW = 128_000
 
 
-class WindowTier(str, Enum):
-    NOMINAL = "NOMINAL"            # < 50%
+class WindowTier(StrEnum):
+    NOMINAL = "NOMINAL"  # < 50%
     CONSERVATIVE = "CONSERVATIVE"  # 50% - 75%
-    CRITICAL = "CRITICAL"          # 75% - 90%
-    EMERGENCY = "EMERGENCY"        # > 90%
+    CRITICAL = "CRITICAL"  # 75% - 90%
+    EMERGENCY = "EMERGENCY"  # > 90%
 
 
 # Tool limits by tier (in tokens)
-TIER_TOOL_BUDGETS: Dict[WindowTier, Dict[str, int]] = {
+TIER_TOOL_BUDGETS: dict[WindowTier, dict[str, int]] = {
     WindowTier.NOMINAL: {
         "generic_tool": 2500,
         "repomap": 1200,
@@ -98,10 +96,10 @@ class AllocationReport:
     remaining_tokens: int
     utilization_rate: float
     tier: str
-    tool_budgets: Dict[str, int]
+    tool_budgets: dict[str, int]
     should_compact: bool
-    turn_count: Optional[int] = None
-    recommendations: Optional[list[str]] = None
+    turn_count: int | None = None
+    recommendations: list[str] | None = None
 
 
 class ContextBudgetGovernor:
@@ -109,8 +107,8 @@ class ContextBudgetGovernor:
         self,
         model: str = "claude-3-7-sonnet",
         used_tokens: int = 0,
-        context_window: Optional[int] = None,
-        turn_count: Optional[int] = None,
+        context_window: int | None = None,
+        turn_count: int | None = None,
     ):
         self.model = model.strip().lower()
         if context_window is not None and context_window > 0:
@@ -159,9 +157,13 @@ class ContextBudgetGovernor:
         elif t == WindowTier.CONSERVATIVE:
             recs.append("Context reaches 50%+. Omit verbose code commentary; favor scoped diffs.")
         elif t == WindowTier.CRITICAL:
-            recs.append("Context exceeds 75%. Compress terminal logs to failure anchors only; avoid whole-file reads.")
+            recs.append(
+                "Context exceeds 75%. Compress terminal logs to failure anchors only; avoid whole-file reads."
+            )
         elif t == WindowTier.EMERGENCY:
-            recs.append("CRITICAL: Context exceeds 90%. Execute 'mkl-prune-context' or compact conversation immediately.")
+            recs.append(
+                "CRITICAL: Context exceeds 90%. Execute 'mkl-prune-context' or compact conversation immediately."
+            )
         return recs
 
     def report(self) -> AllocationReport:
@@ -180,7 +182,7 @@ class ContextBudgetGovernor:
         )
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Dynamic token budget allocator for agentic sessions."
     )
@@ -229,7 +231,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         icon = status_icons.get(rep.tier, "⚪")
         print(f"=== Dynamic Token Budget Allocation {icon} ===")
         print(f"Model: {rep.model} (Window: {rep.context_window:,} tokens)")
-        print(f"Usage: {rep.used_tokens:,} / {rep.context_window:,} tokens ({rep.utilization_rate * 100:.1f}%)")
+        print(
+            f"Usage: {rep.used_tokens:,} / {rep.context_window:,} tokens ({rep.utilization_rate * 100:.1f}%)"
+        )
         print(f"Remaining: {rep.remaining_tokens:,} tokens | Tier: {rep.tier}")
         if rep.turn_count is not None:
             print(f"Turn: #{rep.turn_count}")

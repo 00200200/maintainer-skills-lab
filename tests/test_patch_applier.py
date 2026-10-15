@@ -12,7 +12,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.patch_applier import (
-    ApplyResult,
     PatchBlock,
     apply_patch_file,
     apply_patch_string,
@@ -35,7 +34,7 @@ def hello():
         blocks = parse_patch_blocks(text)
         self.assertEqual(len(blocks), 1)
         self.assertIn("def hello():", blocks[0].search)
-        self.assertIn("return \"universe\"", blocks[0].replace)
+        self.assertIn('return "universe"', blocks[0].replace)
 
     def test_parse_with_file_header(self):
         text = """
@@ -80,7 +79,7 @@ class TestMatchingCascade(unittest.TestCase):
         content = "line 1\nline 2\nline 3\n"
         search = "line 2\n"
         replace = "line 2 modified\n"
-        
+
         ok, res, tier, sim, rng, err = apply_patch_string(content, search, replace)
         self.assertTrue(ok)
         self.assertEqual(tier, 1)
@@ -92,7 +91,7 @@ class TestMatchingCascade(unittest.TestCase):
         content = "dup\nline 2\ndup\n"
         search = "dup\n"
         replace = "unique\n"
-        
+
         ok, res, tier, sim, rng, err = apply_patch_string(content, search, replace)
         self.assertFalse(ok)
         self.assertIn("Ambiguous exact match", err or "")
@@ -103,7 +102,7 @@ class TestMatchingCascade(unittest.TestCase):
         # Search has standard LF and clean lines
         search = "def test():\n    return True\n"
         replace = "def test():\n    return False\n"
-        
+
         ok, res, tier, sim, rng, err = apply_patch_string(content, search, replace)
         self.assertTrue(ok)
         self.assertEqual(tier, 2)
@@ -121,7 +120,7 @@ class TestMatchingCascade(unittest.TestCase):
         # Search block has 0 or 4 spaces
         search = "x = 1\ny = 2\n"
         replace = "x = 10\ny = 20\n"
-        
+
         ok, res, tier, sim, rng, err = apply_patch_string(target, search, replace)
         self.assertTrue(ok)
         self.assertEqual(tier, 3)
@@ -143,12 +142,8 @@ class TestMatchingCascade(unittest.TestCase):
             "    step2 = step1 + 5\n"
             "    return step2\n"
         )
-        replace = (
-            "def compute(value: int) -> int:\n"
-            "    step1 = value * 10\n"
-            "    return step1\n"
-        )
-        
+        replace = "def compute(value: int) -> int:\n    step1 = value * 10\n    return step1\n"
+
         ok, res, tier, sim, rng, err = apply_patch_string(target, search, replace, threshold=0.80)
         self.assertTrue(ok)
         self.assertEqual(tier, 4)
@@ -159,7 +154,7 @@ class TestMatchingCascade(unittest.TestCase):
         target = "def apple(): return 1\n"
         search = "def completely_different(): return 999\n"
         replace = "def replacement(): pass\n"
-        
+
         ok, res, tier, sim, rng, err = apply_patch_string(target, search, replace, threshold=0.85)
         self.assertFalse(ok)
         self.assertIn("No matching block found", err or "")
@@ -170,14 +165,14 @@ class TestFileOperations(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "example.py"
             p.write_text("x = 10\ny = 20\n", encoding="utf-8")
-            
+
             blocks = [PatchBlock(search="y = 20\n", replace="y = 30\n")]
             results = apply_patch_file(p, blocks, backup=True)
-            
+
             self.assertEqual(len(results), 1)
             self.assertTrue(results[0].success)
             self.assertEqual(p.read_text(encoding="utf-8"), "x = 10\ny = 30\n")
-            
+
             # Verify .orig backup exists
             backup = Path(td) / "example.py.orig"
             self.assertTrue(backup.exists())
@@ -187,10 +182,10 @@ class TestFileOperations(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "test.txt"
             p.write_text("before\n", encoding="utf-8")
-            
+
             blocks = [PatchBlock(search="before\n", replace="after\n")]
             results = apply_patch_file(p, blocks, dry_run=True)
-            
+
             self.assertTrue(results[0].success)
             self.assertIn("after", results[0].diff)
             self.assertEqual(p.read_text(encoding="utf-8"), "before\n")
@@ -202,7 +197,7 @@ class TestCLI(unittest.TestCase):
             p = Path(td) / "code.py"
             p.write_text("val = 1\n", encoding="utf-8")
             patch_text = "<<<<<<< SEARCH\nval = 1\n=======\nval = 2\n>>>>>>> REPLACE\n"
-            
+
             code = main(["apply", "--file", str(p), "--patch", patch_text])
             self.assertEqual(code, 0)
             self.assertEqual(p.read_text(encoding="utf-8"), "val = 2\n")
@@ -212,7 +207,7 @@ class TestCLI(unittest.TestCase):
             p = Path(td) / "code.py"
             p.write_text("val = 1\n", encoding="utf-8")
             patch_text = "<<<<<<< SEARCH\nval = 1\n=======\nval = 2\n>>>>>>> REPLACE\n"
-            
+
             stdout = io.StringIO()
             with patch("sys.stdout", stdout):
                 code = main(["apply", "--file", str(p), "--patch", patch_text, "--json"])
@@ -292,4 +287,3 @@ def foo():
 
 if __name__ == "__main__":
     unittest.main()
-

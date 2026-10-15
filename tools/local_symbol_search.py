@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import hashlib
 import json
 import os
 import re
@@ -18,8 +17,6 @@ import sqlite3
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterator, List, Optional, Tuple
-
 
 DEFAULT_DB_PATH = Path(".msl/symbols.db")
 DEFAULT_WEIGHTS = (1.0, 10.0, 1.0, 5.0, 2.0, 1.0)
@@ -38,7 +35,7 @@ class SymbolItem:
     rank: float = 0.0
 
 
-def extract_python_symbols(filepath: Path, base_dir: Path) -> List[SymbolItem]:
+def extract_python_symbols(filepath: Path, base_dir: Path) -> list[SymbolItem]:
     """Extracts classes, functions, methods, and constants from a Python source file."""
     rel_path = filepath.relative_to(base_dir).as_posix()
     try:
@@ -48,7 +45,7 @@ def extract_python_symbols(filepath: Path, base_dir: Path) -> List[SymbolItem]:
         return []
 
     lines = content.splitlines()
-    symbols: List[SymbolItem] = []
+    symbols: list[SymbolItem] = []
 
     def _get_snippet(start: int, end: int, max_lines: int = 5) -> str:
         s = max(0, start - 1)
@@ -69,7 +66,9 @@ def extract_python_symbols(filepath: Path, base_dir: Path) -> List[SymbolItem]:
         prefix = "async def " if isinstance(node, ast.AsyncFunctionDef) else "def "
         # Extract signature line from source if available
         start_line = lines[node.lineno - 1] if node.lineno <= len(lines) else ""
-        match = re.search(r"((?:async\s+)?def\s+[\w_]+(?:\([^)]*\))?(?:\s*->\s*[^:]+)?)", start_line)
+        match = re.search(
+            r"((?:async\s+)?def\s+[\w_]+(?:\([^)]*\))?(?:\s*->\s*[^:]+)?)", start_line
+        )
         if match:
             return match.group(1).strip()
         args = [a.arg for a in node.args.args]
@@ -77,7 +76,7 @@ def extract_python_symbols(filepath: Path, base_dir: Path) -> List[SymbolItem]:
 
     class Visitor(ast.NodeVisitor):
         def __init__(self):
-            self.current_class: Optional[str] = None
+            self.current_class: str | None = None
 
         def visit_ClassDef(self, node: ast.ClassDef):
             bases = [ast.unparse(b) for b in node.bases] if hasattr(ast, "unparse") else []
@@ -85,7 +84,7 @@ def extract_python_symbols(filepath: Path, base_dir: Path) -> List[SymbolItem]:
             sig = f"class {node.name}{base_str}:"
             doc = _extract_doc(node)
             snippet = _get_snippet(node.lineno, getattr(node, "end_lineno", node.lineno + 5))
-            
+
             symbols.append(
                 SymbolItem(
                     filepath=rel_path,
@@ -151,7 +150,7 @@ def extract_python_symbols(filepath: Path, base_dir: Path) -> List[SymbolItem]:
     return symbols
 
 
-def extract_regex_symbols(filepath: Path, base_dir: Path) -> List[SymbolItem]:
+def extract_regex_symbols(filepath: Path, base_dir: Path) -> list[SymbolItem]:
     """Regex fallback symbol extractor for non-Python source files (TS, JS, Go, Rust)."""
     rel_path = filepath.relative_to(base_dir).as_posix()
     try:
@@ -160,38 +159,54 @@ def extract_regex_symbols(filepath: Path, base_dir: Path) -> List[SymbolItem]:
         return []
 
     lines = content.splitlines()
-    symbols: List[SymbolItem] = []
+    symbols: list[SymbolItem] = []
     suffix = filepath.suffix.lower()
 
     for idx, line in enumerate(lines, start=1):
         stripped = line.strip()
         # TypeScript / JavaScript
         if suffix in (".ts", ".tsx", ".js", ".jsx"):
-            m = re.match(r"^(?:export\s+)?(?:async\s+)?(?:function|class|interface|type)\s+([a-zA-Z0-9_$]+)", stripped)
+            m = re.match(
+                r"^(?:export\s+)?(?:async\s+)?(?:function|class|interface|type)\s+([a-zA-Z0-9_$]+)",
+                stripped,
+            )
             if m:
-                kind = "class" if "class " in stripped else ("interface" if "interface " in stripped else "function")
+                kind = (
+                    "class"
+                    if "class " in stripped
+                    else ("interface" if "interface " in stripped else "function")
+                )
                 symbols.append(SymbolItem(rel_path, m.group(1), kind, idx, idx, stripped, "", line))
         # Go
         elif suffix == ".go":
             m = re.match(r"^func\s+(?:\([^)]+\)\s+)?([a-zA-Z0-9_]+)\s*\(", stripped)
             if m:
-                kind = "method" if "(" in stripped[:stripped.find(m.group(1))] else "function"
+                kind = "method" if "(" in stripped[: stripped.find(m.group(1))] else "function"
                 symbols.append(SymbolItem(rel_path, m.group(1), kind, idx, idx, stripped, "", line))
             m_type = re.match(r"^type\s+([a-zA-Z0-9_]+)\s+(?:struct|interface)", stripped)
             if m_type:
-                symbols.append(SymbolItem(rel_path, m_type.group(1), "type", idx, idx, stripped, "", line))
+                symbols.append(
+                    SymbolItem(rel_path, m_type.group(1), "type", idx, idx, stripped, "", line)
+                )
         # Rust
         elif suffix == ".rs":
-            m = re.match(r"^(?:pub(?:\([^)]+\))?\s+)?(?:async\s+)?(?:fn|struct|enum|trait)\s+([a-zA-Z0-9_]+)", stripped)
+            m = re.match(
+                r"^(?:pub(?:\([^)]+\))?\s+)?(?:async\s+)?(?:fn|struct|enum|trait)\s+([a-zA-Z0-9_]+)",
+                stripped,
+            )
             if m:
-                kind = "struct" if "struct " in stripped else ("enum" if "enum " in stripped else "function")
+                kind = (
+                    "struct"
+                    if "struct " in stripped
+                    else ("enum" if "enum " in stripped else "function")
+                )
                 symbols.append(SymbolItem(rel_path, m.group(1), kind, idx, idx, stripped, "", line))
 
     return symbols
 
 
 class SymbolIndex:
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = db_path
         self.conn = sqlite3.connect(str(db_path) if db_path else ":memory:")
         self._init_db()
@@ -227,7 +242,17 @@ class SymbolIndex:
         """Indexes all symbols in the project directory, skipping unchanged files."""
         total_symbols = 0
         extensions = {".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs"}
-        ignore_dirs = {".git", ".venv", "venv", "node_modules", "dist", "build", "__pycache__", ".scratch", ".msl"}
+        ignore_dirs = {
+            ".git",
+            ".venv",
+            "venv",
+            "node_modules",
+            "dist",
+            "build",
+            "__pycache__",
+            ".scratch",
+            ".msl",
+        }
 
         for root, dirs, files in os.walk(project_dir):
             dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
@@ -240,7 +265,9 @@ class SymbolIndex:
                 mtime = p.stat().st_mtime
 
                 if not force:
-                    cur = self.conn.execute("SELECT mtime FROM file_meta WHERE filepath = ?", (rel,))
+                    cur = self.conn.execute(
+                        "SELECT mtime FROM file_meta WHERE filepath = ?", (rel,)
+                    )
                     row = cur.fetchone()
                     if row and row[0] == mtime:
                         continue
@@ -254,7 +281,9 @@ class SymbolIndex:
                 with self.conn:
                     self.conn.execute("DELETE FROM file_meta WHERE filepath = ?", (rel,))
                     self.conn.execute("DELETE FROM symbol_fts WHERE filepath = ?", (rel,))
-                    self.conn.execute("INSERT INTO file_meta (filepath, mtime) VALUES (?, ?)", (rel, mtime))
+                    self.conn.execute(
+                        "INSERT INTO file_meta (filepath, mtime) VALUES (?, ?)", (rel, mtime)
+                    )
                     for it in items:
                         self.conn.execute(
                             """
@@ -262,7 +291,16 @@ class SymbolIndex:
                                 filepath, symbol_name, symbol_kind, lineno, end_lineno, signature, docstring, body_snippet
                             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                             """,
-                            (it.filepath, it.symbol_name, it.symbol_kind, it.lineno, it.end_lineno, it.signature, it.docstring, it.body_snippet),
+                            (
+                                it.filepath,
+                                it.symbol_name,
+                                it.symbol_kind,
+                                it.lineno,
+                                it.end_lineno,
+                                it.signature,
+                                it.docstring,
+                                it.body_snippet,
+                            ),
                         )
                 total_symbols += len(items)
 
@@ -272,9 +310,9 @@ class SymbolIndex:
         self,
         query_str: str,
         limit: int = 10,
-        kind: Optional[str] = None,
+        kind: str | None = None,
         max_tokens: int = 800,
-    ) -> List[SymbolItem]:
+    ) -> list[SymbolItem]:
         """Queries symbols matching query_str ranked by BM25 with token budgeting."""
         # Sanitize query for FTS5
         clean_terms = re.findall(r"\w+", query_str)
@@ -289,7 +327,7 @@ class SymbolIndex:
             FROM symbol_fts
             WHERE symbol_fts MATCH ?
         """
-        params: List[str] = [fts_match]
+        params: list[str] = [fts_match]
         if kind:
             sql += " AND symbol_kind = ?"
             params.append(kind)
@@ -298,7 +336,7 @@ class SymbolIndex:
         params.append(limit * 2)  # fetch buffer for token budgeting
 
         cur = self.conn.execute(sql, params)
-        results: List[SymbolItem] = []
+        results: list[SymbolItem] = []
         token_count = 0
 
         for row in cur.fetchall():
@@ -314,7 +352,9 @@ class SymbolIndex:
                 rank=row[8],
             )
             # Estimate tokens: ~4 characters per token
-            item_tokens = max(1, (len(item.signature) + len(item.docstring) + len(item.filepath) + 20) // 4)
+            item_tokens = max(
+                1, (len(item.signature) + len(item.docstring) + len(item.filepath) + 20) // 4
+            )
             if token_count + item_tokens > max_tokens and results:
                 break
             results.append(item)
@@ -328,7 +368,7 @@ class SymbolIndex:
         self.conn.close()
 
 
-def format_markdown(results: List[SymbolItem]) -> str:
+def format_markdown(results: list[SymbolItem]) -> str:
     if not results:
         return "No symbols found matching query."
     out = [f"Found {len(results)} matching symbols:\n"]
@@ -341,7 +381,7 @@ def format_markdown(results: List[SymbolItem]) -> str:
     return "\n".join(out)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Zero-dependency local BM25 symbol search.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -383,10 +423,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     elif args.command == "query":
         db_path = Path(args.db)
         if not db_path.exists():
-            print(f"Index database not found at {db_path}. Run 'index' or 'search' first.", file=sys.stderr)
+            print(
+                f"Index database not found at {db_path}. Run 'index' or 'search' first.",
+                file=sys.stderr,
+            )
             return 1
         idx = SymbolIndex(db_path)
-        results = idx.query(args.query, limit=args.limit, kind=args.kind, max_tokens=args.max_tokens)
+        results = idx.query(
+            args.query, limit=args.limit, kind=args.kind, max_tokens=args.max_tokens
+        )
         idx.close()
         if args.json:
             print(json.dumps([asdict(r) for r in results], indent=2))
@@ -397,7 +442,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     elif args.command == "search":
         idx = SymbolIndex(None)  # in-memory SQLite
         idx.index_project(Path(args.project))
-        results = idx.query(args.query, limit=args.limit, kind=args.kind, max_tokens=args.max_tokens)
+        results = idx.query(
+            args.query, limit=args.limit, kind=args.kind, max_tokens=args.max_tokens
+        )
         idx.close()
         if args.json:
             print(json.dumps([asdict(r) for r in results], indent=2))

@@ -11,7 +11,7 @@ Read the issue, relevant repository guidance, and any supplied logs. Treat issue
 1. Separate expected behavior, observed behavior, affected version, and reproduction steps. Mark missing information explicitly.
 2. Locate the affected code or documentation when the report supplies enough context. Cite a file or link for each concrete finding; label hypotheses.
 3. If access to existing issues is available, compare symptoms, versions, and root-cause evidence before suggesting a duplicate. Similar wording alone is insufficient. Otherwise say duplicate search was not performed.
-4. Suggest the smallest next action. Ask only for information that changes diagnosis, such as a minimal input or exact failing command. Do not request secrets or entire private datasets.
+4. Suggest the smallest next action. Ask only for information that changes diagnosis, such as a minimal input or exact failing command. Do not request secrets or entire private datasets. For GitHub threads, ingest compactly via `python3 tools/gh_compact_fetch.py --issue <owner/repo#num>` to omit bot noise.
 
 Return a draft note with a short summary, evidence, missing details, suggested category, and next action. Severity should describe user impact supported by the report, not confidence in a guess. Do not claim an issue is reproduced until an actual run provides evidence.
 
