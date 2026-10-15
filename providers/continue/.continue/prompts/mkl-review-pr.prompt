@@ -26,7 +26,7 @@ revision, environment, command, and declared outputs. A clean static scan or a
 matching run is evidence for that scope, not proof of scientific validity or
 cross-platform equivalence.
 
-For each actionable finding, give a short title, file and line, triggering conditions, user-visible consequence, and supporting evidence. Label uncertainty. Keep optional refactors or style preferences separate, and follow established project conventions rather than introducing personal ones.
+For each actionable finding, give a short title, file and line, triggering conditions, user-visible consequence, and supporting evidence. Label uncertainty. Keep optional refactors or style preferences separate, and follow established project conventions rather than introducing personal ones. For repetitive codebase-wide refactorings (such as API updates or deprecation cleanups), verify or suggest declarative patterns using `python3 tools/structural_refactor.py --pattern <pat> --rewrite <rew> --dry-run` to avoid full-file regeneration churn.
 
 Do not manufacture findings to fill a quota. If no actionable defect is found, say so and state the validation limits. Do not approve or merge the PR, post comments, or modify the patch unless those actions are part of the user's request.
 
