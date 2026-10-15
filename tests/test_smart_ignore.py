@@ -38,6 +38,8 @@ class SmartIgnoreTests(unittest.TestCase):
             "encoder.onnx",
             "data.parquet",
             "cache.sqlite",
+            ".scratch/temp.log",
+            ".msl/scratch/session.md",
         )
         for path in cases:
             with self.subTest(path=path):

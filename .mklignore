@@ -25,3 +25,7 @@ build/**
 *.onnx
 *.parquet
 *.sqlite
+
+# Ephemeral scratchpad
+.scratch/**
+.msl/scratch/**
