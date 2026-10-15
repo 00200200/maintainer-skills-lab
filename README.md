@@ -100,6 +100,9 @@ python3 tools/patch_applier.py apply --file <file> --patch <patch>
 # Zero-dependency local BM25 symbol search
 python3 tools/local_symbol_search.py search "<query>" --project .
 
+# Dynamic token budget allocator
+python3 tools/budget_allocator.py --model claude-3-7-sonnet --used-tokens 85000
+
 # Run tests
 python3 -m unittest discover -s tests -v
 ```
