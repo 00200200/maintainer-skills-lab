@@ -91,6 +91,9 @@ Your support helps us build more tools for the open-source community.
 # Sync generated skill files
 python3 tools/kit.py sync
 
+# Profile token consumption across skills and agent profiles
+python3 tools/kit.py tokens
+
 # Run tests
 python3 -m unittest discover -s tests -v
 ```
