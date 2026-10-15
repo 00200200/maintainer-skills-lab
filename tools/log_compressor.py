@@ -34,11 +34,126 @@ ERROR_PATTERNS = [
 ]
 
 
+RE_PY_TRACEBACK_LINE = re.compile(r'File\s+"([^"]+)",\s+line\s+(\d+)(?:,\s+in\s+([^\n]+))?')
+RE_PY_EXC_LINE = re.compile(
+    r"^([A-Z][a-zA-Z0-9_.]*(?:Error|Exception|Warning|Interrupt|Exit|Fault|Violation))(?::\s*(.*))?$",
+    re.MULTILINE,
+)
+RE_PYTEST_FAILED = re.compile(
+    r"FAILED\s+([^:]+)::([^\s]+)\s*-\s*([A-Za-z0-9_.]+(?:Error|Exception)?)(?::\s*(.*))?"
+)
+RE_PYTEST_SHORT = re.compile(
+    r"^([^\n:]+):(\d+):\s*([A-Za-z0-9_.]+(?:Error|Exception)?(?::\s*.*)?)$",
+    re.MULTILINE,
+)
+RE_RUST_ERROR = re.compile(
+    r"error\[(E\d+)\]:\s*([^\n]+).*?-->\s*([^:\n]+):(\d+)",
+    re.DOTALL,
+)
+
+
 def approximate_tokens(text: str) -> int:
     """Standard ~4 chars per token heuristic used across maintainer-skills-lab."""
     if not text:
         return 0
     return max(1, (len(text) + 3) // 4)
+
+
+def extract_error_signature(text: str) -> str | None:
+    """Extract a normalized error signature (exception, message, file:line) from terminal logs."""
+    if not text or not text.strip():
+        return None
+
+    # 1. Rust error
+    rust_match = RE_RUST_ERROR.search(text)
+    if rust_match:
+        code, msg, filepath, lineno = rust_match.groups()
+        filename = Path(filepath).name
+        return f"error[{code}]: {msg.strip()} at {filename}:{lineno}"
+
+    # 2. Pytest FAILED line
+    pytest_match = RE_PYTEST_FAILED.search(text)
+    if pytest_match:
+        testfile, testfn, exc, msg = pytest_match.groups()
+        filename = Path(testfile).name
+        msg_str = f": {msg.strip()}" if msg else ""
+        return f"{exc}{msg_str} at {filename}::{testfn}"
+
+    # 3. Python traceback
+    tb_lines = list(RE_PY_TRACEBACK_LINE.finditer(text))
+    if tb_lines:
+        last_tb = tb_lines[-1]
+        filepath = last_tb.group(1)
+        lineno = last_tb.group(2)
+        filename = Path(filepath).name
+
+        tail_text = text[last_tb.end() :]
+        exc_match = RE_PY_EXC_LINE.search(tail_text)
+        if exc_match:
+            exc_type = exc_match.group(1)
+            exc_msg = (exc_match.group(2) or "").strip()
+            clean_msg = exc_msg.strip("'\"")
+            msg_str = f'("{clean_msg}")' if clean_msg else ""
+            return f"{exc_type}{msg_str} at {filename}:{lineno}"
+        return f"Traceback at {filename}:{lineno}"
+
+    # 4. Pytest short file:line: Error
+    pytest_short = RE_PYTEST_SHORT.search(text)
+    if pytest_short:
+        filepath, lineno, err = pytest_short.groups()
+        filename = Path(filepath).name
+        return f"{err.strip()} at {filename}:{lineno}"
+
+    # 5. Direct exception line anywhere in text
+    exc_direct = RE_PY_EXC_LINE.search(text)
+    if exc_direct:
+        exc_type = exc_direct.group(1)
+        exc_msg = (exc_direct.group(2) or "").strip()
+        clean_msg = exc_msg.strip("'\"")
+        msg_str = f'("{clean_msg}")' if clean_msg else ""
+        return f"{exc_type}{msg_str}"
+
+    return None
+
+
+def mask_repeated_observation(
+    current: str,
+    previous: str | None = None,
+    turn: int | None = None,
+) -> tuple[str, bool]:
+    """
+    Mask repeated terminal test failure observations if the error signature is identical.
+
+    Returns:
+        tuple[text, is_masked]
+        where text is either the compact masked summary (if identical) or the current text (if new).
+    """
+    if not previous or not previous.strip():
+        return current, False
+
+    sig_curr = extract_error_signature(current)
+    sig_prev = extract_error_signature(previous)
+
+    is_identical = False
+    signature_desc = ""
+    if sig_curr and sig_prev and sig_curr == sig_prev:
+        is_identical = True
+        signature_desc = sig_curr
+    elif current.strip() == previous.strip() and sig_curr:
+        is_identical = True
+        signature_desc = sig_curr
+
+    if is_identical:
+        curr_tokens = approximate_tokens(current)
+        turn_str = f"Turn {turn}" if turn is not None else "preceding turn"
+        saved = max(0, curr_tokens - 30)
+        masked_msg = (
+            f"[Test failed with IDENTICAL signature as {turn_str}: {signature_desc}. "
+            f"Traceback omitted (saved ~{saved} tokens).]"
+        )
+        return masked_msg, True
+
+    return current, False
 
 
 def find_error_anchor_indices(lines: list[str]) -> list[int]:
@@ -207,6 +322,19 @@ def main(argv: list[str] | None = None) -> int:
         help="Output structured JSON containing compressed text and compression metrics",
     )
     parser.add_argument(
+        "--mask-previous",
+        "-m",
+        dest="mask_previous",
+        type=Path,
+        help="Path to previous turn's log file for observation masking deduplication",
+    )
+    parser.add_argument(
+        "--turn",
+        type=int,
+        default=None,
+        help="Current or reference turn number (for observation masking annotation)",
+    )
+    parser.add_argument(
         "--stats",
         action="store_true",
         help="Print compression statistics to stderr",
@@ -227,6 +355,26 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help(file=sys.stderr)
         return 1
 
+    # Check for observation masking if previous log provided
+    if args.mask_previous:
+        if not args.mask_previous.is_file():
+            print(f"Error: previous log file not found: {args.mask_previous}", file=sys.stderr)
+            return 1
+        prev_text = args.mask_previous.read_text(encoding="utf-8", errors="replace")
+        masked_text, is_masked = mask_repeated_observation(raw_text, prev_text, turn=args.turn)
+        if is_masked:
+            if args.json:
+                payload = {
+                    "compressed": masked_text,
+                    "masked": True,
+                    "signature": extract_error_signature(raw_text),
+                    "saved_tokens": approximate_tokens(raw_text) - approximate_tokens(masked_text),
+                }
+                print(json.dumps(payload, indent=2))
+            else:
+                print(masked_text)
+            return 0
+
     compressed, stats = compress_log(
         raw_text,
         max_lines=args.max_lines,
@@ -236,6 +384,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         payload = {
             "compressed": compressed,
+            "masked": False,
+            "signature": extract_error_signature(raw_text),
             "stats": stats,
         }
         print(json.dumps(payload, indent=2))

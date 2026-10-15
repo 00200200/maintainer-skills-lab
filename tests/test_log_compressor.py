@@ -125,6 +125,93 @@ class LogCompressorUnitTests(unittest.TestCase):
                 self.assertIn("stats", parsed)
                 self.assertIn("AssertionError: boom", parsed["compressed"])
 
+    def test_extract_error_signature_python_traceback(self):
+        tb = (
+            "Traceback (most recent call last):\n"
+            '  File "/path/to/slug.py", line 24, in make_slug\n'
+            '    raise ValueError("bad slug")\n'
+            "ValueError: bad slug\n"
+        )
+        sig = log_compressor.extract_error_signature(tb)
+        self.assertEqual(sig, 'ValueError("bad slug") at slug.py:24')
+
+    def test_extract_error_signature_pytest_failed(self):
+        pytest_log = "FAILED tests/test_api.py::test_login - AssertionError: assert 401 == 200\n"
+        sig = log_compressor.extract_error_signature(pytest_log)
+        self.assertEqual(sig, "AssertionError: assert 401 == 200 at test_api.py::test_login")
+
+    def test_extract_error_signature_rust(self):
+        rust_log = "error[E0308]: mismatched types\n  --> src/main.rs:42:5\n   |\n42 |     x + y\n"
+        sig = log_compressor.extract_error_signature(rust_log)
+        self.assertEqual(sig, "error[E0308]: mismatched types at main.rs:42")
+
+    def test_extract_error_signature_empty_or_passing(self):
+        self.assertIsNone(log_compressor.extract_error_signature(""))
+        self.assertIsNone(log_compressor.extract_error_signature("all 50 tests passed in 0.2s\n"))
+
+    def test_mask_repeated_observation_identical(self):
+        tb_turn_1 = (
+            "Running suite...\n"
+            "Traceback (most recent call last):\n"
+            '  File "slug.py", line 24, in make_slug\n'
+            '    raise ValueError("bad slug")\n'
+            "ValueError: bad slug\n" + ("extra trace info\n" * 50)
+        )
+        tb_turn_2 = (
+            "Running suite turn 2...\n"
+            "Traceback (most recent call last):\n"
+            '  File "slug.py", line 24, in make_slug\n'
+            '    raise ValueError("bad slug")\n'
+            "ValueError: bad slug\n" + ("extra trace info\n" * 50)
+        )
+
+        masked, is_masked = log_compressor.mask_repeated_observation(tb_turn_2, tb_turn_1, turn=3)
+        self.assertTrue(is_masked)
+        self.assertIn("[Test failed with IDENTICAL signature as Turn 3:", masked)
+        self.assertIn('ValueError("bad slug") at slug.py:24', masked)
+        self.assertIn("Traceback omitted", masked)
+        self.assertLess(len(masked), len(tb_turn_2) // 2)
+
+    def test_mask_repeated_observation_changed_error(self):
+        tb_turn_1 = (
+            "Traceback (most recent call last):\n"
+            '  File "slug.py", line 24, in make_slug\n'
+            "ValueError: bad slug\n"
+        )
+        tb_turn_2 = (
+            "Traceback (most recent call last):\n"
+            '  File "slug.py", line 48, in make_slug\n'
+            "IndexError: list index out of range\n"
+        )
+
+        result, is_masked = log_compressor.mask_repeated_observation(tb_turn_2, tb_turn_1)
+        self.assertFalse(is_masked)
+        self.assertEqual(result, tb_turn_2)
+
+    def test_cli_mask_previous(self):
+        with (
+            tempfile.NamedTemporaryFile("w+", encoding="utf-8") as f_prev,
+            tempfile.NamedTemporaryFile("w+", encoding="utf-8") as f_curr,
+        ):
+            tb = (
+                "Traceback (most recent call last):\n"
+                '  File "worker.py", line 12, in do_work\n'
+                'KeyError: "task_id"\n' + ("noisy debug lines\n" * 30)
+            )
+            f_prev.write(tb)
+            f_prev.flush()
+            f_curr.write(tb)
+            f_curr.flush()
+
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                code = log_compressor.main(
+                    [f_curr.name, "--mask-previous", f_prev.name, "--turn", "2"]
+                )
+                self.assertEqual(code, 0)
+                out = mock_out.getvalue()
+                self.assertIn("IDENTICAL signature as Turn 2", out)
+                self.assertIn('KeyError("task_id") at worker.py:12', out)
+
 
 if __name__ == "__main__":
     unittest.main()
