@@ -41,18 +41,14 @@ when they clarify a decision or show an important edge case. Preserve facts,
 technical terms, safety constraints, and useful failure cases when shortening.
 
 Compare the canonical source and affected generated files before and after a
-change. Use the target model's tokenizer when you need an exact token count. For
-a quick, rough comparison, count about one token per four characters:
+change. Use the built-in token profiler to audit token consumption:
 
 ```sh
-python3 -c "from pathlib import Path; p = Path('skills/mkl-example/SKILL.md'); print((len(p.read_text(encoding='utf-8')) + 3) // 4)"
+python3 tools/kit.py tokens
 ```
 
-Replace the path with the file you want to measure. This estimate is roughly one
-token per four characters; report it as an estimate, not a measured model-token
-count. `kit.py tokens` is not currently a command. When proposing an
-optimization, include the before/after counts, the files measured, and the
-client/tokenizer or estimation method.
+This profiles description overhead and body token counts across all skills and agent profiles.
+When proposing an optimization, include the before/after token counts and target provider files measured.
 
 Browse [open help-wanted issues](https://github.com/00200200/maintainer-skills-lab/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
 or [good first issues](https://github.com/00200200/maintainer-skills-lab/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
