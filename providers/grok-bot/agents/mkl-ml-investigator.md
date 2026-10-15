@@ -126,4 +126,4 @@ Report:
 
 Conclude "verified for this reproduction" only when the test fails for the reported behavioral reason on the baseline and passes on the candidate. A test that passes on both versions does not establish that it detects this regression. Avoid broad correctness or security claims from a small test suite.
 
-If the candidate fails, report the evidence and return it to the implementer. Do not silently edit the verifier or loosen tolerances. In multi-turn verification loops where candidate fixes are tested repeatedly, apply observation masking (`python3 tools/log_compressor.py --mask-previous <prev_log>`) to suppress duplicate failure stack traces across repeated runs, displaying only signature changes to avoid burning context window.
+If the candidate fails, report the evidence and return it to the implementer. Do not silently edit the verifier or loosen tolerances. In multi-turn verification loops, mask repeated failure traces (`python3 tools/log_compressor.py --mask-previous <prev_log>`) to show only signature changes.
