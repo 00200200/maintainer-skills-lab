@@ -1091,6 +1091,188 @@ def build(target: str, output: Path, root: Path = ROOT, *, minify: bool = False)
     return archive
 
 
+def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
+    """Calculate token count using tiktoken if installed, or approximate_tokens."""
+    if not text:
+        return 0
+    try:
+        import tiktoken
+
+        return len(tiktoken.get_encoding(encoding).encode(text))
+    except Exception:
+        return approximate_tokens(text)
+
+
+def profile_tokens(
+    target: str = "all",
+    *,
+    root: Path = ROOT,
+    encoding: str = "cl100k_base",
+    threshold_tokens: int = 800,
+    threshold_desc_tokens: int = 60,
+    sort_by: str = "desc-tokens",
+) -> dict:
+    skills, agents = load_library(root)
+
+    tiktoken_active = False
+    try:
+        import tiktoken
+
+        tiktoken.get_encoding(encoding)
+        tiktoken_active = True
+    except Exception:
+        pass
+
+    skills_data = []
+    total_skills_tokens = 0
+    total_desc_tokens = 0
+
+    for name, skill in skills.items():
+        desc = skill.get("description", "")
+        desc_tok = count_tokens(desc, encoding=encoding)
+        desc_chars = len(desc)
+
+        file_tokens = 0
+        body_tokens = 0
+        for fname, fbytes in skill["files"].items():
+            ftext = fbytes.decode("utf-8", errors="replace")
+            tok = count_tokens(ftext, encoding=encoding)
+            file_tokens += tok
+            if fname == "SKILL.md":
+                body_tokens = tok
+
+        total_tokens = file_tokens
+        total_skills_tokens += total_tokens
+        total_desc_tokens += desc_tok
+
+        warnings = []
+        if total_tokens > threshold_tokens:
+            warnings.append(f"body > {threshold_tokens} tokens")
+        if desc_tok > threshold_desc_tokens:
+            warnings.append(f"desc > {threshold_desc_tokens} tokens")
+
+        skills_data.append(
+            {
+                "name": name,
+                "tokens": total_tokens,
+                "body_tokens": body_tokens,
+                "desc_tokens": desc_tok,
+                "desc_characters": desc_chars,
+                "warnings": warnings,
+            }
+        )
+
+    if sort_by == "desc-tokens":
+        skills_data.sort(key=lambda s: s["desc_tokens"], reverse=True)
+    elif sort_by == "tokens":
+        skills_data.sort(key=lambda s: s["tokens"], reverse=True)
+    elif sort_by == "name":
+        skills_data.sort(key=lambda s: s["name"])
+
+    # Agent profiling
+    agents_data = []
+    for name, agent in agents.items():
+        instructions = agent.get("instructions", "")
+        inst_tokens = count_tokens(instructions, encoding=encoding)
+        referenced_skills = agent.get("skills", [])
+        ref_tokens = sum(
+            next((s["tokens"] for s in skills_data if s["name"] == rname), 0)
+            for rname in referenced_skills
+        )
+        agents_data.append(
+            {
+                "name": name,
+                "instructions_tokens": inst_tokens,
+                "referenced_skills_count": len(referenced_skills),
+                "referenced_skills_tokens": ref_tokens,
+                "total_tokens": inst_tokens + ref_tokens,
+            }
+        )
+    agents_data.sort(key=lambda a: a["total_tokens"], reverse=True)
+
+    # Baseline names floor vs full descriptions ceiling
+    names_concat = ", ".join(skills.keys())
+    names_only_tokens = count_tokens(names_concat, encoding=encoding)
+
+    # Target export bundles
+    targets_data = {}
+    selected_targets = EXPORT_TARGETS if target == "all" else [target]
+    for tgt in selected_targets:
+        tfiles = export_files(tgt, root)
+        tgt_tokens = sum(
+            count_tokens(data.decode("utf-8", errors="replace"), encoding=encoding)
+            for data in tfiles.values()
+        )
+        targets_data[tgt] = {
+            "files": len(tfiles),
+            "total_tokens": tgt_tokens,
+        }
+
+    return {
+        "encoding": encoding if tiktoken_active else f"{encoding} (heuristic ~4 chars/tok)",
+        "skills": skills_data,
+        "agents": agents_data,
+        "targets": targets_data,
+        "summary": {
+            "skills_count": len(skills),
+            "agents_count": len(agents),
+            "names_only_floor_tokens": names_only_tokens,
+            "descriptions_ceiling_tokens": total_desc_tokens,
+            "skills_total_tokens": total_skills_tokens,
+        },
+    }
+
+
+def format_tokens_table(profile: dict) -> str:
+    lines = []
+    lines.append(f"Maintainer Skills Lab — Token Profiler [{profile['encoding']}]")
+    lines.append("")
+    lines.append("Skills (ordered by actionable description token cost):")
+    lines.append("-" * 78)
+    lines.append(
+        f"{'Skill Name':<32} {'Tokens':>8} {'Body':>8} {'Desc Tok':>9} {'Chars':>6}  Status"
+    )
+    lines.append("-" * 78)
+    for s in profile["skills"]:
+        warn_str = "⚠️  " + ", ".join(s["warnings"]) if s["warnings"] else "✅ OK"
+        lines.append(
+            f"{s['name']:<32} {s['tokens']:>8} {s['body_tokens']:>8} {s['desc_tokens']:>9} {s['desc_characters']:>6}  {warn_str}"
+        )
+    lines.append("-" * 78)
+    sm = profile["summary"]
+    lines.append(
+        f"Floor Context (names only): {sm['names_only_floor_tokens']} tok | "
+        f"Descriptions overhead: {sm['descriptions_ceiling_tokens']} tok | "
+        f"Full library: {sm['skills_total_tokens']} tok"
+    )
+    lines.append("")
+
+    if profile["agents"]:
+        lines.append("Agent Profiles:")
+        lines.append("-" * 68)
+        lines.append(f"{'Agent':<24} {'Instructions':>14} {'Skills (count)':>14} {'Total Tok':>12}")
+        lines.append("-" * 68)
+        for a in profile["agents"]:
+            sk_info = f"{a['referenced_skills_tokens']} ({a['referenced_skills_count']})"
+            lines.append(
+                f"{a['name']:<24} {a['instructions_tokens']:>14} {sk_info:>14} {a['total_tokens']:>12}"
+            )
+        lines.append("-" * 68)
+        lines.append("")
+
+    if profile["targets"]:
+        lines.append("Target Export Bundles:")
+        lines.append("-" * 46)
+        lines.append(f"{'Target Provider':<22} {'Files':>8} {'Tokens':>12}")
+        lines.append("-" * 46)
+        for tgt, data in profile["targets"].items():
+            label = PROVIDER_LABELS.get(tgt, tgt)
+            lines.append(f"{label:<22} {data['files']:>8} {data['total_tokens']:>12}")
+        lines.append("-" * 46)
+
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -1112,6 +1294,34 @@ def main(argv: list[str] | None = None) -> int:
         "--minify",
         action="store_true",
         help="Minify exported markdown (whitespace, tables, HTML comments)",
+    )
+    tokens_parser = commands.add_parser(
+        "tokens", help="Benchmark skill and agent context token consumption"
+    )
+    tokens_parser.add_argument("--json", action="store_true", help="Output structured JSON")
+    tokens_parser.add_argument(
+        "--target",
+        choices=[*EXPORT_TARGETS, "roo", "roomodes", "all"],
+        default="all",
+        help="Filter token profile by target client export",
+    )
+    tokens_parser.add_argument(
+        "--sort-by",
+        choices=["tokens", "desc-tokens", "name"],
+        default="desc-tokens",
+        help="Sort skills by total tokens, description tokens, or name (default: desc-tokens)",
+    )
+    tokens_parser.add_argument(
+        "--threshold-tokens",
+        type=int,
+        default=800,
+        help="Warning threshold for skill total tokens (default: 800)",
+    )
+    tokens_parser.add_argument(
+        "--threshold-desc-tokens",
+        type=int,
+        default=60,
+        help="Warning threshold for description tokens (default: 60)",
     )
     for action in ("install", "uninstall"):
         action_parser = commands.add_parser(action, help=f"{action.title()} in one project")
@@ -1177,6 +1387,17 @@ def main(argv: list[str] | None = None) -> int:
                     indent=2,
                 )
             )
+        elif args.command == "tokens":
+            profile = profile_tokens(
+                target=args.target,
+                threshold_tokens=args.threshold_tokens,
+                threshold_desc_tokens=args.threshold_desc_tokens,
+                sort_by=args.sort_by,
+            )
+            if args.json:
+                print(json.dumps(profile, indent=2))
+            else:
+                print(format_tokens_table(profile))
         elif args.command == "install":
             print(
                 json.dumps(
