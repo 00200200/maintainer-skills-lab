@@ -94,6 +94,9 @@ python3 tools/kit.py sync
 # Profile token consumption across skills and agent profiles
 python3 tools/kit.py tokens
 
+# Resilient search/replace patch applicator
+python3 tools/patch_applier.py apply --file <file> --patch <patch>
+
 # Run tests
 python3 -m unittest discover -s tests -v
 ```
