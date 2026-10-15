@@ -9,7 +9,7 @@
     {
       "name": "maintainer-skills-lab",
       "source": "./providers/claude/.claude",
-      "description": "All 28 maintainer skills and 6 agent profiles: humanize and localize prose, triage, reproduce and verify bugs, review PRs, debug ML training, profile performance, bisect regressions, audit CVEs, generate changelogs, evaluate SemVer version bumps, isolate scratchpads, fix type errors, isolate faults, conduct adversarial reviews, route architect-editor edits, generate conventional commits, and prepare releases.",
+      "description": "All 29 maintainer skills and 6 agent profiles: humanize and localize prose, triage, reproduce and verify bugs, review PRs, debug ML training, profile performance, bisect regressions, audit CVEs, generate changelogs, evaluate SemVer version bumps, isolate scratchpads, fix type errors, isolate faults, conduct adversarial reviews, route architect-editor edits, generate conventional commits, resolve merge conflicts, and prepare releases.",
       "homepage": "https://github.com/00200200/maintainer-skills-lab",
       "repository": "https://github.com/00200200/maintainer-skills-lab",
       "license": "MIT",
