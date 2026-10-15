@@ -6,7 +6,6 @@ import json
 import unittest
 
 from tools.gh_compact_fetch import (
-    clean_body_text,
     format_markdown,
     is_bot_user,
     parse_target,
@@ -83,12 +82,7 @@ class TestTextCompaction(unittest.TestCase):
 
     def test_strip_blockquotes_outside_code_blocks(self) -> None:
         text = (
-            "> Some email quote\n"
-            "Actual content\n"
-            "```python\n"
-            "# code block\n"
-            "> not a blockquote\n"
-            "```"
+            "> Some email quote\nActual content\n```python\n# code block\n> not a blockquote\n```"
         )
         cleaned = strip_quoted_replies(text)
         self.assertNotIn("Some email quote", cleaned)
@@ -96,21 +90,14 @@ class TestTextCompaction(unittest.TestCase):
         self.assertIn("> not a blockquote", cleaned)
 
     def test_strip_signatures(self) -> None:
-        text = (
-            "Thanks for reviewing!\n\n"
-            "Sent from my iPhone\n"
-        )
+        text = "Thanks for reviewing!\n\nSent from my iPhone\n"
         cleaned = strip_signatures(text)
         self.assertIn("Thanks for reviewing!", cleaned)
         self.assertNotIn("Sent from my iPhone", cleaned)
 
     def test_strip_dash_delimiter_signature(self) -> None:
         text = (
-            "Here is the log output.\n"
-            "-- \n"
-            "Jane Smith\n"
-            "Senior Infrastructure Architect\n"
-            "ACME Corp\n"
+            "Here is the log output.\n-- \nJane Smith\nSenior Infrastructure Architect\nACME Corp\n"
         )
         cleaned = strip_signatures(text)
         self.assertIn("Here is the log output.", cleaned)
@@ -173,7 +160,9 @@ class TestThreadProcessing(unittest.TestCase):
         self.assertEqual(processed["labels"], ["bug", "perf"])
         self.assertEqual(len(processed["comments"]), 1)
         self.assertEqual(processed["comments"][0]["author"], "bob")
-        self.assertIn("Reproduced. The cycle is in `Node.parent`.", processed["comments"][0]["body"])
+        self.assertIn(
+            "Reproduced. The cycle is in `Node.parent`.", processed["comments"][0]["body"]
+        )
         self.assertNotIn("On Mon, Oct 15", processed["comments"][0]["body"])
         self.assertEqual(processed["omitted_bots"], ["@codecov[bot]"])
 

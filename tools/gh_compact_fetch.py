@@ -20,7 +20,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 KNOWN_BOT_NAMES = {
     "codecov",
@@ -55,13 +55,19 @@ EMAIL_REPLY_HEADER_RE = re.compile(
 
 SIGNATURE_PATTERNS = [
     re.compile(r"^--\s*$", re.MULTILINE),
-    re.compile(r"^Sent from my (?:iPhone|iPad|Android|Galaxy|mobile device).*$", re.IGNORECASE | re.MULTILINE),
+    re.compile(
+        r"^Sent from my (?:iPhone|iPad|Android|Galaxy|mobile device).*$",
+        re.IGNORECASE | re.MULTILINE,
+    ),
     re.compile(r"^Get Outlook for (?:iOS|Android).*$", re.IGNORECASE | re.MULTILINE),
-    re.compile(r"^(?:Best regards|Regards|Cheers|Thanks|Warmly|Sincerely),\s*\n[^\n]+$", re.IGNORECASE | re.MULTILINE),
+    re.compile(
+        r"^(?:Best regards|Regards|Cheers|Thanks|Warmly|Sincerely),\s*\n[^\n]+$",
+        re.IGNORECASE | re.MULTILINE,
+    ),
 ]
 
 
-def is_bot_user(login: Optional[str]) -> bool:
+def is_bot_user(login: str | None) -> bool:
     if not login:
         return False
     login_clean = login.strip().lower()
@@ -77,7 +83,7 @@ def is_bot_user(login: Optional[str]) -> bool:
 def strip_quoted_replies(text: str) -> str:
     """Strips email-style quote headers and consecutive blockquote lines ('> ...')."""
     lines = text.splitlines()
-    cleaned_lines: List[str] = []
+    cleaned_lines: list[str] = []
     in_code_block = False
 
     for line in lines:
@@ -115,7 +121,7 @@ def strip_signatures(text: str) -> str:
     return res
 
 
-def clean_body_text(text: Optional[str], strip_quotes: bool = True, strip_sigs: bool = True) -> str:
+def clean_body_text(text: str | None, strip_quotes: bool = True, strip_sigs: bool = True) -> str:
     if not text:
         return ""
     cleaned = text
@@ -134,7 +140,7 @@ def estimate_tokens(text: str) -> int:
     return max(1, (len(text) + 3) // 4)
 
 
-def parse_target(target: str, kind: Optional[str] = None) -> Tuple[str, str, int, str]:
+def parse_target(target: str, kind: str | None = None) -> tuple[str, str, int, str]:
     """Parses owner/repo#number, URL, or separate tokens into (owner, repo, number, kind)."""
     target = target.strip()
 
@@ -213,7 +219,9 @@ query($owner: String!, $repo: String!, $number: Int!, $maxComments: Int!) {
 """
 
 
-def execute_graphql(query: str, variables: Dict[str, Any], token: Optional[str] = None) -> Dict[str, Any]:
+def execute_graphql(
+    query: str, variables: dict[str, Any], token: str | None = None
+) -> dict[str, Any]:
     """Executes GraphQL query via `gh api graphql` or urllib."""
     # 1. Try `gh` CLI if available
     gh_bin = shutil.which("gh")
@@ -224,7 +232,7 @@ def execute_graphql(query: str, variables: Dict[str, Any], token: Optional[str] 
                 cmd.extend(["-F", f"{k}={v}"])
             else:
                 cmd.extend(["-f", f"{k}={str(v)}"])
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
         if proc.returncode == 0:
             return json.loads(proc.stdout)
 
@@ -252,7 +260,7 @@ def execute_graphql(query: str, variables: Dict[str, Any], token: Optional[str] 
 
 
 def process_thread_data(
-    raw_response: Dict[str, Any],
+    raw_response: dict[str, Any],
     kind: str,
     owner: str,
     repo: str,
@@ -260,7 +268,7 @@ def process_thread_data(
     exclude_bots: bool = True,
     strip_quotes: bool = True,
     strip_sigs: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Processes and compresses raw GraphQL response into compact structured payload."""
     repo_data = raw_response.get("data", {}).get("repository", {})
     item_data = repo_data.get("pullRequest" if kind == "pr" else "issue")
@@ -279,11 +287,13 @@ def process_thread_data(
     raw_body = item_data.get("body") or ""
     body = clean_body_text(raw_body, strip_quotes=strip_quotes, strip_sigs=strip_sigs)
 
-    labels = [lbl.get("name") for lbl in item_data.get("labels", {}).get("nodes", []) if lbl.get("name")]
+    labels = [
+        lbl.get("name") for lbl in item_data.get("labels", {}).get("nodes", []) if lbl.get("name")
+    ]
 
     all_comments_nodes = item_data.get("comments", {}).get("nodes", [])
-    filtered_comments: List[Dict[str, Any]] = []
-    omitted_bots: List[str] = []
+    filtered_comments: list[dict[str, Any]] = []
+    omitted_bots: list[str] = []
 
     for c in all_comments_nodes:
         c_author_obj = c.get("author") or {}
@@ -299,12 +309,14 @@ def process_thread_data(
         if not c_cleaned.strip():
             continue
 
-        filtered_comments.append({
-            "author": c_author,
-            "association": c_assoc,
-            "createdAt": c.get("createdAt", ""),
-            "body": c_cleaned,
-        })
+        filtered_comments.append(
+            {
+                "author": c_author,
+                "association": c_assoc,
+                "createdAt": c.get("createdAt", ""),
+                "body": c_cleaned,
+            }
+        )
 
     # Token calculations for stats
     raw_serialized = json.dumps(raw_response)
@@ -329,9 +341,9 @@ def process_thread_data(
     }
 
 
-def format_markdown(data: Dict[str, Any]) -> str:
+def format_markdown(data: dict[str, Any]) -> str:
     """Formats compacted data into high-density Markdown."""
-    lines: List[str] = []
+    lines: list[str] = []
     kind_label = "PR" if data["kind"] == "pr" else "Issue"
     lines.append(f"# [{kind_label} #{data['number']}] {data['title']}")
 
@@ -375,16 +387,16 @@ def format_markdown(data: Dict[str, Any]) -> str:
 
 def run_compact_fetch(
     target: str,
-    kind: Optional[str] = None,
+    kind: str | None = None,
     exclude_bots: bool = True,
     strip_quotes: bool = True,
     strip_sigs: bool = True,
     max_comments: int = 100,
     as_json: bool = False,
     show_stats: bool = False,
-    mock_data: Optional[Dict[str, Any]] = None,
-    token: Optional[str] = None,
-) -> Tuple[str, Optional[Dict[str, Any]]]:
+    mock_data: dict[str, Any] | None = None,
+    token: str | None = None,
+) -> tuple[str, dict[str, Any] | None]:
     """High-level runner returning (output_string, stats_dict)."""
     owner, repo, number, resolved_kind = parse_target(target, kind=kind)
 
@@ -447,11 +459,17 @@ def main() -> None:
     group.add_argument("--pr", metavar="TARGET", help="Fetch PR: owner/repo#123 or URL")
     parser.add_argument("target", nargs="?", help="Positional target (e.g. owner/repo#123)")
 
-    parser.add_argument("--include-bots", action="store_true", help="Include automated bot comments")
+    parser.add_argument(
+        "--include-bots", action="store_true", help="Include automated bot comments"
+    )
     parser.add_argument("--keep-quotes", action="store_true", help="Do not strip email quotes")
     parser.add_argument("--keep-signatures", action="store_true", help="Do not strip signatures")
-    parser.add_argument("--max-comments", type=int, default=100, help="Maximum comments to fetch (default: 100)")
-    parser.add_argument("--json", action="store_true", help="Output compact JSON instead of Markdown")
+    parser.add_argument(
+        "--max-comments", type=int, default=100, help="Maximum comments to fetch (default: 100)"
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Output compact JSON instead of Markdown"
+    )
     parser.add_argument("--stats", action="store_true", help="Print token reduction statistics")
     parser.add_argument("--token", help="GitHub Personal Access Token (defaults to GITHUB_TOKEN)")
     parser.add_argument("--mock-file", help="Path to local JSON file for testing without network")
@@ -466,7 +484,7 @@ def main() -> None:
 
     mock_data = None
     if args.mock_file:
-        with open(args.mock_file, "r", encoding="utf-8") as f:
+        with open(args.mock_file, encoding="utf-8") as f:
             mock_data = json.load(f)
 
     try:
