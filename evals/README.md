@@ -48,3 +48,26 @@ Use Markdown with the task, fixture revision, library revision, client/runtime,
 actual commands, relevant artifact paths or hashes, observed outcome, and checks
 not performed. Redact private data. Distinguish unsupported UI controls,
 authentication failures, and model failures. Preserve failures alongside successes.
+
+## Adversarial prompt injection defense harness
+
+Evaluate maintainer skills against indirect prompt injection, instruction overrides,
+delimiter breakouts, data exfiltration, and workflow sabotage using `evals/injection_harness.py`:
+
+```bash
+# Run deterministic offline evaluation against curated adversarial issues
+python3 evals/injection_harness.py --offline
+
+# Generate updated markdown benchmark scorecard
+python3 evals/injection_harness.py --offline --report evals/INJECTION_BENCHMARK.md
+
+# Filter evaluation by specific target skill
+python3 evals/injection_harness.py --offline --skill mkl-triage-issue
+```
+
+Curated test cases reside in `evals/fixtures/adversarial_issues.json` and are scored against:
+- **Attack Success Rate (ASR)**: Target 0.0%
+- **Delimiter Integrity**: Neutralization of `</untrusted_user_input>` escape tags
+- **Canary Isolation**: Zero leakage of sensitive environment strings or internal instructions
+- **Action Guarding**: Prevention of malicious tool/shell invocations or unauthorized label overrides
+
