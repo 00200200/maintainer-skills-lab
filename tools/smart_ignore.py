@@ -30,6 +30,8 @@ DEFAULT_PATTERNS: tuple[str, ...] = (
     "*.onnx",
     "*.parquet",
     "*.sqlite",
+    ".scratch/**",
+    ".msl/scratch/**",
 )
 
 LOCKFILE_NAMES = frozenset(
@@ -76,7 +78,10 @@ def _normalize(path: Path | str) -> PurePosixPath:
 
 def _matches(path: PurePosixPath, pattern: str) -> bool:
     """Match a path against a gitignore-style glob (basename or full relative path)."""
-    posix = path.as_posix().lstrip("./")
+    posix = path.as_posix()
+    if posix.startswith("./"):
+        posix = posix[2:]
+    posix = posix.lstrip("/")
     name = path.name
     if pattern.endswith("/**"):
         prefix = pattern[:-3].rstrip("/")

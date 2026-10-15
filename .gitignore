@@ -11,3 +11,5 @@ htmlcov/
 .env
 .env.*
 !.env.example
+.scratch/
+.msl/scratch/
