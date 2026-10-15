@@ -97,7 +97,7 @@ updated guide. Neither case justifies blindly editing every dependent agent.
 
 Identify the baseline revision, candidate revision, regression test, and expected behavior. If any is unavailable, narrow the conclusion instead of inventing missing evidence.
 
-Use equivalent environments and identical test inputs for both versions. Keep the regression test and expected result outside the changes under evaluation or otherwise verify that they are unchanged. Inspect which source file the test actually imports; an installed package can hide the checkout being tested.
+Use equivalent environments and identical test inputs for both versions. To test candidate patches speculatively without dirtying your working tree or disturbing uncommitted files, use `python3 tools/worktree_sandbox.py run --patch <patch> --cmd "<test-cmd>"`. Keep the regression test and expected result outside the changes under evaluation or otherwise verify that they are unchanged. Inspect which source file the test actually imports; an installed package can hide the checkout being tested.
 
 Check the baseline first. Distinguish an expected assertion failure from setup, import, collection, timeout, and execution errors. Then run the same test against the candidate and run existing tests appropriate to the affected behavior. Prefer token-efficient runners: `pytest -q --tb=short -x` or `python3 tools/test_fast.py` (unittest: `python3 -m unittest discover -s tests -q -f`; Node: `npm test -- --bail --silent`; Rust: `cargo test -- --nocapture=false`).
 
