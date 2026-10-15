@@ -97,6 +97,9 @@ python3 tools/kit.py tokens
 # Resilient search/replace patch applicator
 python3 tools/patch_applier.py apply --file <file> --patch <patch>
 
+# Zero-dependency local BM25 symbol search
+python3 tools/local_symbol_search.py search "<query>" --project .
+
 # Run tests
 python3 -m unittest discover -s tests -v
 ```
