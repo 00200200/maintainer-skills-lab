@@ -36,6 +36,64 @@ Return one of: reproduced, not reproduced on this version, or blocked by a named
 
 The source library includes a [runnable example](https://github.com/00200200/maintainer-skills-lab/tree/main/examples/bugfix). From that library checkout, `python3 examples/bugfix/run.py` checks the same test against two implementations. This fixture check is not a live-agent evaluation.
 
+# Localize faults before code repair
+
+Isolate bugs to specific files, symbols, and line ranges before attempting code repair. Never dump entire modules or multi-thousand line files into context. Enforce a two-stage protocol: localize first (< 300 tokens), then extract only the relevant scoped slice.
+
+## 1. Stage 1: Hierarchical Localization
+
+Pinpoint the candidate failure site using stack trace analysis or AST structural inspection:
+
+```bash
+# Analyze failing exception traceback
+python3 tools/localize_fault.py locate --traceback path/to/traceback.txt
+
+# Inspect signatures and class outlines without reading implementation bodies
+python3 tools/localize_fault.py skeleton --file path/to/suspect.py
+
+# Find exact line bounds for a specific symbol
+python3 tools/localize_fault.py symbol --file path/to/suspect.py --symbol MyClass.method_name
+```
+
+Emit a compact, structured localization finding (< 300 tokens) using standard YAML:
+
+```yaml
+fault_localization:
+  file: "src/maintainer_skills/triage.py"
+  symbol: "TriageClassifier.classify_issue"
+  line_range: [142, 168]
+  confidence: "high"
+  rationale: "Unchecked KeyError when issue labels list is empty."
+```
+
+## 2. Stage 2: Scoped Context Extraction
+
+Extract only the localized line range with bounded padding (+/- 15 lines) using `tools/localize_fault.py extract`:
+
+```bash
+python3 tools/localize_fault.py extract --file src/maintainer_skills/triage.py --lines 142-168 --padding 15
+```
+
+The tool produces a bounded view omitting surrounding irrelevant lines:
+
+```python
+# ... [126 lines omitted for brevity (lines 1-126)] ...
+127 |     def validate_payload(self, payload: dict) -> bool:
+128 |         return "title" in payload
+...
+142 |     def classify_issue(self, issue: dict) -> str:
+143 |         labels = issue["labels"]
+# ... [340 lines omitted for brevity (lines 184-524)] ...
+```
+
+## 3. Targeted Repair and Verification
+
+Pass ONLY the extracted hunk to the code repair prompt or tool:
+
+1. **Verify Boundaries**: Ensure the proposed patch edits exclusively lines within the localized range.
+2. **Prevent File Bloat**: Do not re-emit or reformat omitted code sections.
+3. **Run Focused Tests**: Verify the candidate fix against the reproduction test case before running the broader suite.
+
 # Isolated Scratchpad for Ephemeral Reasoning
 
 Redirect long exploratory traces, speculative diffs, and verbose command outputs into ephemeral scratchpad files to keep the main conversation window compact and token-efficient.
