@@ -1,5 +1,4 @@
 import importlib.util
-import json
 import subprocess
 import tempfile
 import unittest
@@ -34,8 +33,14 @@ class BumpVersionUnitTests(unittest.TestCase):
         self.assertEqual(bump_version.classify_commit("chore: update dependencies"), "chore")
         self.assertEqual(bump_version.classify_commit("docs: update README"), "chore")
         self.assertEqual(bump_version.classify_commit("feat!: redesign CLI arguments"), "breaking")
-        self.assertEqual(bump_version.classify_commit("refactor: rename core\n\nBREAKING CHANGE: api changed"), "breaking")
-        self.assertEqual(bump_version.classify_commit("fix: patch bug\n\nBREAKING-CHANGE: config format"), "breaking")
+        self.assertEqual(
+            bump_version.classify_commit("refactor: rename core\n\nBREAKING CHANGE: api changed"),
+            "breaking",
+        )
+        self.assertEqual(
+            bump_version.classify_commit("fix: patch bug\n\nBREAKING-CHANGE: config format"),
+            "breaking",
+        )
 
     def test_calculate_bump_type(self):
         summary_breaking = {"breaking": 1, "feat": 2, "fix": 3, "chore": 1, "total_commits": 7}
@@ -51,7 +56,9 @@ class BumpVersionUnitTests(unittest.TestCase):
         self.assertIsNone(bump_version.calculate_bump_type(summary_empty))
 
         # Override level
-        self.assertEqual(bump_version.calculate_bump_type(summary_fix, override_level="major"), "major")
+        self.assertEqual(
+            bump_version.calculate_bump_type(summary_fix, override_level="major"), "major"
+        )
 
     def test_bump_semver(self):
         self.assertEqual(bump_version.bump_semver("1.2.3", "major"), "2.0.0")
@@ -72,7 +79,10 @@ class BumpVersionUnitTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             pyproject = repo_path / "pyproject.toml"
-            pyproject.write_text('[project]\nname = "pkg"\nversion = "0.1.0"\ndescription = "test"\n', encoding="utf-8")
+            pyproject.write_text(
+                '[project]\nname = "pkg"\nversion = "0.1.0"\ndescription = "test"\n',
+                encoding="utf-8",
+            )
 
             src_init = repo_path / "src" / "pkg" / "__init__.py"
             src_init.parent.mkdir(parents=True)
@@ -97,20 +107,47 @@ class BumpVersionGitIntegrationTests(unittest.TestCase):
             repo_path = Path(tmpdir)
 
             # Initialize git repo
-            subprocess.run(["git", "init", "-b", "main"], cwd=repo_path, check=True, capture_output=True)
-            subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, check=True, capture_output=True)
-            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "init", "-b", "main"], cwd=repo_path, check=True, capture_output=True
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
 
             pyproject = repo_path / "pyproject.toml"
             pyproject.write_text('[project]\nversion = "0.1.0"\n', encoding="utf-8")
             subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
-            subprocess.run(["git", "commit", "-m", "chore: initial commit"], cwd=repo_path, check=True, capture_output=True)
-            subprocess.run(["git", "tag", "-a", "v0.1.0", "-m", "Release v0.1.0"], cwd=repo_path, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", "chore: initial commit"],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "tag", "-a", "v0.1.0", "-m", "Release v0.1.0"],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
 
             # Add feat commit
             (repo_path / "feature.txt").write_text("feature content\n", encoding="utf-8")
             subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
-            subprocess.run(["git", "commit", "-m", "feat: add awesome feature"], cwd=repo_path, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", "feat: add awesome feature"],
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
 
             res = bump_version.evaluate_version_bump(repo_path, apply=False)
             self.assertEqual(res["previous_version"], "0.1.0")
