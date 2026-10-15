@@ -1,0 +1,84 @@
+name: Contributor Onboarding
+
+on:
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.user.type != 'Bot' &&
+      !contains(fromJSON('["dependabot[bot]", "renovate[bot]", "github-actions[bot]"]'), github.event.pull_request.user.login)
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Welcome first-time contributor
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+            const association = pr.author_association;
+
+            // Only trigger for first-time contributors or first-timers
+            const isFirstTime = association === 'FIRST_TIME_CONTRIBUTOR' || association === 'FIRST_TIMER' || association === 'NONE';
+            if (!isFirstTime) {
+              console.log(`${author} has association ${association}. Skipping onboarding welcome.`);
+              return;
+            }
+
+            // Check for existing comments to prevent duplicates
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number
+            });
+
+            const alreadyWelcomed = comments.data.some(c => c.body.includes('Welcome @' + author) && c.user.type === 'Bot');
+            if (alreadyWelcomed) {
+              console.log(`Already welcomed ${author} on PR #${pr.number}.`);
+              return;
+            }
+
+            const message = [
+              `👋 Welcome @${author} to **Maintainer Skills Lab**! Thank you for your contribution.`,
+              '',
+              `Maintainer Skills Lab is built around **strict token budgeting and minimal context footprints**. To ensure your PR gets reviewed and merged quickly, please complete this quick checklist:`,
+              '',
+              `### 🛠️ Pre-Review Contributor Checklist`,
+              `- [ ] **Validate Schemas & Lints**:`,
+              `  \`\`\`bash`,
+              `  python3 tools/kit.py check`,
+              `  \`\`\``,
+              `- [ ] **Audit Token Budget**:`,
+              `  \`\`\`bash`,
+              `  python3 tools/kit.py tokens`,
+              `  \`\`\``,
+              `  *Rule: Skills must stay under 800 tokens; skill descriptions must stay under 60 tokens.*`,
+              `- [ ] **Synchronize Client Exporters**:`,
+              `  \`\`\`bash`,
+              `  python3 tools/kit.py sync`,
+              `  \`\`\``,
+              `  *Ensure generated client exports in \`.claude/\`, \`.cursor/\`, and \`.codex/\` are committed.*`,
+              `- [ ] **Run Unit Tests**:`,
+              `  \`\`\`bash`,
+              `  python3 -m unittest discover -s tests -v`,
+              `  \`\`\``,
+              '',
+              `### 📚 Helpful Resources`,
+              `- 📖 [Contributing Guide](CONTRIBUTING.md)`,
+              `- 🎯 [Contributor Task Catalog & SOTA Roadmap](docs/tasks/INDEX.md)`,
+              `- 💡 Looking for more issues? Check out our [\`good first issue\`](https://github.com/00200200/maintainer-skills-lab/labels/good%20first%20issue) label.`,
+              '',
+              `Happy coding! 🚀`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: message
+            });
