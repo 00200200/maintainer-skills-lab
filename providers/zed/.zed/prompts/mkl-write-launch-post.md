@@ -16,6 +16,8 @@ For a stated length limit, measure the draft with the platform's actual counting
 
 Return a ready-to-review draft. List unresolved factual questions separately, without placeholders disguised as completed claims. Publishing or sending it is a separate action: use existing authorization if present; otherwise leave the draft for review.
 
+Output constraints: strictly under 350 words (~450 tokens). Focus on technical problem, solution, and a single call-to-action. Omit marketing hyperbole, artificial hype, or conversational intro/outro. Conclude immediately.
+
 ## Worked example
 
 Evidence: a merged change adds `--dry-run`; Linux was tested; Windows was not. No time-saving measurements exist.

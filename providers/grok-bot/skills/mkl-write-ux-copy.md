@@ -30,6 +30,8 @@ Fit the requested tone, locale, and length budget. If only a character limit is 
 
 Return the final strings mapped to their keys or components. Keep rationale outside production copy. Apply file changes when requested and preserve the host format.
 
+Output constraints: strictly under 150 tokens. Provide exactly 2-3 focused variations per key with 1-sentence rationale. Omit conversational greetings, UI design essays, or styling tips. Conclude immediately.
+
 ## Worked example
 
 Context: an upload over `{max_mb}` MB is rejected; the user can choose another file. No automatic compression or retry exists.

@@ -15,6 +15,8 @@ Use observed failures to add targeted recovery guidance. Avoid a long speculativ
 
 Finish with the achieved result and an appropriate next step. Preserve commands, API names, output values, and version conditions when polishing the text. Deliver the tutorial plus a concise validation note; never describe an expected output as observed without running the relevant step.
 
+Output constraints: strictly under 800 words (~1,000 tokens). Every step must include an executable command, expected output checkpoint, and minimal explanation. Omit narrative padding, conceptual backstories, or speculative troubleshooting. Conclude immediately.
+
 ## Worked example
 
 Evidence: a fictional example has `before/slug.py`, which prints `hello,---world!` when run as `python3 slug.py` from `before/`. The tutorial has not been executed.

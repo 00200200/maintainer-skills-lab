@@ -28,6 +28,8 @@ Rewrite the draft using those stylistic choices. Facts, opinions, anecdotes, emp
 
 Check that the result sounds plausible for the intended reader and medium, and that style changes have not altered the promise being made. Return one finished version by default. Briefly explain the applied style when requested or when the available samples leave a material ambiguity.
 
+Output constraints: adapted passage must remain within ±20% of draft length (max 400 words / ~500 tokens). Omit persona commentary, conversational intro/outro, or unrequested meta-analysis. Conclude immediately.
+
 ## Worked example
 
 Style sample: "Mała poprawka na dziś. Eksport działa już bez ręcznego kopiowania. Dzięki za zgłoszenie."

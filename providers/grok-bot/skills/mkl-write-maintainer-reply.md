@@ -30,6 +30,8 @@ Keep the tone calm and direct, without blaming the reporter or inserting an apol
 
 Return a ready-to-send reply. Posting, closing issues, applying labels, or assigning people are separate external actions; perform them only under existing user authorization. Keep internal evidence notes outside the public draft.
 
+Output constraints: strictly under 250 words (~320 tokens). Omit conversational preamble, sign-off commentary, or issue summaries. Stop immediately after delivering the reply draft.
+
 ## Worked example
 
 Report: "Install fails on Windows with Python 3.11. I get PermissionError." No failing command or destination path is supplied, and the maintainer has not reproduced it.
