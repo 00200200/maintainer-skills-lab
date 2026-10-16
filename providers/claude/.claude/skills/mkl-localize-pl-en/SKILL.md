@@ -1,6 +1,7 @@
 ---
 name: "mkl-localize-pl-en"
 description: "Translate and localize Polish and English technical documentation, UI text, and project updates. Use for natural PL/EN phrasing while preserving commands, placeholders, factual precision, and a project glossary."
+globs: ["*.po", "*.mo", "*.json", "locales/**", "i18n/**", "*.properties", "*.arb"]
 ---
 
 # Localize between Polish and English

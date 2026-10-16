@@ -133,6 +133,78 @@ class LibraryTests(unittest.TestCase):
             with self.assertRaisesRegex(kit.KitError, "double-quoted"):
                 kit.skill_metadata(path)
 
+    def test_skill_metadata_globs_parsing_and_validation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "mkl-example/SKILL.md"
+            path.parent.mkdir()
+            # Valid globs
+            path.write_text(
+                '---\nname: "mkl-example"\ndescription: "A skill with globs"\nglobs: ["*.py", "*.ipynb"]\n---\nBody\n'
+            )
+            metadata, body = kit.skill_metadata(path)
+            self.assertEqual(metadata["name"], "mkl-example")
+            self.assertEqual(metadata["globs"], ["*.py", "*.ipynb"])
+            self.assertEqual(body, "Body")
+
+            # Malformed JSON syntax for globs
+            path.write_text(
+                '---\nname: "mkl-example"\ndescription: "A skill with globs"\nglobs: [*.py]\n---\nBody\n'
+            )
+            with self.assertRaisesRegex(kit.KitError, "valid JSON syntax for globs"):
+                kit.skill_metadata(path)
+
+            # Not a list
+            path.write_text(
+                '---\nname: "mkl-example"\ndescription: "A skill with globs"\nglobs: "*.py"\n---\nBody\n'
+            )
+            with self.assertRaisesRegex(kit.KitError, "globs must be a nonempty list of strings"):
+                kit.skill_metadata(path)
+
+            # Empty list
+            path.write_text(
+                '---\nname: "mkl-example"\ndescription: "A skill with globs"\nglobs: []\n---\nBody\n'
+            )
+            with self.assertRaisesRegex(kit.KitError, "globs must be a nonempty list of strings"):
+                kit.skill_metadata(path)
+
+            # Non-string element
+            path.write_text(
+                '---\nname: "mkl-example"\ndescription: "A skill with globs"\nglobs: [123]\n---\nBody\n'
+            )
+            with self.assertRaisesRegex(kit.KitError, "globs must be a nonempty list of strings"):
+                kit.skill_metadata(path)
+
+            # Empty string element
+            path.write_text(
+                '---\nname: "mkl-example"\ndescription: "A skill with globs"\nglobs: ["   "]\n---\nBody\n'
+            )
+            with self.assertRaisesRegex(kit.KitError, "globs must be a nonempty list of strings"):
+                kit.skill_metadata(path)
+
+    def test_cursor_mdc_rules_generated_for_skills_with_globs(self):
+        files = kit.export_files("cursor")
+        self.assertIn(".cursor/rules/mkl-localize-pl-en.mdc", files)
+        self.assertIn(".cursor/rules/mkl-debug-ml-training.mdc", files)
+        self.assertIn(".cursor/rules/mkl-review-dependency.mdc", files)
+        self.assertNotIn(".cursor/rules/mkl-review-pr.mdc", files)
+
+        content = files[".cursor/rules/mkl-localize-pl-en.mdc"].decode("utf-8")
+        self.assertTrue(content.startswith("---\n"))
+        self.assertIn(
+            'globs: ["*.po", "*.mo", "*.json", "locales/**", "i18n/**", "*.properties", "*.arb"]',
+            content,
+        )
+        self.assertIn("alwaysApply: false", content)
+        self.assertIn("# Localize between Polish and English", content)
+
+    def test_managed_path_and_skill_prefixes_for_cursor_rules(self):
+        self.assertTrue(kit.managed_path(".cursor/rules/mkl-localize-pl-en.mdc", "cursor"))
+        self.assertFalse(kit.managed_path(".cursor/rules/invalid_name.mdc", "cursor"))
+        self.assertFalse(kit.managed_path(".cursor/rules/unrelated.txt", "cursor"))
+        prefixes = kit.skill_prefixes("cursor", ["mkl-localize-pl-en"])
+        self.assertIn(".cursor/rules/mkl-localize-pl-en.mdc", prefixes)
+        self.assertIn(".cursor/skills/mkl-localize-pl-en/", prefixes)
+
     def test_source_symlinks_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -955,6 +1027,22 @@ class SelectedInstallationTests(unittest.TestCase):
                 self.assertEqual(set(manifest["files"]), expected)
                 kit.uninstall(target, self.project, skill_names=["mkl-humanize"])
                 self.assertEqual(list(self.project.iterdir()), [])
+
+    def test_cursor_selected_install_and_uninstall_with_globs(self):
+        result = kit.install("cursor", self.project, self.root, skill_names=["mkl-localize-pl-en"])
+        expected = {
+            ".cursor/skills/mkl-localize-pl-en/SKILL.md",
+            ".cursor/rules/mkl-localize-pl-en.mdc",
+        }
+        self.assertEqual(set(result["written"]), expected)
+        manifest = json.loads((self.project / ".maintainer-skills-lab/cursor.json").read_text())
+        self.assertEqual(set(manifest["files"]), expected)
+        self.assertTrue((self.project / ".cursor/rules/mkl-localize-pl-en.mdc").is_file())
+
+        un_result = kit.uninstall("cursor", self.project, skill_names=["mkl-localize-pl-en"])
+        self.assertEqual(set(un_result["removed"]), expected)
+        self.assertFalse((self.project / ".cursor/rules").exists())
+        self.assertFalse((self.project / ".cursor/skills").exists())
 
     def test_adding_a_skill_preserves_other_owned_edits_and_hashes(self):
         kit.install("codex", self.project, self.root, skill_names=["mkl-humanize"])

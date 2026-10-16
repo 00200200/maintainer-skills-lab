@@ -1,6 +1,7 @@
 ---
 name: "mkl-debug-ml-training"
 description: "Investigate training failures, NaNs, missing gradients, misleading losses, and non-reproducible runs in PyTorch, Lightning, or TensorFlow/Keras. Use for a concrete training bug or regression, not an open-ended architecture or hyperparameter search."
+globs: ["*.py", "*.ipynb", "models/**", "*.pt", "*.pth", "*.ckpt"]
 ---
 
 # Debug a training run
