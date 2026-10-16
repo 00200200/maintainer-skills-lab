@@ -1,11 +1,11 @@
 ---
 name: "mkl-review-dependency"
-description: "Review a dependency update against a repository's supported runtimes, lockfiles, release notes, and tests. Use before merging a dependency bump or automation PR; return compatibility risks and a bounded validation plan without changing files."
+description: "Review dependency updates against supported runtimes, lockfiles, release notes, and tests. Use before merging a dependency bump or automation PR; return compatibility risks and a bounded validation plan without changing files."
 globs: ["requirements*.txt", "pyproject.toml", "package.json", "Cargo.toml", "go.mod", "pom.xml", "Gemfile", "Pipfile"]
 ---
 
 <skill name="mkl-review-dependency">
-  <description>Review a dependency update against a repository's supported runtimes, lockfiles, release notes, and tests. Use before merging a dependency bump or automation PR; return compatibility risks and a bounded validation plan without changing files.</description>
+  <description>Review dependency updates against supported runtimes, lockfiles, release notes, and tests. Use before merging a dependency bump or automation PR; return compatibility risks and a bounded validation plan without changing files.</description>
   <context>
     Read the complete dependency diff, the repository guidance, package metadata,
     and the relevant CI or release configuration. Do not dump full lockfile contents

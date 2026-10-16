@@ -201,6 +201,23 @@ class StagedHookTests(unittest.TestCase):
         self.git("add", "skills", "providers")
         self.assertEqual(self.hook().returncode, 0)
 
+    def test_staged_skill_exceeding_body_token_budget_fails_hook(self):
+        oversized = self.root / "skills" / "mkl-oversized"
+        oversized.mkdir(parents=True)
+        body_text = "Word " * 1300
+        (oversized / "SKILL.md").write_text(
+            f'---\nname: "mkl-oversized"\ndescription: "A skill with too many tokens."\n---\n\n# Body\n\n{body_text}\n',
+            encoding="utf-8",
+        )
+        self.sync()
+        self.git("add", "skills", "providers")
+        result = self.hook()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"exceeds body token budget", result.stderr)
+        self.assertIn(
+            b"Consider condensing instructions or splitting into focused workflows.", result.stderr
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
