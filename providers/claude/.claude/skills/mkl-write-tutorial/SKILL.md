@@ -15,11 +15,7 @@ Use observed failures to add targeted recovery guidance. Avoid a long speculativ
 
 Finish with the achieved result and an appropriate next step. Preserve commands, API names, output values, and version conditions when polishing the text. Deliver the tutorial plus a concise validation note; never describe an expected output as observed without running the relevant step.
 
-## Output token budget and constraints
-
-- **Length budget**: Keep entire tutorial under 800 words (~1,000 tokens). Every step must feature an executable command, expected output checkpoint, and minimal explanation.
-- **Negative constraints**: Avoid lengthy conceptual backstories, philosophical digressions, or speculative troubleshooting catalogs. Omit opening greetings and closing generic pleasantries.
-- **Stopping guarantee**: Conclude the tutorial document and stop output immediately.
+Output constraints: strictly under 800 words (~1,000 tokens). Every step must include an executable command, expected output checkpoint, and minimal explanation. Omit narrative padding, conceptual backstories, or speculative troubleshooting. Conclude immediately.
 
 ## Worked example
 

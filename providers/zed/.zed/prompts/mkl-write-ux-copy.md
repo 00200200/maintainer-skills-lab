@@ -16,11 +16,7 @@ Fit the requested tone, locale, and length budget. If only a character limit is 
 
 Return the final strings mapped to their keys or components. Keep rationale outside production copy. Apply file changes when requested and preserve the host format.
 
-## Output token budget and constraints
-
-- **Length budget**: Keep microcopy responses under 150 tokens. Provide exactly 2-3 focused variations per key or component with a 1-sentence rationale.
-- **Negative constraints**: Omit generic conversational greetings, UX design theoretical essays, or unsolicited styling advice.
-- **Stopping guarantee**: Emit the final strings mapped to their target keys and conclude immediately.
+Output constraints: strictly under 150 tokens. Provide exactly 2-3 focused variations per key with 1-sentence rationale. Omit conversational greetings, UI design essays, or styling tips. Conclude immediately.
 
 ## Worked example
 

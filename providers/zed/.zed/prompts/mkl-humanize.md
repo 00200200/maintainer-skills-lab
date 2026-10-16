@@ -20,11 +20,7 @@ If the draft is in Polish and this skill's folder contains `references/pl.md`, r
 
 Return the finished passage. Add a short note only for unresolved factual ambiguity or a material editorial choice; provide a detailed change explanation when requested.
 
-## Output token budget and constraints
-
-- **Length budget**: The rewrite must remain within ±15% of the input text length. Prefer tight, concise phrasing over elaboration.
-- **Negative constraints**: Avoid AI cliché words ("delve", "testament", "crucial", "landscape"), conversational preamble ("Here is your revised draft:"), or unsolicited stylistic critiques.
-- **Stopping guarantee**: Output the rewritten text directly and conclude immediately.
+Output constraints: length must remain within ±15% of the input text length. Prefer tight, concise phrasing. Avoid AI clichés ("delve", "testament", "crucial"), conversational preamble, or unsolicited stylistic critiques. Conclude immediately.
 
 ## Worked example
 

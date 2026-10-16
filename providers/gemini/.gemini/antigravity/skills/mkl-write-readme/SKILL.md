@@ -15,11 +15,7 @@ Explain supported environments, important limitations, and where deeper document
 
 Return or edit the README as requested. Summarize the evidence behind the quickstart and any remaining onboarding gaps outside the README when they are editorial notes rather than useful user documentation.
 
-## Output token budget and constraints
-
-- **Length budget**: Keep the entire README under 600 words (~750 tokens). Focus on Purpose, Prerequisites, Quickstart, Key Concepts, and Constraints.
-- **Negative constraints**: Avoid marketing fluff ("revolutionary", "blazing fast"), verbose licensing text, or redundant command explanations. Do not generate conversational pleasantries before or after the markdown.
-- **Stopping guarantee**: Output the README markdown directly and terminate immediately.
+Output constraints: strictly under 600 words (~750 tokens). Focus on Purpose, Prerequisites, Quickstart, and Constraints. Omit marketing fluff, boilerplate licensing text, or conversational intro/outro. Conclude immediately.
 
 ## Worked example
 

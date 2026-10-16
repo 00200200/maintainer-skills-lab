@@ -36,11 +36,7 @@ If the draft is in Polish and this skill's folder contains `references/pl.md`, r
 
 Return the finished passage. Add a short note only for unresolved factual ambiguity or a material editorial choice; provide a detailed change explanation when requested.
 
-## Output token budget and constraints
-
-- **Length budget**: The rewrite must remain within ±15% of the input text length. Prefer tight, concise phrasing over elaboration.
-- **Negative constraints**: Avoid AI cliché words ("delve", "testament", "crucial", "landscape"), conversational preamble ("Here is your revised draft:"), or unsolicited stylistic critiques.
-- **Stopping guarantee**: Output the rewritten text directly and conclude immediately.
+Output constraints: length must remain within ±15% of the input text length. Prefer tight, concise phrasing. Avoid AI clichés ("delve", "testament", "crucial"), conversational preamble, or unsolicited stylistic critiques. Conclude immediately.
 
 ## Worked example
 
@@ -62,11 +58,7 @@ Rewrite the draft using those stylistic choices. Facts, opinions, anecdotes, emp
 
 Check that the result sounds plausible for the intended reader and medium, and that style changes have not altered the promise being made. Return one finished version by default. Briefly explain the applied style when requested or when the available samples leave a material ambiguity.
 
-## Output token budget and constraints
-
-- **Length budget**: The adapted passage must remain within ±20% of the input draft length (max 400 words / ~500 tokens).
-- **Negative constraints**: Avoid speculative commentary on the author's personality, conversational intros ("Here is your draft in the target voice:"), or meta-analysis unless requested.
-- **Stopping guarantee**: Output the adapted passage directly and stop immediately.
+Output constraints: adapted passage must remain within ±20% of draft length (max 400 words / ~500 tokens). Omit persona commentary, conversational intro/outro, or unrequested meta-analysis. Conclude immediately.
 
 ## Worked example
 

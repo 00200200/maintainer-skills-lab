@@ -30,11 +30,7 @@ For a stated length limit, measure the draft with the platform's actual counting
 
 Return a ready-to-review draft. List unresolved factual questions separately, without placeholders disguised as completed claims. Publishing or sending it is a separate action: use existing authorization if present; otherwise leave the draft for review.
 
-## Output token budget and constraints
-
-- **Length budget**: Keep launch posts strictly under 350 words (~450 tokens) to ensure rapid developer engagement and readability.
-- **Negative constraints**: Avoid marketing hyperbole ("thrilled to announce", "game-changer"), synthetic enthusiasm, or multiple conflicting calls-to-action. Omit conversational opening or closing meta chatter.
-- **Stopping guarantee**: Output the ready-to-publish draft and terminate immediately.
+Output constraints: strictly under 350 words (~450 tokens). Focus on technical problem, solution, and a single call-to-action. Omit marketing hyperbole, artificial hype, or conversational intro/outro. Conclude immediately.
 
 ## Worked example
 
