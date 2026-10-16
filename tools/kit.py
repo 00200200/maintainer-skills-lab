@@ -149,6 +149,291 @@ def _maybe_minify_markdown_bytes(data: bytes, relative: str, minify: bool) -> by
         return data
 
 
+def markdown_to_xml(
+    markdown_text: str,
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    preserve_frontmatter: bool = False,
+) -> str:
+    """Convert Markdown skill instructions into structured semantic XML for frontier models."""
+    lines = markdown_text.split("\n")
+    fences: list[str] = []
+
+    in_fence = False
+    fence_marker = ""
+    fence_len = 0
+    fence_buf: list[str] = []
+    new_lines: list[str] = []
+
+    for line in lines:
+        if not in_fence:
+            m = FENCE_OPEN.match(line)
+            if m:
+                in_fence = True
+                fence_marker = m.group(2)[0]
+                fence_len = len(m.group(2))
+                fence_buf = [line]
+            else:
+                new_lines.append(line)
+        else:
+            fence_buf.append(line)
+            close = re.compile(rf"^( {{0,3}})({re.escape(fence_marker)}{{{fence_len},}})[ \t]*$")
+            if close.match(line):
+                token = f"@@FENCE{len(fences)}@@"
+                fences.append("\n".join(fence_buf))
+                new_lines.append(token)
+                in_fence = False
+                fence_marker = ""
+                fence_buf = []
+    if in_fence:
+        token = f"@@FENCE{len(fences)}@@"
+        fences.append("\n".join(fence_buf))
+        new_lines.append(token)
+
+    text = "\n".join(new_lines)
+
+    meta_name = name
+    meta_desc = description
+    raw_frontmatter = ""
+    if text.startswith("---\n"):
+        end = text.find("\n---\n", 4)
+        if end != -1:
+            raw_frontmatter = text[: end + 4]
+            header = text[4:end]
+            text = text[end + 5 :]
+            for hline in header.split("\n"):
+                hline = hline.strip()
+                if hline.startswith("name:"):
+                    val = hline.split(":", 1)[1].strip().strip("\"'")
+                    if not meta_name:
+                        meta_name = val
+                elif hline.startswith("description:"):
+                    val = hline.split(":", 1)[1].strip().strip("\"'")
+                    if not meta_desc:
+                        meta_desc = val
+
+    lines = text.strip().split("\n")
+    title = ""
+    body_lines: list[str] = []
+    found_h1 = False
+    for line in lines:
+        if not found_h1 and line.startswith("# "):
+            title = line[2:].strip()
+            found_h1 = True
+        else:
+            body_lines.append(line)
+
+    if not meta_name:
+        if title:
+            meta_name = re.sub(r"[^a-zA-Z0-9]+", "-", title).strip("-").lower()
+        else:
+            meta_name = "skill"
+
+    body_text = "\n".join(body_lines).strip()
+    section_splits = re.split(r"\n(?=## )", "\n" + body_text)
+    preamble = section_splits[0].strip()
+    sections = section_splits[1:] if len(section_splits) > 1 else []
+
+    if not meta_desc and preamble:
+        paras = [p.strip() for p in preamble.split("\n\n") if p.strip()]
+        if paras:
+            meta_desc = paras[0]
+            preamble = "\n\n".join(paras[1:]).strip()
+
+    xml_parts: list[str] = []
+    xml_parts.append(f'<skill name="{meta_name}">')
+    if meta_desc:
+        xml_parts.append(f"  <description>{meta_desc}</description>")
+
+    def restore(s: str) -> str:
+        for idx, f in enumerate(fences):
+            s = s.replace(f"@@FENCE{idx}@@", f)
+        return s
+
+    def indent(content: str, spaces: int = 2) -> str:
+        sp = " " * spaces
+        return "\n".join((sp + line if line.strip() else line) for line in content.split("\n"))
+
+    if not sections and preamble:
+        paras = [p.strip() for p in preamble.split("\n\n") if p.strip()]
+        if len(paras) == 1:
+            xml_parts.append("  <instructions>")
+            xml_parts.append(indent(restore(paras[0]), 4))
+            xml_parts.append("  </instructions>")
+        else:
+            xml_parts.append("  <context>")
+            xml_parts.append(indent(restore(paras[0]), 4))
+            xml_parts.append("  </context>")
+            middle_paras = []
+            example_para = None
+            for p in paras[1:]:
+                if any(
+                    k in p.lower()
+                    for k in (
+                        "runnable example",
+                        "worked example",
+                        "example implementation",
+                        "examples/",
+                    )
+                ):
+                    example_para = p
+                else:
+                    middle_paras.append(p)
+            if middle_paras:
+                xml_parts.append("  <instructions>")
+                xml_parts.append(indent(restore("\n\n".join(middle_paras)), 4))
+                xml_parts.append("  </instructions>")
+            if example_para:
+                xml_parts.append('  <example type="reference">')
+                xml_parts.append(indent(restore(example_para), 4))
+                xml_parts.append("  </example>")
+    elif preamble:
+        xml_parts.append("  <context>")
+        xml_parts.append(indent(restore(preamble), 4))
+        xml_parts.append("  </context>")
+
+    consecutive_numbered_steps: list[tuple[str, str]] = []
+
+    def flush_numbered_steps() -> None:
+        if not consecutive_numbered_steps:
+            return
+        xml_parts.append("  <workflow>")
+        for sname, scontent in consecutive_numbered_steps:
+            xml_parts.append(f'    <step name="{sname}">')
+            xml_parts.append(indent(restore(scontent), 6))
+            xml_parts.append("    </step>")
+        xml_parts.append("  </workflow>")
+        consecutive_numbered_steps.clear()
+
+    for sec in sections:
+        sec = sec.strip()
+        if not sec:
+            continue
+        sec_lines = sec.split("\n")
+        h2 = sec_lines[0].removeprefix("##").strip()
+        sec_content = "\n".join(sec_lines[1:]).strip()
+
+        h2_lower = h2.lower()
+        clean_name = re.sub(r"^\d+\.\s*", "", h2)
+        slug = re.sub(r"[^a-zA-Z0-9]+", "-", clean_name).strip("-").lower()
+
+        is_numbered_h2 = bool(re.match(r"^\d+\.", h2))
+
+        if is_numbered_h2 and any(
+            k in h2_lower
+            for k in (
+                "step",
+                "stage",
+                "extract",
+                "scan",
+                "isolate",
+                "apply",
+                "execute",
+                "verify",
+                "author",
+                "pipeline",
+                "select",
+                "inspect",
+            )
+        ):
+            consecutive_numbered_steps.append((slug, sec_content))
+            continue
+        flush_numbered_steps()
+
+        if "example" in h2_lower:
+            attr = ' type="authored"' if ("authored" in h2_lower or "worked" in h2_lower) else ""
+            xml_parts.append(f"  <example{attr}>")
+            xml_parts.append(indent(restore(sec_content), 4))
+            xml_parts.append("  </example>")
+        elif any(
+            k in h2_lower
+            for k in ("constraint", "rule", "negative", "anti-pattern", "budget", "stopping")
+        ):
+            xml_parts.append("  <constraints>")
+            items = []
+            for line in sec_content.split("\n"):
+                m = re.match(r"^\s*[-*]\s+(.*)", line)
+                if m:
+                    items.append(f"    <rule>{m.group(1)}</rule>")
+                else:
+                    items.append(indent(line, 4))
+            xml_parts.append(restore("\n".join(items)))
+            xml_parts.append("  </constraints>")
+        elif any(
+            k in h2_lower
+            for k in (
+                "workflow",
+                "protocol",
+                "turn budget",
+                "procedure",
+                "pipeline",
+                "handoff",
+                "stage",
+            )
+        ):
+            step_matches = list(
+                re.finditer(r"^\s*(\d+)\.\s+(\*\*([^*]+)\*\*:\s*)?(.*)", sec_content, re.MULTILINE)
+            )
+            if step_matches and len(step_matches) >= 2:
+                xml_parts.append("  <workflow>")
+                sub_parts = []
+                lines_in = sec_content.split("\n")
+                curr_step = None
+                curr_lines: list[str] = []
+                for line_item in lines_in:
+                    m = re.match(r"^\s*(\d+)\.\s+(\*\*([^*]+)\*\*:\s*)?(.*)", line_item)
+                    if m:
+                        if curr_step is not None:
+                            sub_parts.append(f"    <step{curr_step}>")
+                            step_body = restore("\n".join(curr_lines)).strip()
+                            if "\n" not in step_body:
+                                sub_parts[-1] = f"    <step{curr_step}>{step_body}</step>"
+                            else:
+                                sub_parts.append(indent(step_body, 6))
+                                sub_parts.append("    </step>")
+                        step_tag_name = m.group(3)
+                        attr = (
+                            f' name="{re.sub(r"[^a-zA-Z0-9]+", "-", step_tag_name).strip("-").lower()}"'
+                            if step_tag_name
+                            else ""
+                        )
+                        curr_step = attr
+                        curr_lines = [m.group(4)] if m.group(4) else []
+                    elif curr_step is not None:
+                        curr_lines.append(line_item)
+                if curr_step is not None:
+                    step_body = restore("\n".join(curr_lines)).strip()
+                    if "\n" not in step_body:
+                        sub_parts.append(f"    <step{curr_step}>{step_body}</step>")
+                    else:
+                        sub_parts.append(f"    <step{curr_step}>")
+                        sub_parts.append(indent(step_body, 6))
+                        sub_parts.append("    </step>")
+                xml_parts.extend(sub_parts)
+                xml_parts.append("  </workflow>")
+            else:
+                xml_parts.append(f'  <workflow name="{slug}">')
+                xml_parts.append(indent(restore(sec_content), 4))
+                xml_parts.append("  </workflow>")
+        elif any(k in h2_lower for k in ("verif", "checklist")):
+            xml_parts.append(f'  <verification name="{slug}">')
+            xml_parts.append(indent(restore(sec_content), 4))
+            xml_parts.append("  </verification>")
+        else:
+            xml_parts.append(f'  <section name="{slug}">')
+            xml_parts.append(indent(restore(sec_content), 4))
+            xml_parts.append("  </section>")
+
+    flush_numbered_steps()
+    xml_parts.append("</skill>")
+
+    xml_str = "\n".join(xml_parts) + "\n"
+    if preserve_frontmatter and raw_frontmatter:
+        return raw_frontmatter + "\n\n" + xml_str
+    return xml_str
+
+
 def canonical_bytes(data: bytes) -> bytes:
     """Treat Git's text line-ending conversion as content-preserving."""
     if b"\x00" in data:
@@ -451,9 +736,16 @@ def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dic
     files = {}
     for name, skill in skills.items():
         for relative, data in skill["files"].items():
-            files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
-                data, relative, minify
-            )
+            if target == "claude" and relative == "SKILL.md":
+                text = data.decode("utf-8")
+                xml_data = markdown_to_xml(text, preserve_frontmatter=True).encode("utf-8")
+                files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
+                    xml_data, relative, minify
+                )
+            else:
+                files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
+                    data, relative, minify
+                )
         if target == "cursor" and "globs" in skill:
             globs_json = json.dumps(skill["globs"])
             mdc_header = (

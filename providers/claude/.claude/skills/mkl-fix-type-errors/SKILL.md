@@ -3,54 +3,55 @@ name: "mkl-fix-type-errors"
 description: "Resolve static type checker errors (mypy, pyright) using localized symbol-level diagnostics without whole-file rewrites. Use when type checks fail on candidate patches."
 ---
 
-# Fix static type checker errors
+<skill name="mkl-fix-type-errors">
+  <description>Resolve static type checker errors (mypy, pyright) using localized symbol-level diagnostics without whole-file rewrites. Use when type checks fail on candidate patches.</description>
+  <context>
+    Resolve type checker errors (`mypy`, `pyright`) by diagnosing the failing symbol and applying minimal, surgical repairs. Never feed whole source files into context or rewrite entire modules to fix isolated type mismatches.
+  </context>
+  <workflow>
+    <step name="extract-localized-diagnostics">
+      Run the compact diagnostic extractor to isolate only the failing symbol, line numbers, and error codes:
 
-Resolve type checker errors (`mypy`, `pyright`) by diagnosing the failing symbol and applying minimal, surgical repairs. Never feed whole source files into context or rewrite entire modules to fix isolated type mismatches.
+      ```bash
+      # Mypy text output
+      mypy --show-error-codes path/to/file.py | python3 tools/extract_type_diagnostics.py
 
-## 1. Extract Localized Diagnostics
+      # Pyright JSON output
+      pyright --outputjson path/to/file.py | python3 tools/extract_type_diagnostics.py --format pyright
+      ```
 
-Run the compact diagnostic extractor to isolate only the failing symbol, line numbers, and error codes:
+      Inspect the returned `<type_error>` block:
+      - Note the exact error code (for example `union-attr`, `arg-type`, `return-value`).
+      - Focus only on the enclosing symbol (`<symbol>`) and localized line context (`<context>`).
+      - If multiple cascading errors stem from one symbol, fix the root symbol first.
+    </step>
+    <step name="select-minimal-repair-strategy">
+      Choose the least invasive repair that satisfies the type checker without altering runtime behavior:
 
-```bash
-# Mypy text output
-mypy --show-error-codes path/to/file.py | python3 tools/extract_type_diagnostics.py
+      1. **Type Narrowing (`[union-attr]` / `Optional`)**:
+         Add an early return or guard clause before member access:
+         ```python
+         if val is None:
+             return default_value
+         ```
+      2. **Signature Widening (`[arg-type]`)**:
+         If a function accepts multiple collection types, widen the parameter annotation from concrete `list[T]` to abstract `Sequence[T]` or `Iterable[T]`, or `dict[K, V]` to `Mapping[K, V]`.
+      3. **Return Type Adjustment (`[return-value]`)**:
+         If a function can return `None` on failure or fallback branches, widen the return annotation to `T | None`. If `None` should not be returned, ensure all code paths return a valid instance.
+      4. **Variable Annotation (`[var-annotated]` / `[assignment]`)**:
+         Provide an explicit type annotation on initialization (`items: list[str] = []`) or use `typing.cast(TargetType, expr)` where dynamic behavior cannot be expressed in standard type syntax.
+    </step>
+    <step name="apply-surgical-patch">
+      Modify only the affected signature, variable annotation, or guard line. Do not reformat unrelated functions, invent new abstractions, or replace working standard library calls.
+    </step>
+    <step name="verify-resolution">
+      Re-run the type checker strictly on the modified file:
 
-# Pyright JSON output
-pyright --outputjson path/to/file.py | python3 tools/extract_type_diagnostics.py --format pyright
-```
+      ```bash
+      mypy --show-error-codes path/to/file.py
+      ```
 
-Inspect the returned `<type_error>` block:
-- Note the exact error code (for example `union-attr`, `arg-type`, `return-value`).
-- Focus only on the enclosing symbol (`<symbol>`) and localized line context (`<context>`).
-- If multiple cascading errors stem from one symbol, fix the root symbol first.
-
-## 2. Select Minimal Repair Strategy
-
-Choose the least invasive repair that satisfies the type checker without altering runtime behavior:
-
-1. **Type Narrowing (`[union-attr]` / `Optional`)**:
-   Add an early return or guard clause before member access:
-   ```python
-   if val is None:
-       return default_value
-   ```
-2. **Signature Widening (`[arg-type]`)**:
-   If a function accepts multiple collection types, widen the parameter annotation from concrete `list[T]` to abstract `Sequence[T]` or `Iterable[T]`, or `dict[K, V]` to `Mapping[K, V]`.
-3. **Return Type Adjustment (`[return-value]`)**:
-   If a function can return `None` on failure or fallback branches, widen the return annotation to `T | None`. If `None` should not be returned, ensure all code paths return a valid instance.
-4. **Variable Annotation (`[var-annotated]` / `[assignment]`)**:
-   Provide an explicit type annotation on initialization (`items: list[str] = []`) or use `typing.cast(TargetType, expr)` where dynamic behavior cannot be expressed in standard type syntax.
-
-## 3. Apply Surgical Patch
-
-Modify only the affected signature, variable annotation, or guard line. Do not reformat unrelated functions, invent new abstractions, or replace working standard library calls.
-
-## 4. Verify Resolution
-
-Re-run the type checker strictly on the modified file:
-
-```bash
-mypy --show-error-codes path/to/file.py
-```
-
-Confirm that the target error is eliminated, error count dropped to zero, and existing regression tests continue to pass without behavioral drift.
+      Confirm that the target error is eliminated, error count dropped to zero, and existing regression tests continue to pass without behavioral drift.
+    </step>
+  </workflow>
+</skill>
