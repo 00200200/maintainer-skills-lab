@@ -47,11 +47,7 @@ unresolved. Do not create or accept a baseline just to clear a review signal.
 
 ## Trace the affected instruction
 
-Read each relevant canonical owner and locate the claim, command, or expectation
-that depends on the changed passage. Inspect the surrounding conditions: a
-statement about training mode may not apply to validation or inference. Follow
-agent dependencies when present, while keeping generated copies separate from
-the source edit.
+Read each relevant canonical owner and locate the claim, command, or expectation that depends on the changed passage. When inspecting large upstream reference files or affected owner files, avoid dumping entire files into context: extract targeted symbol signatures or enclosing scopes using `python3 tools/scope_extract.py --file <path> --symbol <name>` or `--lines <start>-<end>`. Inspect the surrounding conditions: a statement about training mode may not apply to validation or inference. Follow agent dependencies when present, while keeping generated copies separate from the source edit.
 
 For each affected claim, decide whether the evidence supports an update, leaves
 the instruction valid, or is insufficient to decide. Explain the connection with
