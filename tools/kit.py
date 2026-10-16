@@ -180,16 +180,27 @@ def skill_metadata(path: Path) -> tuple[dict[str, str], str]:
     metadata = {}
     for line in lines[1:end]:
         key, separator, value = line.partition(":")
-        if not separator or key not in {"name", "description"} or key in metadata:
+        if not separator or key not in {"name", "description", "globs"} or key in metadata:
             raise KitError(f"{path}: unsupported or duplicate metadata field")
         try:
             parsed = json.loads(value.strip())
         except json.JSONDecodeError as exc:
-            raise KitError(f"{path}: use a double-quoted string for {key}") from exc
-        if not isinstance(parsed, str) or not parsed.strip() or "\n" in parsed:
-            raise KitError(f"{path}: {key} must be a nonempty, single-line string")
-        metadata[key] = parsed
-    if set(metadata) != {"name", "description"}:
+            if key in {"name", "description"}:
+                raise KitError(f"{path}: use a double-quoted string for {key}") from exc
+            raise KitError(f"{path}: use valid JSON syntax for {key}") from exc
+        if key in {"name", "description"}:
+            if not isinstance(parsed, str) or not parsed.strip() or "\n" in parsed:
+                raise KitError(f"{path}: {key} must be a nonempty, single-line string")
+            metadata[key] = parsed
+        elif key == "globs":
+            if (
+                not isinstance(parsed, list)
+                or not parsed
+                or any(not isinstance(item, str) or not item.strip() for item in parsed)
+            ):
+                raise KitError(f"{path}: globs must be a nonempty list of strings")
+            metadata[key] = parsed
+    if not {"name", "description"}.issubset(metadata):
         raise KitError(f"{path}: name and description are required")
     if not NAME.fullmatch(metadata["name"]) or len(metadata["name"]) > 64:
         raise KitError(f"{path}: invalid namespaced skill name")
@@ -443,6 +454,19 @@ def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dic
             files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
                 data, relative, minify
             )
+        if target == "cursor" and "globs" in skill:
+            globs_json = json.dumps(skill["globs"])
+            mdc_header = (
+                "---\n"
+                f"description: {json.dumps(skill['description'], ensure_ascii=False)}\n"
+                f"globs: {globs_json}\n"
+                "alwaysApply: false\n"
+                "---\n\n"
+            )
+            mdc_content = mdc_header + skill["body"] + "\n"
+            if minify:
+                mdc_content = minify_markdown(mdc_content)
+            files[f".cursor/rules/{name}.mdc"] = mdc_content.encode("utf-8")
     for name, agent in agents.items():
         body = agent_body(agent, skills)
         if minify:
@@ -837,6 +861,13 @@ def managed_path(relative: str, target: str) -> bool:
         )
     if target == "windsurf" and relative == WINDSURF_RULES:
         return True
+    if (
+        target == "cursor"
+        and path.parent.as_posix() == ".cursor/rules"
+        and path.suffix == ".mdc"
+        and NAME.fullmatch(path.stem) is not None
+    ):
+        return True
     skill_dir, agent_dir, extension = TARGETS[target]
     try:
         parts = path.relative_to(skill_dir).parts
@@ -920,6 +951,12 @@ def skill_prefixes(target: str, skill_names: list[str] | None) -> tuple[str, ...
         return tuple(f"{ZED_PROMPTS}/{name}.md" for name in sorted(set(skill_names)))
     if target == "continue":
         return tuple(f"{CONTINUE_PROMPTS}/{name}.prompt" for name in sorted(set(skill_names)))
+    if target == "cursor":
+        prefixes = []
+        for name in sorted(set(skill_names)):
+            prefixes.append(f"{TARGETS[target][0]}/{name}/")
+            prefixes.append(f".cursor/rules/{name}.mdc")
+        return tuple(prefixes)
     return tuple(f"{TARGETS[target][0]}/{name}/" for name in sorted(set(skill_names)))
 
 
@@ -948,9 +985,10 @@ def install(
                     raise KitError(f"Unknown source skill: {PurePosixPath(relative).stem}")
             desired = {name: data for name, data in desired.items() if name in prefixes}
         else:
-            for prefix in prefixes:
+            for name in sorted(set(skill_names)):
+                prefix = f"{TARGETS[target][0]}/{name}/"
                 if prefix + "SKILL.md" not in desired:
-                    raise KitError(f"Unknown source skill: {prefix.split('/')[-2]}")
+                    raise KitError(f"Unknown source skill: {name}")
             desired = {name: data for name, data in desired.items() if name.startswith(prefixes)}
     manifest_path, old = installed_state(project, target)
     # Keep other workflows' ownership hashes, even when their local files were edited.
