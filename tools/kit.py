@@ -545,12 +545,44 @@ def load_library(root: Path = ROOT) -> tuple[dict, dict]:
     return skills, agents
 
 
-def agent_body(agent: dict, skills: dict, *, skills_first: bool = False) -> str:
+def skill_lazy_manifest(sorted_skills: list[str], skills: dict, target: str = "") -> str:
+    if not sorted_skills:
+        return ""
+    path_template = (
+        f"{TARGETS[target][0]}/{{skill}}/SKILL.md"
+        if target in TARGETS
+        else "skills/{skill}/SKILL.md"
+    )
+
+    lines = [
+        "## Available Skills (Progressive Disclosure)",
+        "",
+        "When your task requires one of the following specialized skills, load its complete "
+        "workflow instructions using your file reading tool:",
+    ]
+    for skill in sorted_skills:
+        desc = skills[skill]["description"]
+        path = path_template.format(skill=skill)
+        lines.append(f"- `{skill}`: {desc} (Load: `{path}`)")
+    return "\n".join(lines)
+
+
+def agent_body(
+    agent: dict,
+    skills: dict,
+    *,
+    skills_first: bool = False,
+    mode: str = "full",
+    target: str = "",
+) -> str:
     # Embed dependencies so an exported agent does not need another skill
     # to be implicitly loaded by the client.
     # Skills are deterministically ordered lexically for prompt caching prefix stability.
     sorted_skills = sorted(agent["skills"])
-    skills_content = "\n\n".join(skills[skill]["body"] for skill in sorted_skills)
+    if mode == "lazy":
+        skills_content = skill_lazy_manifest(sorted_skills, skills, target=target)
+    else:
+        skills_content = "\n\n".join(skills[skill]["body"] for skill in sorted_skills)
     if skills_first:
         return skills_content + "\n\n## Instructions\n\n" + agent["instructions"]
     return agent["instructions"] + "\n\n" + skills_content
@@ -656,12 +688,14 @@ def build_continue_prompt(name: str, skill: dict) -> str:
     )
 
 
-def build_roomodes(agents: dict, skills: dict, *, minify: bool = False) -> str:
+def build_roomodes(
+    agents: dict, skills: dict, *, minify: bool = False, mode: str = "full"
+) -> str:
     """Compile agent profiles into a valid Roo Code / Cline .roomodes JSON configuration."""
     modes = []
     for name in sorted(agents):
         agent = agents[name]
-        instructions = agent_body(agent, skills)
+        instructions = agent_body(agent, skills, mode=mode, target="cline")
         if minify:
             instructions = minify_markdown(instructions)
         modes.append(
@@ -676,12 +710,16 @@ def build_roomodes(agents: dict, skills: dict, *, minify: bool = False) -> str:
     return json.dumps({"customModes": modes}, indent=2, ensure_ascii=False) + "\n"
 
 
-def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dict[str, bytes]:
+def export_files(
+    target: str, root: Path = ROOT, *, minify: bool = False, mode: str = "full"
+) -> dict[str, bytes]:
     skills, agents = load_library(root)
     if target == "copilot":
         return {COPILOT_INSTRUCTIONS: build_copilot_instructions(skills).encode("utf-8")}
     if target == "cline":
-        return {CLINE_ROOMODES: build_roomodes(agents, skills, minify=minify).encode("utf-8")}
+        return {
+            CLINE_ROOMODES: build_roomodes(agents, skills, minify=minify, mode=mode).encode("utf-8")
+        }
     if target == "zed":
         # Zed has no separate agents directory; emit one Assistant prompt per skill.
         files = {}
@@ -710,7 +748,11 @@ def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dic
         }
         for kind, items in (("skills", skills), ("agents", agents)):
             for name, item in items.items():
-                body = item["body"] if kind == "skills" else agent_body(item, skills)
+                body = (
+                    item["body"]
+                    if kind == "skills"
+                    else agent_body(item, skills, mode=mode, target="grok-bot")
+                )
                 content = (
                     f"# {name}\n\n{item['description']}\n\n"
                     "## Use in Grok Bot\n\n"
@@ -762,7 +804,7 @@ def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dic
             files[f".cursor/rules/{name}.mdc"] = mdc_content.encode("utf-8")
     for name, agent in agents.items():
         skills_first = target in ("claude", "cursor")
-        body = agent_body(agent, skills, skills_first=skills_first)
+        body = agent_body(agent, skills, skills_first=skills_first, mode=mode, target=target)
         if minify:
             body = minify_markdown(body)
         if target == "codex":
@@ -937,14 +979,16 @@ def provider_instructions(target: str) -> str:
     )
 
 
-def provider_files(root: Path = ROOT, *, minify: bool = False) -> dict[str, bytes]:
+def provider_files(
+    root: Path = ROOT, *, minify: bool = False, mode: str = "full"
+) -> dict[str, bytes]:
     """The checked-in, browsable catalogue uses the same exports as ZIPs/install."""
     files = {}
     for target in EXPORT_TARGETS:
         files.update(
             {
                 f"{target}/{name}": data
-                for name, data in export_files(target, root, minify=minify).items()
+                for name, data in export_files(target, root, minify=minify, mode=mode).items()
             }
         )
         readme = (
@@ -1067,12 +1111,14 @@ def provider_path(relative: str) -> bool:
     return rest.startswith("grok-bot/") and len(path.parts) >= 3
 
 
-def sync_providers(root: Path = ROOT, check: bool = False, *, minify: bool = False) -> dict:
+def sync_providers(
+    root: Path = ROOT, check: bool = False, *, minify: bool = False, mode: str = "full"
+) -> dict:
     root = root.resolve()
     destination = checked_path(root, "providers")
     if destination.exists() and not destination.is_dir():
         raise KitError("providers must be a directory")
-    desired = provider_files(root, minify=minify)
+    desired = provider_files(root, minify=minify, mode=mode)
     manifest = checked_path(root, "providers/.manifest.json")
     old = {}
     if manifest.exists():
@@ -1274,12 +1320,13 @@ def install(
     dry_run: bool = False,
     *,
     skill_names: list[str] | None = None,
+    mode: str = "full",
 ) -> dict:
     project = project.resolve()
     if not project.is_dir():
         raise KitError(f"Project directory does not exist: {project}")
     prefixes = skill_prefixes(target, skill_names)
-    desired = export_files(target, root)
+    desired = export_files(target, root, mode=mode)
     if prefixes is not None:
         if target in FLAT_PROMPT_TARGETS:
             for relative in prefixes:
@@ -1407,8 +1454,10 @@ def uninstall(
     }
 
 
-def build(target: str, output: Path, root: Path = ROOT, *, minify: bool = False) -> Path:
-    files = export_files(target, root, minify=minify)
+def build(
+    target: str, output: Path, root: Path = ROOT, *, minify: bool = False, mode: str = "full"
+) -> Path:
+    files = export_files(target, root, minify=minify, mode=mode)
     prefix = f"maintainer-skills-lab-{target}"
     instructions = (
         "# Installation\n\nExtract this archive into a temporary directory.\n\n"
@@ -1451,6 +1500,7 @@ def profile_tokens(
     threshold_tokens: int = 800,
     threshold_desc_tokens: int = 60,
     sort_by: str = "desc-tokens",
+    mode: str = "full",
 ) -> dict:
     skills, agents = load_library(root)
 
@@ -1538,7 +1588,7 @@ def profile_tokens(
     targets_data = {}
     selected_targets = EXPORT_TARGETS if target == "all" else [target]
     for tgt in selected_targets:
-        tfiles = export_files(tgt, root)
+        tfiles = export_files(tgt, root, mode=mode)
         tgt_tokens = sum(
             count_tokens(data.decode("utf-8", errors="replace"), encoding=encoding)
             for data in tfiles.values()
@@ -1671,6 +1721,12 @@ def main(argv: list[str] | None = None) -> int:
         "check", help="Validate this library and generate exports in memory"
     )
     check_parser.add_argument(
+        "--mode",
+        choices=["full", "lazy"],
+        default="full",
+        help="Agent export mode: full (inlined skills) or lazy (progressive disclosure index)",
+    )
+    check_parser.add_argument(
         "--cache-prefix",
         "--cache-check",
         dest="cache_check",
@@ -1679,6 +1735,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     sync_parser = commands.add_parser("sync", help="Regenerate the browsable provider catalogue")
     sync_parser.add_argument("--check", action="store_true", help="Fail on drift without writing")
+    sync_parser.add_argument(
+        "--mode",
+        choices=["full", "lazy"],
+        default="full",
+        help="Agent export mode: full (inlined skills) or lazy (progressive disclosure index)",
+    )
     sync_parser.add_argument(
         "--minify",
         action="store_true",
@@ -1690,6 +1752,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     build_parser.add_argument("--output", type=Path, default=ROOT / "dist")
     build_parser.add_argument(
+        "--mode",
+        choices=["full", "lazy"],
+        default="full",
+        help="Agent export mode: full (inlined skills) or lazy (progressive disclosure index)",
+    )
+    build_parser.add_argument(
         "--minify",
         action="store_true",
         help="Minify exported markdown (whitespace, tables, HTML comments)",
@@ -1698,6 +1766,12 @@ def main(argv: list[str] | None = None) -> int:
         "tokens", help="Benchmark skill and agent context token consumption"
     )
     tokens_parser.add_argument("--json", action="store_true", help="Output structured JSON")
+    tokens_parser.add_argument(
+        "--mode",
+        choices=["full", "lazy"],
+        default="full",
+        help="Agent export mode: full (inlined skills) or lazy (progressive disclosure index)",
+    )
     tokens_parser.add_argument(
         "--target",
         choices=[*EXPORT_TARGETS, "roo", "roomodes", "all"],
@@ -1729,6 +1803,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         action_parser.add_argument("--project", type=Path, required=True)
         action_parser.add_argument("--dry-run", action="store_true")
+        if action == "install":
+            action_parser.add_argument(
+                "--mode",
+                choices=["full", "lazy"],
+                default="full",
+                help="Agent export mode: full (inlined skills) or lazy (progressive disclosure index)",
+            )
         action_parser.add_argument(
             "--skill",
             dest="skill_names",
@@ -1756,7 +1837,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.command == "check":
             skills, agents = load_library()
-            counts = {target: len(export_files(target)) for target in EXPORT_TARGETS}
+            counts = {target: len(export_files(target, mode=args.mode)) for target in EXPORT_TARGETS}
             cache_report = check_cache_friendliness()
             print(
                 json.dumps(
@@ -1773,7 +1854,7 @@ def main(argv: list[str] | None = None) -> int:
             if not cache_report["cache_friendly"]:
                 return 1
         elif args.command == "sync":
-            result = sync_providers(check=args.check, minify=args.minify)
+            result = sync_providers(check=args.check, minify=args.minify, mode=args.mode)
             print(json.dumps(result, indent=2))
             if args.check and not result["up_to_date"]:
                 return 1
@@ -1783,7 +1864,7 @@ def main(argv: list[str] | None = None) -> int:
                 json.dumps(
                     {
                         "archives": [
-                            str(build(target, args.output, minify=args.minify))
+                            str(build(target, args.output, minify=args.minify, mode=args.mode))
                             for target in targets
                         ]
                     },
@@ -1796,6 +1877,7 @@ def main(argv: list[str] | None = None) -> int:
                 threshold_tokens=args.threshold_tokens,
                 threshold_desc_tokens=args.threshold_desc_tokens,
                 sort_by=args.sort_by,
+                mode=args.mode,
             )
             if args.json:
                 print(json.dumps(profile, indent=2))
@@ -1809,6 +1891,7 @@ def main(argv: list[str] | None = None) -> int:
                         args.project,
                         dry_run=args.dry_run,
                         skill_names=args.skill_names,
+                        mode=args.mode,
                     ),
                     indent=2,
                 )

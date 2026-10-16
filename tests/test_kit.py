@@ -1428,6 +1428,42 @@ class PromptCachingTests(unittest.TestCase):
             self.assertFalse(report["cache_friendly"])
             self.assertTrue(any("not in lexical order" in issue for issue in report["issues"]))
 
+    def test_lazy_agent_mode_progressive_disclosure(self):
+        for target in ("claude", "cursor", "codex", "opencode", "gemini", "cline"):
+            full_files = kit.export_files(target, mode="full")
+            lazy_files = kit.export_files(target, mode="lazy")
+            self.assertEqual(full_files.keys(), lazy_files.keys())
+
+            if target == "cline":
+                full_roomodes = json.loads(full_files[kit.CLINE_ROOMODES].decode("utf-8"))
+                lazy_roomodes = json.loads(lazy_files[kit.CLINE_ROOMODES].decode("utf-8"))
+                for l_mode in lazy_roomodes["customModes"]:
+                    self.assertIn("## Available Skills (Progressive Disclosure)", l_mode["customInstructions"])
+                    self.assertIn("When your task requires one of the following", l_mode["customInstructions"])
+                    self.assertIn("(Load: `skills/", l_mode["customInstructions"])
+            else:
+                _, agent_dir, ext = kit.TARGETS[target]
+                path = f"{agent_dir}/mkl-source-reviewer{ext}"
+                self.assertIn(path, lazy_files)
+                full_text = full_files[path].decode("utf-8")
+                lazy_text = lazy_files[path].decode("utf-8")
+
+                self.assertIn("## Available Skills (Progressive Disclosure)", lazy_text)
+                self.assertIn("When your task requires one of the following", lazy_text)
+                self.assertIn("mkl-review-source-change", lazy_text)
+                self.assertIn("(Load: `", lazy_text)
+
+                full_tokens = kit.count_tokens(full_text)
+                lazy_tokens = kit.count_tokens(lazy_text)
+                savings = (full_tokens - lazy_tokens) / full_tokens
+                self.assertGreater(savings, 0.60)
+
+    def test_cli_mode_flags(self):
+        self.assertEqual(kit.main(["check", "--mode", "lazy"]), 0)
+        self.assertEqual(kit.main(["check", "--mode", "full"]), 0)
+        self.assertEqual(kit.main(["tokens", "--mode", "lazy", "--target", "claude", "--json"]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
+
