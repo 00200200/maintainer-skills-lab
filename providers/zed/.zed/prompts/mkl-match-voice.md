@@ -14,6 +14,12 @@ Rewrite the draft using those stylistic choices. Facts, opinions, anecdotes, emp
 
 Check that the result sounds plausible for the intended reader and medium, and that style changes have not altered the promise being made. Return one finished version by default. Briefly explain the applied style when requested or when the available samples leave a material ambiguity.
 
+## Output token budget and constraints
+
+- **Length budget**: The adapted passage must remain within ±20% of the input draft length (max 400 words / ~500 tokens).
+- **Negative constraints**: Avoid speculative commentary on the author's personality, conversational intros ("Here is your draft in the target voice:"), or meta-analysis unless requested.
+- **Stopping guarantee**: Output the adapted passage directly and stop immediately.
+
 ## Worked example
 
 Style sample: "Mała poprawka na dziś. Eksport działa już bez ręcznego kopiowania. Dzięki za zgłoszenie."

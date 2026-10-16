@@ -20,6 +20,12 @@ Keep the tone calm and direct, without blaming the reporter or inserting an apol
 
 Return a ready-to-send reply. Posting, closing issues, applying labels, or assigning people are separate external actions; perform them only under existing user authorization. Keep internal evidence notes outside the public draft.
 
+## Output token budget and constraints
+
+- **Length budget**: Keep the reply strictly under 250 words (~320 tokens). Provide direct, evidence-backed clarity without repetitive padding.
+- **Negative constraints**: Do not include conversational preamble ("Sure, I'd be happy to draft a reply!"), sign-off meta commentary ("Let me know if you would like me to adjust the tone"), or duplicate summaries of the user's issue.
+- **Stopping guarantee**: Output the ready-to-send reply draft and terminate immediately.
+
 ## Worked example
 
 Report: "Install fails on Windows with Python 3.11. I get PermissionError." No failing command or destination path is supplied, and the maintainer has not reproduced it.
