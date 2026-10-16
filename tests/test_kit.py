@@ -107,6 +107,17 @@ class LibraryTests(unittest.TestCase):
         self.assertIn("Breaking Changes", changelog_skill["body"])
         self.assertIn("400 words", changelog_skill["body"])
 
+    def test_prune_context_skill_attributes(self):
+        skills, agents = kit.load_library()
+        self.assertIn("mkl-prune-context", skills)
+        prune_skill = skills["mkl-prune-context"]
+        self.assertEqual(prune_skill["name"], "mkl-prune-context")
+        self.assertIn("Prune verbose histories", prune_skill["description"])
+        self.assertIn("Compact Session Handoff", prune_skill["body"])
+        self.assertIn("Retain vs. Discard", prune_skill["body"])
+        self.assertIn("Anti-pattern (Lossy Pruning)", prune_skill["body"])
+        self.assertIn("mkl-prune-context", agents["mkl-bug-investigator"]["skills"])
+
     def test_unknown_dependency_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
