@@ -688,9 +688,7 @@ def build_continue_prompt(name: str, skill: dict) -> str:
     )
 
 
-def build_roomodes(
-    agents: dict, skills: dict, *, minify: bool = False, mode: str = "full"
-) -> str:
+def build_roomodes(agents: dict, skills: dict, *, minify: bool = False, mode: str = "full") -> str:
     """Compile agent profiles into a valid Roo Code / Cline .roomodes JSON configuration."""
     modes = []
     for name in sorted(agents):
@@ -1837,7 +1835,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.command == "check":
             skills, agents = load_library()
-            counts = {target: len(export_files(target, mode=args.mode)) for target in EXPORT_TARGETS}
+            counts = {
+                target: len(export_files(target, mode=args.mode)) for target in EXPORT_TARGETS
+            }
             cache_report = check_cache_friendliness()
             print(
                 json.dumps(

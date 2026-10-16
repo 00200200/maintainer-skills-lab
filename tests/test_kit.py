@@ -1435,11 +1435,14 @@ class PromptCachingTests(unittest.TestCase):
             self.assertEqual(full_files.keys(), lazy_files.keys())
 
             if target == "cline":
-                full_roomodes = json.loads(full_files[kit.CLINE_ROOMODES].decode("utf-8"))
                 lazy_roomodes = json.loads(lazy_files[kit.CLINE_ROOMODES].decode("utf-8"))
                 for l_mode in lazy_roomodes["customModes"]:
-                    self.assertIn("## Available Skills (Progressive Disclosure)", l_mode["customInstructions"])
-                    self.assertIn("When your task requires one of the following", l_mode["customInstructions"])
+                    self.assertIn(
+                        "## Available Skills (Progressive Disclosure)", l_mode["customInstructions"]
+                    )
+                    self.assertIn(
+                        "When your task requires one of the following", l_mode["customInstructions"]
+                    )
                     self.assertIn("(Load: `skills/", l_mode["customInstructions"])
             else:
                 _, agent_dir, ext = kit.TARGETS[target]
@@ -1466,4 +1469,3 @@ class PromptCachingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
