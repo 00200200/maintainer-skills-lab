@@ -44,7 +44,12 @@ class LibraryTests(unittest.TestCase):
             files = kit.export_files(target)
             skill_dir, agent_dir, extension = kit.TARGETS[target]
             for name, skill in skills.items():
-                self.assertEqual(files[f"{skill_dir}/{name}/SKILL.md"], skill["files"]["SKILL.md"])
+                if target == "claude":
+                    self.assertIn(b"<skill", files[f"{skill_dir}/{name}/SKILL.md"])
+                else:
+                    self.assertEqual(
+                        files[f"{skill_dir}/{name}/SKILL.md"], skill["files"]["SKILL.md"]
+                    )
             for name, agent in agents.items():
                 content = files[f"{agent_dir}/{name}{extension}"].decode()
                 if target == "codex":
@@ -1091,7 +1096,7 @@ class SelectedInstallationTests(unittest.TestCase):
                 self.assertEqual(after[name], data, name)
         self.assertEqual(
             (self.project / ".claude/skills/mkl-humanize/SKILL.md").read_bytes(),
-            source.read_bytes(),
+            kit.export_files("claude", self.root)[".claude/skills/mkl-humanize/SKILL.md"],
         )
 
     def test_selected_dry_runs_and_repeated_install_preserve_files_and_mtimes(self):
@@ -1279,6 +1284,89 @@ class SkillsCliWorkflowTests(unittest.TestCase):
         self.assertIn(f"skills@{check.VERSION}", workflow)
         self.assertIn("python examples/skills-cli/check.py", workflow)
         self.assertIn("skills-cli-install-linux", workflow)
+
+
+class MarkdownToXmlTests(unittest.TestCase):
+    """Semantic XML tagging for frontier model provider exports."""
+
+    def test_markdown_to_xml_with_frontmatter(self):
+        source = (ROOT / "skills/mkl-reproduce-bug/SKILL.md").read_text()
+        xml = kit.markdown_to_xml(source)
+        self.assertTrue(xml.startswith('<skill name="mkl-reproduce-bug">'))
+        self.assertIn("<description>", xml)
+        self.assertIn("</description>", xml)
+        self.assertIn("<context>", xml)
+        self.assertIn("<instructions>", xml)
+        self.assertIn('<example type="reference">', xml)
+        self.assertTrue(xml.strip().endswith("</skill>"))
+
+    def test_markdown_to_xml_preserve_frontmatter(self):
+        source = (ROOT / "skills/mkl-reproduce-bug/SKILL.md").read_text()
+        xml = kit.markdown_to_xml(source, preserve_frontmatter=True)
+        self.assertTrue(xml.startswith("---\n"))
+        self.assertIn('name: "mkl-reproduce-bug"', xml)
+        self.assertIn('<skill name="mkl-reproduce-bug">', xml)
+        self.assertTrue(xml.strip().endswith("</skill>"))
+
+    def test_markdown_to_xml_workflow_and_steps(self):
+        md = (
+            "# Sample Workflow Skill\n\n"
+            "An introductory description.\n\n"
+            "## Workflow\n\n"
+            "1. **reproduce**: Write a minimal standalone reproduction script.\n"
+            "2. **verify**: Run without project dependencies where possible.\n"
+        )
+        xml = kit.markdown_to_xml(md)
+        self.assertIn('<skill name="sample-workflow-skill">', xml)
+        self.assertIn("<description>An introductory description.</description>", xml)
+        self.assertIn("<workflow>", xml)
+        self.assertIn(
+            '<step name="reproduce">Write a minimal standalone reproduction script.</step>',
+            xml,
+        )
+        self.assertIn(
+            '<step name="verify">Run without project dependencies where possible.</step>',
+            xml,
+        )
+        self.assertIn("</workflow>", xml)
+
+    def test_markdown_to_xml_constraints_and_rules(self):
+        md = (
+            "# Rule Skill\n\n"
+            "Skill for enforcing constraints.\n\n"
+            "## Negative Constraints\n\n"
+            "- Never apply a blanket reshape.\n"
+            "- Always verify test execution exit codes.\n"
+        )
+        xml = kit.markdown_to_xml(md)
+        self.assertIn("<constraints>", xml)
+        self.assertIn("<rule>Never apply a blanket reshape.</rule>", xml)
+        self.assertIn("<rule>Always verify test execution exit codes.</rule>", xml)
+        self.assertIn("</constraints>", xml)
+
+    def test_markdown_to_xml_preserves_code_fences_verbatim(self):
+        code_block = (
+            "```python\n"
+            "def check_repro():\n"
+            "    # This is a comment, not a markdown heading\n"
+            "    return True\n"
+            "```"
+        )
+        md = f"# Code Skill\n\nCode explanation.\n\n## Example\n\n{code_block}\n"
+        xml = kit.markdown_to_xml(md)
+        self.assertIn("def check_repro():", xml)
+        self.assertIn("# This is a comment, not a markdown heading", xml)
+
+    def test_claude_export_generates_xml_structured_skills(self):
+        claude_files = kit.export_files("claude")
+        skills, _ = kit.load_library()
+        for name in skills:
+            path = f".claude/skills/{name}/SKILL.md"
+            self.assertIn(path, claude_files)
+            content = claude_files[path].decode("utf-8")
+            self.assertTrue(content.startswith("---\n"), f"{name} missing frontmatter")
+            self.assertIn(f'<skill name="{name}">', content)
+            self.assertIn("</skill>", content)
 
 
 if __name__ == "__main__":
