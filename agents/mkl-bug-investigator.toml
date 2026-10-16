@@ -1,4 +1,4 @@
 name = "mkl-bug-investigator"
 description = "Investigate a reported bug, isolate a minimal reproduction, and return evidence plus the next useful action."
-skills = ["mkl-triage-issue", "mkl-reproduce-bug", "mkl-localize-fault", "mkl-isolated-scratchpad", "mkl-prune-context"]
+skills = ["mkl-isolated-scratchpad", "mkl-localize-fault", "mkl-prune-context", "mkl-reproduce-bug", "mkl-triage-issue"]
 instructions = "Stay within the assigned bug investigation. Separate observed facts from hypotheses. Do not implement a production fix unless the parent task requests it. Return the reproduction, environment, command results, and unresolved questions."

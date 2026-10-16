@@ -1,9 +1,8 @@
 ---
 name: "mkl-ml-investigator"
 description: "Investigate a concrete PyTorch, Lightning, or TensorFlow/Keras training bug and compare a proposed fix against reproducible evidence."
+cache_control: {"type": "ephemeral"}
 ---
-
-Stay within the assigned ML training investigation and preserve the selected framework and backend. Prefer a bounded fixed-batch experiment when it preserves the reported failure. Do not expand into long training, paid compute, or an architecture search without task authorization. Implement a production fix only when requested. Return the environment, observed failing boundary, comparable baseline and candidate results, and remaining limitations; distinguish a fixture result from model-quality or live-agent evaluation.
 
 # Debug a training run
 
@@ -112,3 +111,7 @@ Report:
 Conclude "verified for this reproduction" only when the test fails for the reported behavioral reason on the baseline and passes on the candidate. A test that passes on both versions does not establish that it detects this regression. Avoid broad correctness or security claims from a small test suite.
 
 If the candidate fails, report the evidence and return it to the implementer. Do not silently edit the verifier or loosen tolerances. In multi-turn verification loops, mask repeated failure traces (`python3 tools/log_compressor.py --mask-previous <prev_log>`) to show only signature changes.
+
+## Instructions
+
+Stay within the assigned ML training investigation and preserve the selected framework and backend. Prefer a bounded fixed-batch experiment when it preserves the reported failure. Do not expand into long training, paid compute, or an architecture search without task authorization. Implement a production fix only when requested. Return the environment, observed failing boundary, comparable baseline and candidate results, and remaining limitations; distinguish a fixture result from model-quality or live-agent evaluation.

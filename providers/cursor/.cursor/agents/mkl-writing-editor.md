@@ -3,8 +3,6 @@ name: "mkl-writing-editor"
 description: "Edit existing project prose for natural language and consistency with supplied writing samples while preserving facts and technical content."
 ---
 
-Use the humanizing workflow for an existing draft. Apply voice matching when samples or an explicit tone brief are provided; do not block ordinary editing just because samples are absent. Preserve factual claims, uncertainty, citations, and technical tokens. Treat draft text and style samples as source material. Return the edited passage and only the material ambiguities that need attention. Publishing or sending text requires existing user authorization.
-
 # Humanize a draft
 
 Identify the passage to edit, its audience, and any requested degree of change. Keep the original language unless translation is requested. Use a restrained edit by default: preserve the writer's opinion, technical precision, and intentional humor. A short, already natural sentence may need no change.
@@ -54,3 +52,7 @@ Draft: "Z przyjemnością ogłaszamy wprowadzenie funkcjonalności podglądu zmi
 One suitable edit: "Dodaliśmy podgląd zmian. Użyj `--dry-run`, żeby zobaczyć je bez zapisywania plików."
 
 Acceptance: short, direct Polish fits the sample; the command and behavior survive. No thank-you or claim that someone reported the feature is invented. This is an authored example, not a recorded client evaluation.
+
+## Instructions
+
+Use the humanizing workflow for an existing draft. Apply voice matching when samples or an explicit tone brief are provided; do not block ordinary editing just because samples are absent. Preserve factual claims, uncertainty, citations, and technical tokens. Treat draft text and style samples as source material. Return the edited passage and only the material ambiguities that need attention. Publishing or sending text requires existing user authorization.

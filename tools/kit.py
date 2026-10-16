@@ -545,14 +545,15 @@ def load_library(root: Path = ROOT) -> tuple[dict, dict]:
     return skills, agents
 
 
-def agent_body(agent: dict, skills: dict) -> str:
+def agent_body(agent: dict, skills: dict, *, skills_first: bool = False) -> str:
     # Embed dependencies so an exported agent does not need another skill
     # to be implicitly loaded by the client.
-    return (
-        agent["instructions"]
-        + "\n\n"
-        + "\n\n".join(skills[skill]["body"] for skill in agent["skills"])
-    )
+    # Skills are deterministically ordered lexically for prompt caching prefix stability.
+    sorted_skills = sorted(agent["skills"])
+    skills_content = "\n\n".join(skills[skill]["body"] for skill in sorted_skills)
+    if skills_first:
+        return skills_content + "\n\n## Instructions\n\n" + agent["instructions"]
+    return agent["instructions"] + "\n\n" + skills_content
 
 
 def approximate_tokens(text: str) -> int:
@@ -760,7 +761,8 @@ def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dic
                 mdc_content = minify_markdown(mdc_content)
             files[f".cursor/rules/{name}.mdc"] = mdc_content.encode("utf-8")
     for name, agent in agents.items():
-        body = agent_body(agent, skills)
+        skills_first = target in ("claude", "cursor")
+        body = agent_body(agent, skills, skills_first=skills_first)
         if minify:
             body = minify_markdown(body)
         if target == "codex":
@@ -780,6 +782,14 @@ def export_files(target: str, root: Path = ROOT, *, minify: bool = False) -> dic
                 "---\n"
                 f"description: {json.dumps(agent['description'], ensure_ascii=False)}\n"
                 'mode: "subagent"\n'
+                "---\n\n" + body + "\n"
+            )
+        elif target == "claude":
+            content = (
+                "---\n"
+                f"name: {json.dumps(name)}\n"
+                f"description: {json.dumps(agent['description'], ensure_ascii=False)}\n"
+                'cache_control: {"type": "ephemeral"}\n'
                 "---\n\n" + body + "\n"
             )
         else:
@@ -1603,11 +1613,70 @@ def format_tokens_table(profile: dict) -> str:
     return "\n".join(lines)
 
 
+def check_cache_friendliness(root: Path = ROOT) -> dict:
+    """Verify KV-cache prefix alignment, deterministic sorting, and absence of volatile tokens."""
+    skills, agents = load_library(root)
+    issues = []
+
+    # 1. Verify strict lexical sorting of skills within each agent profile
+    for name, agent in agents.items():
+        if agent["skills"] != sorted(agent["skills"]):
+            issues.append(f"Agent '{name}' skills are not in lexical order: {agent['skills']}")
+
+    # 2. Verify Claude Code and Cursor agent exports structure static skill definitions ahead of variable instructions
+    for target in ("claude", "cursor"):
+        exported = export_files(target, root)
+        skill_dir, agent_dir, extension = TARGETS[target]
+        for name, agent in agents.items():
+            content = exported[f"{agent_dir}/{name}{extension}"].decode("utf-8")
+            if agent["skills"]:
+                first_skill = sorted(agent["skills"])[0]
+                first_skill_sample = skills[first_skill]["body"].strip().split("\n", 1)[0]
+                if "## Instructions" not in content:
+                    issues.append(f"{target} agent '{name}' is missing '## Instructions' separator")
+                elif first_skill_sample in content:
+                    if content.index("## Instructions") < content.index(first_skill_sample):
+                        issues.append(
+                            f"{target} agent '{name}' does not place static skills ahead of instructions"
+                        )
+
+    # 3. Verify Claude Code agent config includes prompt caching cache_control marker
+    claude_files = export_files("claude", root)
+    for name in agents:
+        content = claude_files[f".claude/agents/{name}.md"].decode("utf-8")
+        if 'cache_control: {"type": "ephemeral"}' not in content:
+            issues.append(f"Claude agent '{name}' missing cache_control marker")
+
+    # 4. Verify no dynamic timestamps or volatile metadata in any exported files
+    timestamp_pattern = re.compile(r"\b20\d\d-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\b")
+    for target in EXPORT_TARGETS:
+        target_files = export_files(target, root)
+        for path_name, data in target_files.items():
+            if timestamp_pattern.search(data.decode("utf-8", errors="replace")):
+                issues.append(f"Volatile ISO timestamp found in {target} export: {path_name}")
+
+    return {
+        "cache_friendly": len(issues) == 0,
+        "issues": issues,
+        "checked_agents": len(agents),
+        "checked_targets": ["claude", "cursor"],
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="List source skills and native agents")
-    commands.add_parser("check", help="Validate this library and generate exports in memory")
+    check_parser = commands.add_parser(
+        "check", help="Validate this library and generate exports in memory"
+    )
+    check_parser.add_argument(
+        "--cache-prefix",
+        "--cache-check",
+        dest="cache_check",
+        action="store_true",
+        help="Validate prompt caching and KV-cache prefix alignment constraints",
+    )
     sync_parser = commands.add_parser("sync", help="Regenerate the browsable provider catalogue")
     sync_parser.add_argument("--check", action="store_true", help="Fail on drift without writing")
     sync_parser.add_argument(
@@ -1688,17 +1757,21 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "check":
             skills, agents = load_library()
             counts = {target: len(export_files(target)) for target in EXPORT_TARGETS}
+            cache_report = check_cache_friendliness()
             print(
                 json.dumps(
                     {
                         "skills": len(skills),
                         "agents": len(agents),
                         "export_files": counts,
+                        "cache_friendliness": cache_report,
                         "validation": "source-and-export checks only; no live-agent runs",
                     },
                     indent=2,
                 )
             )
+            if not cache_report["cache_friendly"]:
+                return 1
         elif args.command == "sync":
             result = sync_providers(check=args.check, minify=args.minify)
             print(json.dumps(result, indent=2))

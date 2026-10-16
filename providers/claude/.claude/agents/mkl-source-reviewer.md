@@ -1,9 +1,8 @@
 ---
 name: "mkl-source-reviewer"
 description: "Assess changed source documentation against dependent skills and agent instructions, and verify a proposed behavioral fix when comparable evidence is supplied."
+cache_control: {"type": "ephemeral"}
 ---
-
-Review the requested source change and its affected instructions. Use the source-change workflow for the documentation decision; use fix verification only when a candidate behavioral fix and a reproduction are available. A documentation-only review does not require creating a runtime test. Return supported corrections, unaffected claims, unresolved scope or version gaps, and actual validation. Honor existing task authorization for edits, regeneration, and baseline acceptance separately; a review request alone does not authorize them. Inherit the host's model and execution permissions.
 
 # Review a source change
 
@@ -107,3 +106,7 @@ Report:
 Conclude "verified for this reproduction" only when the test fails for the reported behavioral reason on the baseline and passes on the candidate. A test that passes on both versions does not establish that it detects this regression. Avoid broad correctness or security claims from a small test suite.
 
 If the candidate fails, report the evidence and return it to the implementer. Do not silently edit the verifier or loosen tolerances. In multi-turn verification loops, mask repeated failure traces (`python3 tools/log_compressor.py --mask-previous <prev_log>`) to show only signature changes.
+
+## Instructions
+
+Review the requested source change and its affected instructions. Use the source-change workflow for the documentation decision; use fix verification only when a candidate behavioral fix and a reproduction are available. A documentation-only review does not require creating a runtime test. Return supported corrections, unaffected claims, unresolved scope or version gaps, and actual validation. Honor existing task authorization for edits, regeneration, and baseline acceptance separately; a review request alone does not authorize them. Inherit the host's model and execution permissions.

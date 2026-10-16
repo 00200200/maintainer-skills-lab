@@ -1369,5 +1369,65 @@ class MarkdownToXmlTests(unittest.TestCase):
             self.assertIn("</skill>", content)
 
 
+class PromptCachingTests(unittest.TestCase):
+    def test_check_cache_friendliness_passes_on_library(self):
+        report = kit.check_cache_friendliness()
+        self.assertTrue(
+            report["cache_friendly"], f"Cache friendliness issues found: {report['issues']}"
+        )
+        self.assertEqual(report["issues"], [])
+        self.assertEqual(report["checked_agents"], 6)
+
+    def test_claude_agents_include_cache_control_and_skills_first(self):
+        claude_files = kit.export_files("claude")
+        skills, agents = kit.load_library()
+        for name, agent in agents.items():
+            path = f".claude/agents/{name}.md"
+            self.assertIn(path, claude_files)
+            text = claude_files[path].decode("utf-8")
+            self.assertIn('cache_control: {"type": "ephemeral"}', text)
+            if agent["skills"]:
+                first_skill = sorted(agent["skills"])[0]
+                first_heading = skills[first_skill]["body"].strip().split("\n", 1)[0]
+                self.assertIn(first_heading, text)
+                self.assertIn("## Instructions", text)
+                self.assertLess(text.index(first_heading), text.index("## Instructions"))
+
+    def test_cursor_agents_structure_skills_first(self):
+        cursor_files = kit.export_files("cursor")
+        skills, agents = kit.load_library()
+        for name, agent in agents.items():
+            path = f".cursor/agents/{name}.md"
+            self.assertIn(path, cursor_files)
+            text = cursor_files[path].decode("utf-8")
+            if agent["skills"]:
+                first_skill = sorted(agent["skills"])[0]
+                first_heading = skills[first_skill]["body"].strip().split("\n", 1)[0]
+                self.assertIn(first_heading, text)
+                self.assertIn("## Instructions", text)
+                self.assertLess(text.index(first_heading), text.index("## Instructions"))
+
+    def test_byte_for_byte_reproducibility(self):
+        for target in kit.EXPORT_TARGETS:
+            run1 = kit.export_files(target)
+            run2 = kit.export_files(target)
+            self.assertEqual(run1.keys(), run2.keys())
+            for path in run1:
+                self.assertEqual(run1[path], run2[path], f"Mismatch in {target}:{path}")
+
+    def test_check_cache_friendliness_detects_unsorted_skills(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            copy_library(root)
+            path = root / "agents/mkl-bug-investigator.toml"
+            path.write_text(
+                'name = "mkl-bug-investigator"\ndescription = "desc"\nskills = ["mkl-triage-issue",'
+                ' "mkl-isolated-scratchpad"]\ninstructions = "inst"\n'
+            )
+            report = kit.check_cache_friendliness(root)
+            self.assertFalse(report["cache_friendly"])
+            self.assertTrue(any("not in lexical order" in issue for issue in report["issues"]))
+
+
 if __name__ == "__main__":
     unittest.main()
