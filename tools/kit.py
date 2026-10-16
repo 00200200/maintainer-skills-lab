@@ -449,6 +449,30 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(canonical_bytes(data)).hexdigest()
 
 
+MAX_DESCRIPTION_TOKENS = 60
+MAX_SKILL_BODY_TOKENS = 1000
+SOFT_SKILL_BODY_TOKENS = 600
+MAX_AGENT_INSTRUCTIONS_TOKENS = 400
+MAX_AGENT_EXPANDED_TOKENS = 3000
+
+
+def approximate_tokens(text: str) -> int:
+    """Rough English token estimate used for size budgets when tiktoken is unavailable."""
+    return max(1, (len(text) + 3) // 4)
+
+
+def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
+    """Calculate token count using tiktoken if installed, or approximate_tokens."""
+    if not text:
+        return 0
+    try:
+        import tiktoken
+
+        return len(tiktoken.get_encoding(encoding).encode(text))
+    except Exception:
+        return approximate_tokens(text)
+
+
 def skill_metadata(path: Path) -> tuple[dict[str, str], str]:
     """Our source files intentionally use only JSON-quoted YAML scalars.
 
@@ -491,6 +515,11 @@ def skill_metadata(path: Path) -> tuple[dict[str, str], str]:
         raise KitError(f"{path}: invalid namespaced skill name")
     if path.parent.name != metadata["name"] or len(metadata["description"]) > 1024:
         raise KitError(f"{path}: directory/name mismatch or oversized description")
+    desc_tokens = count_tokens(metadata["description"])
+    if desc_tokens > MAX_DESCRIPTION_TOKENS:
+        raise KitError(
+            f"{path}: description exceeds token budget ({desc_tokens} > {MAX_DESCRIPTION_TOKENS} tokens)"
+        )
     body = "\n".join(lines[end + 1 :]).strip()
     if not body:
         raise KitError(f"{path}: empty skill body")
@@ -545,6 +574,53 @@ def load_library(root: Path = ROOT) -> tuple[dict, dict]:
     return skills, agents
 
 
+def check_library(
+    root: Path = ROOT,
+    *,
+    max_body_tokens: int = MAX_SKILL_BODY_TOKENS,
+    max_desc_tokens: int = MAX_DESCRIPTION_TOKENS,
+    max_agent_instructions_tokens: int = MAX_AGENT_INSTRUCTIONS_TOKENS,
+) -> dict:
+    skills, agents = load_library(root)
+    warnings: list[str] = []
+
+    for name, skill in skills.items():
+        desc = skill.get("description", "")
+        desc_tokens = count_tokens(desc)
+        if desc_tokens > max_desc_tokens:
+            raise KitError(
+                f"skills/{name}/SKILL.md: description exceeds token budget ({desc_tokens} > {max_desc_tokens} tokens)"
+            )
+        body = skill.get("body", "")
+        body_tokens = count_tokens(body)
+        if body_tokens > max_body_tokens:
+            raise KitError(
+                f"skills/{name}/SKILL.md exceeds body token budget ({body_tokens} > {max_body_tokens} tokens). "
+                "Consider condensing instructions or splitting into focused workflows."
+            )
+        if body_tokens > SOFT_SKILL_BODY_TOKENS:
+            warnings.append(
+                f"skills/{name}: body has {body_tokens} tokens (> {SOFT_SKILL_BODY_TOKENS} soft budget)"
+            )
+
+    for name, agent in agents.items():
+        instructions = agent.get("instructions", "")
+        inst_tokens = count_tokens(instructions)
+        if inst_tokens > max_agent_instructions_tokens:
+            raise KitError(
+                f"agents/{name}: instructions exceed token budget ({inst_tokens} > {max_agent_instructions_tokens} tokens)"
+            )
+
+    return {
+        "valid": True,
+        "skills_checked": len(skills),
+        "agents_checked": len(agents),
+        "max_body_tokens": max_body_tokens,
+        "max_desc_tokens": max_desc_tokens,
+        "warnings": warnings,
+    }
+
+
 def skill_lazy_manifest(sorted_skills: list[str], skills: dict, target: str = "") -> str:
     if not sorted_skills:
         return ""
@@ -586,11 +662,6 @@ def agent_body(
     if skills_first:
         return skills_content + "\n\n## Instructions\n\n" + agent["instructions"]
     return agent["instructions"] + "\n\n" + skills_content
-
-
-def approximate_tokens(text: str) -> int:
-    """Rough English token estimate used only for the Copilot size budget."""
-    return max(1, (len(text) + 3) // 4)
 
 
 def skill_excerpt(body: str, paragraphs: int = COPILOT_PARAGRAPHS_PER_SKILL) -> str:
@@ -1478,18 +1549,6 @@ def build(
     return archive
 
 
-def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
-    """Calculate token count using tiktoken if installed, or approximate_tokens."""
-    if not text:
-        return 0
-    try:
-        import tiktoken
-
-        return len(tiktoken.get_encoding(encoding).encode(text))
-    except Exception:
-        return approximate_tokens(text)
-
-
 def profile_tokens(
     target: str = "all",
     *,
@@ -1731,6 +1790,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Validate prompt caching and KV-cache prefix alignment constraints",
     )
+    check_parser.add_argument(
+        "--max-skill-tokens",
+        type=int,
+        default=MAX_SKILL_BODY_TOKENS,
+        help=f"Hard budget for skill body tokens (default: {MAX_SKILL_BODY_TOKENS})",
+    )
+    check_parser.add_argument(
+        "--max-desc-tokens",
+        type=int,
+        default=MAX_DESCRIPTION_TOKENS,
+        help=f"Hard budget for skill description tokens (default: {MAX_DESCRIPTION_TOKENS})",
+    )
     sync_parser = commands.add_parser("sync", help="Regenerate the browsable provider catalogue")
     sync_parser.add_argument("--check", action="store_true", help="Fail on drift without writing")
     sync_parser.add_argument(
@@ -1835,6 +1906,10 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.command == "check":
             skills, agents = load_library()
+            budget_report = check_library(
+                max_body_tokens=args.max_skill_tokens,
+                max_desc_tokens=args.max_desc_tokens,
+            )
             counts = {
                 target: len(export_files(target, mode=args.mode)) for target in EXPORT_TARGETS
             }
@@ -1846,12 +1921,13 @@ def main(argv: list[str] | None = None) -> int:
                         "agents": len(agents),
                         "export_files": counts,
                         "cache_friendliness": cache_report,
+                        "token_budget": budget_report,
                         "validation": "source-and-export checks only; no live-agent runs",
                     },
                     indent=2,
                 )
             )
-            if not cache_report["cache_friendly"]:
+            if not cache_report["cache_friendly"] or not budget_report["valid"]:
                 return 1
         elif args.command == "sync":
             result = sync_providers(check=args.check, minify=args.minify, mode=args.mode)

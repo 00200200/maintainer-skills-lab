@@ -84,6 +84,7 @@ def check(root: Path) -> dict:
             path.write_bytes(content)
         try:
             result = kit.sync_providers(snapshot, check=True)
+            kit.check_library(snapshot)
         except (kit.KitError, ValueError) as exc:
             # Hide the disposable snapshot path in actionable error messages.
             raise StagedError(str(exc).replace(str(snapshot), "<staged>")) from exc

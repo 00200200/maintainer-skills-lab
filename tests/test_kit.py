@@ -1466,6 +1466,57 @@ class PromptCachingTests(unittest.TestCase):
         self.assertEqual(kit.main(["check", "--mode", "full"]), 0)
         self.assertEqual(kit.main(["tokens", "--mode", "lazy", "--target", "claude", "--json"]), 0)
 
+    def test_check_library_passes_on_root(self):
+        result = kit.check_library()
+        self.assertTrue(result["valid"])
+        self.assertEqual(result["skills_checked"], 30)
+        self.assertEqual(result["agents_checked"], 6)
+        self.assertEqual(result["max_body_tokens"], 1000)
+        self.assertEqual(result["max_desc_tokens"], 60)
+
+    def test_check_library_enforces_skill_body_budget(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp_root = Path(temp)
+            # Copy library structure
+            shutil.copytree(ROOT / "skills", temp_root / "skills")
+            shutil.copytree(ROOT / "agents", temp_root / "agents")
+
+            # Create oversized skill
+            oversized = temp_root / "skills" / "mkl-oversized"
+            oversized.mkdir(parents=True)
+            body_text = "Word " * 1300
+            (oversized / "SKILL.md").write_text(
+                f'---\nname: "mkl-oversized"\ndescription: "A skill with too many tokens in body."\n---\n\n# Oversized\n\n{body_text}\n',
+                encoding="utf-8",
+            )
+            with self.assertRaises(kit.KitError) as ctx:
+                kit.check_library(temp_root)
+            self.assertIn(
+                "skills/mkl-oversized/SKILL.md exceeds body token budget", str(ctx.exception)
+            )
+            self.assertIn(
+                "Consider condensing instructions or splitting into focused workflows.",
+                str(ctx.exception),
+            )
+
+    def test_skill_metadata_enforces_description_token_budget(self):
+        with tempfile.TemporaryDirectory() as temp:
+            skill_dir = Path(temp) / "mkl-verbose-desc"
+            skill_dir.mkdir()
+            verbose_desc = "Word " * 75
+            skill_file = skill_dir / "SKILL.md"
+            skill_file.write_text(
+                f'---\nname: "mkl-verbose-desc"\ndescription: "{verbose_desc.strip()}"\n---\n\n# Body\nContent\n',
+                encoding="utf-8",
+            )
+            with self.assertRaises(kit.KitError) as ctx:
+                kit.skill_metadata(skill_file)
+            self.assertIn("description exceeds token budget", str(ctx.exception))
+
+    def test_cli_check_token_budget_threshold_flags(self):
+        self.assertEqual(kit.main(["check", "--max-skill-tokens", "2000"]), 0)
+        self.assertEqual(kit.main(["check", "--max-skill-tokens", "100"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

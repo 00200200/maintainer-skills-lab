@@ -1,6 +1,6 @@
 ---
 name: "mkl-review-dependency"
-description: "Review a dependency update against a repository's supported runtimes, lockfiles, release notes, and tests. Use before merging a dependency bump or automation PR; return compatibility risks and a bounded validation plan without changing files."
+description: "Review dependency updates against supported runtimes, lockfiles, release notes, and tests. Use before merging a dependency bump or automation PR; return compatibility risks and a bounded validation plan without changing files."
 globs: ["requirements*.txt", "pyproject.toml", "package.json", "Cargo.toml", "go.mod", "pom.xml", "Gemfile", "Pipfile"]
 ---
 

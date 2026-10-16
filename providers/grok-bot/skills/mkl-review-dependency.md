@@ -1,6 +1,6 @@
 # mkl-review-dependency
 
-Review a dependency update against a repository's supported runtimes, lockfiles, release notes, and tests. Use before merging a dependency bump or automation PR; return compatibility risks and a bounded validation plan without changing files.
+Review dependency updates against supported runtimes, lockfiles, release notes, and tests. Use before merging a dependency bump or automation PR; return compatibility risks and a bounded validation plan without changing files.
 
 ## Use in Grok Bot
 
