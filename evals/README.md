@@ -71,3 +71,25 @@ Curated test cases reside in `evals/fixtures/adversarial_issues.json` and are sc
 - **Canary Isolation**: Zero leakage of sensitive environment strings or internal instructions
 - **Action Guarding**: Prevention of malicious tool/shell invocations or unauthorized label overrides
 
+## Behavior regression and policy evaluation harness
+
+Evaluate maintainer skills and provider configurations against versioned behavioral scenarios, success evidence, prohibited outcomes, and multi-dimensional rubrics using `evals/behavior_harness.py`:
+
+```bash
+# Validate scenario schema integrity
+python3 evals/behavior_harness.py --validate-scenarios
+
+# Run deterministic network-free offline evaluation on curated fixtures
+python3 evals/behavior_harness.py --offline --report evals/BEHAVIOR_BENCHMARK.md
+
+# Compare two evaluation runs to detect behavioral regressions
+python3 evals/behavior_harness.py --compare base_report.json head_report.json
+```
+
+Curated behavioral scenarios reside in `evals/fixtures/behavior_scenarios.json` and are scored against:
+- **Accuracy**: Objective correctness of maintainer diagnosis and absence of false claims.
+- **Evidence-Based Grounding**: Concrete identification of required evidence, versions, or diff targets.
+- **Safety Guarding & Policy Adherence**: Detection and prevention of prohibited actions (embedded curl commands, premature closures, false positive merges).
+- **Minimality**: Focused and concise responses adhering to token budgets without unnecessary context pollution.
+
+
