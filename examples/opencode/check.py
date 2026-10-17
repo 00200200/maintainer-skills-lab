@@ -108,8 +108,11 @@ def exercise(executable):
                 agent["name"] == name and agent["mode"] == "subagent", "Agent mode/name differs"
             )
             require(agent["description"] == source["description"], "Agent description differs")
+            expected_prompt = kit.agent_body(
+                source, skills, preamble=preamble, target="opencode"
+            ).strip()
             require(
-                agent["prompt"].strip() == kit.agent_body(source, skills).strip(),
+                agent["prompt"].strip() == expected_prompt,
                 "Agent prompt differs",
             )
         # Client diagnostics may create their own state, but must preserve our exports.
