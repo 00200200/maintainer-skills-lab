@@ -480,6 +480,25 @@ MAX_SKILL_BODY_TOKENS = 1000
 SOFT_SKILL_BODY_TOKENS = 600
 MAX_AGENT_INSTRUCTIONS_TOKENS = 400
 MAX_AGENT_EXPANDED_TOKENS = 3000
+MAX_SUBAGENT_STARTUP_TOKENS = 600
+
+SUBAGENT_HANDOFF_INSTRUCTIONS = """## Subagent Handoff Protocol
+
+When operating as a delegated subagent or receiving a task handoff:
+1. Accept structured task input conforming to `mkl-subagent-handoff/v1`.
+2. Execute strictly within the designated `scope_paths` and constraints.
+3. Terminate by returning a concise JSON handoff artifact:
+```json
+{
+  "protocol": "mkl-subagent-handoff/v1",
+  "status": "COMPLETED | FAILED | BLOCKED",
+  "verdict": "APPROVED | REJECTED | NEEDS_INFO",
+  "summary": "<concise summary under 100 words>",
+  "findings": [],
+  "artifacts": {}
+}
+```
+Do not accumulate conversational history or emit unnecessary conversational pleasantries."""
 
 
 def approximate_tokens(text: str) -> int:
@@ -579,8 +598,12 @@ def load_library(root: Path = ROOT) -> tuple[dict, dict]:
         if path.is_symlink():
             raise KitError(f"Source symlinks are unsupported: {path}")
         agent = tomllib.loads(path.read_text(encoding="utf-8"))
-        if set(agent) != {"name", "description", "instructions", "skills"}:
-            raise KitError(f"{path}: expected name, description, instructions, skills")
+        allowed_keys = {"name", "description", "instructions", "skills", "mode"}
+        required_keys = {"name", "description", "instructions", "skills"}
+        if not required_keys.issubset(set(agent)) or not set(agent).issubset(allowed_keys):
+            raise KitError(
+                f"{path}: expected name, description, instructions, skills (optional: mode)"
+            )
         if any(
             not isinstance(agent[key], str) or not agent[key].strip()
             for key in ("name", "description", "instructions")
@@ -594,6 +617,8 @@ def load_library(root: Path = ROOT) -> tuple[dict, dict]:
             raise KitError(f"{path}: unknown skill dependency")
         if len(set(agent["skills"])) != len(agent["skills"]):
             raise KitError(f"{path}: repeated skill dependency")
+        if "mode" in agent and agent["mode"] not in {"full", "subagent", "lazy"}:
+            raise KitError(f"{path}: mode must be 'full', 'subagent', or 'lazy'")
         agents[agent["name"]] = agent
     if not agents:
         raise KitError("No agent profiles found")
@@ -636,6 +661,18 @@ def check_library(
             raise KitError(
                 f"agents/{name}: instructions exceed token budget ({inst_tokens} > {max_agent_instructions_tokens} tokens)"
             )
+        if agent.get("mode") == "subagent":
+            lazy_manifest = skill_lazy_manifest(agent.get("skills", []), skills)
+            startup_tokens = (
+                inst_tokens
+                + count_tokens(lazy_manifest)
+                + count_tokens(SUBAGENT_HANDOFF_INSTRUCTIONS)
+            )
+            if startup_tokens > MAX_SUBAGENT_STARTUP_TOKENS:
+                raise KitError(
+                    f"agents/{name}: subagent startup tokens exceed {MAX_SUBAGENT_STARTUP_TOKENS} budget "
+                    f"({startup_tokens} > {MAX_SUBAGENT_STARTUP_TOKENS} tokens)"
+                )
 
     return {
         "valid": True,
@@ -682,14 +719,20 @@ def agent_body(
     # to be implicitly loaded by the client.
     # Skills are deterministically ordered lexically for prompt caching prefix stability.
     sorted_skills = sorted(agent["skills"])
-    if mode == "lazy":
+    is_subagent = agent.get("mode") == "subagent" or mode == "lazy"
+    if is_subagent:
         skills_content = skill_lazy_manifest(sorted_skills, skills, target=target)
     else:
         skills_content = "\n\n".join(skills[skill]["body"] for skill in sorted_skills)
+
+    instructions = agent["instructions"]
+    if agent.get("mode") == "subagent":
+        instructions = instructions + "\n\n" + SUBAGENT_HANDOFF_INSTRUCTIONS
+
     if skills_first:
-        content = skills_content + "\n\n## Instructions\n\n" + agent["instructions"]
+        content = skills_content + "\n\n## Instructions\n\n" + instructions
     else:
-        content = agent["instructions"] + "\n\n" + skills_content
+        content = instructions + "\n\n" + skills_content
     if preamble:
         return preamble + "\n\n" + content
     return content
@@ -1670,12 +1713,18 @@ def profile_tokens(
     agents_data = []
     for name, agent in agents.items():
         instructions = agent.get("instructions", "")
+        if agent.get("mode") == "subagent":
+            instructions = instructions + "\n\n" + SUBAGENT_HANDOFF_INSTRUCTIONS
         inst_tokens = count_tokens(instructions, encoding=encoding)
         referenced_skills = agent.get("skills", [])
-        ref_tokens = sum(
-            next((s["tokens"] for s in skills_data if s["name"] == rname), 0)
-            for rname in referenced_skills
-        )
+        if agent.get("mode") == "subagent" or mode == "lazy":
+            lazy_manifest = skill_lazy_manifest(referenced_skills, skills)
+            ref_tokens = count_tokens(lazy_manifest, encoding=encoding)
+        else:
+            ref_tokens = sum(
+                next((s["tokens"] for s in skills_data if s["name"] == rname), 0)
+                for rname in referenced_skills
+            )
         agents_data.append(
             {
                 "name": name,
@@ -1683,6 +1732,7 @@ def profile_tokens(
                 "referenced_skills_count": len(referenced_skills),
                 "referenced_skills_tokens": ref_tokens,
                 "total_tokens": inst_tokens + ref_tokens,
+                "mode": agent.get("mode", "full"),
             }
         )
     agents_data.sort(key=lambda a: a["total_tokens"], reverse=True)

@@ -70,3 +70,61 @@ Safety verdicts:
 - Existing user authorization covers commits, pushes, and PRs for this project;
   do not repeatedly ask for those permissions.
 - Do not purchase services or run paid APIs as part of routine checks.
+
+## Modular Subagent Delegation & Handoff Protocol
+
+Maintainer Skills Lab supports modular, role-isolated subagents to prevent context bloat and instruction contamination during complex multi-step workflows.
+
+### Core Subagents
+
+| Subagent Profile | Role & Responsibilities | Startup Token Overhead | Targeted Model Tier |
+| --- | --- | --- | --- |
+| `mkl-triage-agent` | Bug reproduction, issue labeling, fault isolation | < 200 tokens | Fast / Haiku / Flash |
+| `mkl-pr-auditor` | Security audit, diff review, adversarial regression check | < 200 tokens | Frontier / Sonnet / Pro |
+| `mkl-doc-editor` | Copywriting, humanization, README clarity | < 200 tokens | Fast / Haiku / Flash |
+
+### Standardized Handoff Protocol (`mkl-subagent-handoff/v1`)
+
+Primary maintainer agents delegate focused tasks to subagents using structured JSON handoff payloads. The subagent executes exclusively within the delegated scope and returns a concise synthesis artifact rather than polluting conversational history.
+
+#### 1. Delegation Request Payload
+```json
+{
+  "protocol": "mkl-subagent-handoff/v1",
+  "task_id": "triage-issue-142",
+  "delegator": "mkl-primary-coordinator",
+  "target_agent": "mkl-triage-agent",
+  "context": {
+    "goal": "Verify reproduction of reported null-dereference bug",
+    "issue_number": 142,
+    "scope_paths": ["src/service.py", "tests/test_service.py"],
+    "constraints": ["Do not modify working tree", "Timeout 60s"]
+  },
+  "expected_output_schema": "verdict_artifact"
+}
+```
+
+#### 2. Subagent Response Artifact
+```json
+{
+  "protocol": "mkl-subagent-handoff/v1",
+  "task_id": "triage-issue-142",
+  "agent": "mkl-triage-agent",
+  "status": "COMPLETED",
+  "verdict": "CONFIRMED_BUG",
+  "summary": "Bug successfully reproduced with minimal test script. Null check missing on line 42.",
+  "findings": [
+    {
+      "severity": "HIGH",
+      "path": "src/service.py",
+      "line": 42,
+      "message": "AttributeError when user config is None"
+    }
+  ],
+  "artifacts": {
+    "reproduction_script": "tests/reproduce_issue_142.py"
+  }
+}
+```
+
+Validate and inspect handoffs locally with `python3 tools/subagent_handoff.py`.
