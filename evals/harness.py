@@ -13,9 +13,8 @@ import argparse
 import json
 import math
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -420,9 +419,7 @@ def evaluate_scenario(scenario: BenchmarkScenario, model: str) -> ScenarioResult
     mkl_out = estimate_tokens(scenario.mkl_completion)
     mkl_cached = estimate_tokens(scenario.shared_prefix)
     mkl_total = mkl_in + mkl_out
-    mkl_cost = CostCalculator.calculate_cost(
-        model, mkl_in, mkl_out, cached_input_tokens=mkl_cached
-    )
+    mkl_cost = CostCalculator.calculate_cost(model, mkl_in, mkl_out, cached_input_tokens=mkl_cached)
 
     token_savings = round(max(0.0, (base_total - mkl_total) / base_total * 100.0), 1)
     cost_savings = round(max(0.0, (base_cost - mkl_cost) / base_cost * 100.0), 1)
@@ -567,16 +564,10 @@ def main(argv: list[str] | None = None) -> int:
     scenarios = get_builtin_scenarios()
 
     target_scenarios = (
-        list(scenarios.values())
-        if args.scenario == "all"
-        else [scenarios[args.scenario]]
+        list(scenarios.values()) if args.scenario == "all" else [scenarios[args.scenario]]
     )
 
-    target_models = (
-        list(MODEL_PRICING.keys())
-        if args.model == "all"
-        else [args.model]
-    )
+    target_models = list(MODEL_PRICING.keys()) if args.model == "all" else [args.model]
 
     if args.simulate_cache:
         sim = simulate_prefix_caching()
@@ -587,7 +578,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"- Simulated Workflow: {' -> '.join(sim.sequence)} ({sim.turns} turns)")
             print(f"- Total Prompt Tokens: {sim.total_prompt_tokens:,}")
             print(f"- Unnormalized Cache Hit: {sim.unnormalized_cache_hit_pct}% (0 tokens cached)")
-            print(f"- Normalized Cache Hit: {sim.normalized_cache_hit_pct}% ({sim.normalized_cached_tokens:,} tokens cached)")
+            print(
+                f"- Normalized Cache Hit: {sim.normalized_cache_hit_pct}% ({sim.normalized_cached_tokens:,} tokens cached)"
+            )
             print(f"- Estimated TTFT Speedup: {sim.estimated_ttft_speedup_x}x faster")
             print(f"- GPU KV-Cache Memory Reduction: {sim.memory_footprint_reduction_pct}%")
         return 0
