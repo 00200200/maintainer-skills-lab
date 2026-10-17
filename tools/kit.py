@@ -60,10 +60,36 @@ WINDSURF_SKILLS = COPILOT_SKILLS
 ZED_PROMPTS = ".zed/prompts"
 CONTINUE_PROMPTS = ".continue/prompts"
 FLAT_PROMPT_TARGETS = frozenset({"zed", "continue"})
+CANONICAL_PREAMBLE_FILE = "assets/canonical_preamble.md"
+MIN_CANONICAL_PREAMBLE_TOKENS = 512
+PREAMBLE_TARGETS = frozenset({"codex", "claude", "cursor", "opencode"})
 NAME = re.compile(r"mkl-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 FENCE_OPEN = re.compile(r"^( {0,3})(```+|~~~+)(.*)$")
+
+
+def load_canonical_preamble(root: Path = ROOT) -> str:
+    """Load the shared canonical maintainer preamble for cross-skill KV-cache sharing."""
+    path = root / CANONICAL_PREAMBLE_FILE
+    if not path.is_file():
+        return ""
+    return path.read_text(encoding="utf-8").replace("\r\n", "\n").strip()
+
+
+def inject_canonical_preamble(content: str, preamble: str) -> str:
+    """Inject canonical static preamble deterministically after YAML frontmatter."""
+    if not preamble:
+        return content
+    if preamble in content:
+        return content
+    if content.startswith("---\n"):
+        end = content.find("\n---\n", 4)
+        if end != -1:
+            frontmatter = content[: end + 5]
+            rest = content[end + 5 :].lstrip("\n")
+            return f"{frontmatter}\n{preamble}\n\n{rest}"
+    return f"{preamble}\n\n{content}"
 
 
 class KitError(Exception):
@@ -650,6 +676,7 @@ def agent_body(
     skills_first: bool = False,
     mode: str = "full",
     target: str = "",
+    preamble: str = "",
 ) -> str:
     # Embed dependencies so an exported agent does not need another skill
     # to be implicitly loaded by the client.
@@ -660,8 +687,12 @@ def agent_body(
     else:
         skills_content = "\n\n".join(skills[skill]["body"] for skill in sorted_skills)
     if skills_first:
-        return skills_content + "\n\n## Instructions\n\n" + agent["instructions"]
-    return agent["instructions"] + "\n\n" + skills_content
+        content = skills_content + "\n\n## Instructions\n\n" + agent["instructions"]
+    else:
+        content = agent["instructions"] + "\n\n" + skills_content
+    if preamble:
+        return preamble + "\n\n" + content
+    return content
 
 
 def skill_excerpt(body: str, paragraphs: int = COPILOT_PARAGRAPHS_PER_SKILL) -> str:
@@ -845,15 +876,27 @@ def export_files(
                 exports[f"{kind}/{name}.md"] = content.encode("utf-8")
         return exports
     skill_dir, agent_dir, extension = TARGETS[target]
+    preamble = load_canonical_preamble(root) if target in PREAMBLE_TARGETS else ""
     files = {}
     for name, skill in skills.items():
         for relative, data in skill["files"].items():
-            if target == "claude" and relative == "SKILL.md":
+            if relative == "SKILL.md":
                 text = data.decode("utf-8")
-                xml_data = markdown_to_xml(text, preserve_frontmatter=True).encode("utf-8")
-                files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
-                    xml_data, relative, minify
-                )
+                if target == "claude":
+                    xml_data = markdown_to_xml(text, preserve_frontmatter=True)
+                    injected = inject_canonical_preamble(xml_data, preamble)
+                    files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
+                        injected.encode("utf-8"), relative, minify
+                    )
+                elif target in PREAMBLE_TARGETS:
+                    injected = inject_canonical_preamble(text, preamble)
+                    files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
+                        injected.encode("utf-8"), relative, minify
+                    )
+                else:
+                    files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
+                        data, relative, minify
+                    )
             else:
                 files[f"{skill_dir}/{name}/{relative}"] = _maybe_minify_markdown_bytes(
                     data, relative, minify
@@ -873,7 +916,14 @@ def export_files(
             files[f".cursor/rules/{name}.mdc"] = mdc_content.encode("utf-8")
     for name, agent in agents.items():
         skills_first = target in ("claude", "cursor")
-        body = agent_body(agent, skills, skills_first=skills_first, mode=mode, target=target)
+        body = agent_body(
+            agent,
+            skills,
+            skills_first=skills_first,
+            mode=mode,
+            target=target,
+            preamble=preamble,
+        )
         if minify:
             body = minify_markdown(body)
         if target == "codex":
@@ -1720,6 +1770,84 @@ def format_tokens_table(profile: dict) -> str:
     return "\n".join(lines)
 
 
+def check_prefix_normalization(root: Path = ROOT) -> dict:
+    """Verify deterministic prefix normalization and cross-skill KV-cache sharing."""
+    preamble = load_canonical_preamble(root)
+    issues = []
+    if not preamble:
+        issues.append(f"Missing or empty canonical preamble at {CANONICAL_PREAMBLE_FILE}")
+        return {
+            "prefix_normalized": False,
+            "issues": issues,
+            "preamble_tokens": 0,
+            "min_tokens_required": MIN_CANONICAL_PREAMBLE_TOKENS,
+            "checked_targets": sorted(PREAMBLE_TARGETS),
+            "checked_skills": 0,
+            "checked_agents": 0,
+        }
+
+    preamble_tokens = count_tokens(preamble)
+    if preamble_tokens < MIN_CANONICAL_PREAMBLE_TOKENS:
+        issues.append(
+            f"Canonical preamble has {preamble_tokens} tokens, which is less than the required minimum of {MIN_CANONICAL_PREAMBLE_TOKENS} tokens"
+        )
+
+    timestamp_pattern = re.compile(r"\b20\d\d-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\b")
+    if timestamp_pattern.search(preamble):
+        issues.append("Volatile ISO timestamp found in canonical preamble")
+
+    skills, agents = load_library(root)
+
+    for target in sorted(PREAMBLE_TARGETS):
+        exported = export_files(target, root)
+        skill_dir, agent_dir, extension = TARGETS[target]
+
+        # 1. Verify every exported skill contains the canonical preamble immediately after frontmatter
+        for name in skills:
+            skill_path = f"{skill_dir}/{name}/SKILL.md"
+            if skill_path not in exported:
+                issues.append(f"{target} export is missing skill file: {skill_path}")
+                continue
+            content = exported[skill_path].decode("utf-8")
+            if preamble not in content:
+                issues.append(f"{target} skill '{name}' is missing canonical preamble")
+            else:
+                end_fm = content.find("\n---\n")
+                if end_fm == -1:
+                    issues.append(f"{target} skill '{name}' is missing closing frontmatter")
+                else:
+                    after_fm = content[end_fm + 5 :].lstrip("\n")
+                    if not after_fm.startswith(preamble):
+                        issues.append(
+                            f"{target} skill '{name}' does not position canonical preamble immediately after frontmatter boundary"
+                        )
+
+        # 2. Verify every exported agent contains the canonical preamble
+        for name in agents:
+            agent_path = f"{agent_dir}/{name}{extension}"
+            if agent_path not in exported:
+                issues.append(f"{target} export is missing agent file: {agent_path}")
+                continue
+            content = exported[agent_path].decode("utf-8")
+            if extension == ".toml":
+                agent_doc = tomllib.loads(content)
+                agent_text = agent_doc.get("developer_instructions", "")
+            else:
+                agent_text = content
+            if preamble not in agent_text:
+                issues.append(f"{target} agent '{name}' is missing canonical preamble")
+
+    return {
+        "prefix_normalized": len(issues) == 0,
+        "issues": issues,
+        "preamble_tokens": preamble_tokens,
+        "min_tokens_required": MIN_CANONICAL_PREAMBLE_TOKENS,
+        "checked_targets": sorted(PREAMBLE_TARGETS),
+        "checked_skills": len(skills),
+        "checked_agents": len(agents),
+    }
+
+
 def check_cache_friendliness(root: Path = ROOT) -> dict:
     """Verify KV-cache prefix alignment, deterministic sorting, and absence of volatile tokens."""
     skills, agents = load_library(root)
@@ -1762,11 +1890,17 @@ def check_cache_friendliness(root: Path = ROOT) -> dict:
             if timestamp_pattern.search(data.decode("utf-8", errors="replace")):
                 issues.append(f"Volatile ISO timestamp found in {target} export: {path_name}")
 
+    # 5. Verify deterministic prefix normalization across client export targets
+    prefix_report = check_prefix_normalization(root)
+    if not prefix_report["prefix_normalized"]:
+        issues.extend(prefix_report["issues"])
+
     return {
         "cache_friendly": len(issues) == 0,
         "issues": issues,
         "checked_agents": len(agents),
-        "checked_targets": ["claude", "cursor"],
+        "checked_targets": sorted({"claude", "cursor"} | PREAMBLE_TARGETS),
+        "prefix_normalization": prefix_report,
     }
 
 

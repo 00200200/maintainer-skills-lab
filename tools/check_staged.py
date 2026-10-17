@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 
 import kit
 
-PATHS = ("skills", "agents", "grok-bot", "providers", "tools/kit.py")
+PATHS = ("skills", "agents", "grok-bot", "providers", "assets", "tools/kit.py")
 OBJECT_ID = re.compile(rb"[0-9a-f]{40}(?:[0-9a-f]{24})?\Z")
 
 

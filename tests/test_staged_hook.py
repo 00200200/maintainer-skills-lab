@@ -22,7 +22,7 @@ class StagedHookTests(unittest.TestCase):
         self.env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
         # The hook finds Python on PATH; prefer the interpreter running these tests.
         self.env["PATH"] = os.pathsep.join((str(Path(sys.executable).parent), os.environ["PATH"]))
-        for name in ("skills", "agents", "grok-bot", "providers", "hooks"):
+        for name in ("skills", "agents", "grok-bot", "providers", "hooks", "assets"):
             shutil.copytree(ROOT / name, self.root / name)
         (self.root / "tools").mkdir()
         for name in ("kit.py", "check_staged.py"):
