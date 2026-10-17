@@ -66,6 +66,8 @@ def exercise(executable):
         version = run("--version").strip()
         require(version == VERSION, f"Expected OpenCode {VERSION}, got {version}")
 
+        preamble = kit.load_canonical_preamble(ROOT)
+
         def discovered(expected, skill_dir=".opencode/skills"):
             entries = json.loads(run("debug", "skill"))
             actual = [entry for entry in entries if entry["name"].startswith("mkl-")]
@@ -74,7 +76,10 @@ def exercise(executable):
             for entry in actual:
                 source = skills[entry["name"]]
                 require(entry["description"] == source["description"], "Description differs")
-                require(entry["content"].strip() == source["body"].strip(), "Skill body differs")
+                content = entry["content"].strip()
+                if preamble and content.startswith(preamble.strip()):
+                    content = content[len(preamble.strip()) :].strip()
+                require(content == source["body"].strip(), "Skill body differs")
                 location = project / skill_dir / entry["name"] / "SKILL.md"
                 require(Path(entry["location"]).resolve() == location, "Unexpected skill location")
 
@@ -103,8 +108,11 @@ def exercise(executable):
                 agent["name"] == name and agent["mode"] == "subagent", "Agent mode/name differs"
             )
             require(agent["description"] == source["description"], "Agent description differs")
+            expected_prompt = kit.agent_body(
+                source, skills, preamble=preamble, target="opencode"
+            ).strip()
             require(
-                agent["prompt"].strip() == kit.agent_body(source, skills).strip(),
+                agent["prompt"].strip() == expected_prompt,
                 "Agent prompt differs",
             )
         # Client diagnostics may create their own state, but must preserve our exports.

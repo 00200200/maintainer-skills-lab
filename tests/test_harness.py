@@ -112,6 +112,28 @@ class TestHarnessCLI(unittest.TestCase):
             content = out_file.read_text(encoding="utf-8")
             self.assertIn("MaintainerSkillsLab Token & Cost Benchmark Report", content)
 
+    def test_simulate_prefix_caching(self):
+        from evals.harness import simulate_prefix_caching
+
+        sim = simulate_prefix_caching()
+        self.assertEqual(sim.turns, 4)
+        self.assertGreater(sim.normalized_cached_tokens, 0)
+        self.assertEqual(sim.unnormalized_cached_tokens, 0)
+        self.assertEqual(sim.unnormalized_cache_hit_pct, 0.0)
+        self.assertGreater(sim.normalized_cache_hit_pct, 20.0)
+        self.assertGreaterEqual(sim.estimated_ttft_speedup_x, 1.2)
+        self.assertGreater(sim.memory_footprint_reduction_pct, 20.0)
+
+    def test_cli_simulate_cache_flag(self):
+        import io
+        from contextlib import redirect_stdout
+
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["--simulate-cache"])
+        self.assertEqual(code, 0)
+        self.assertIn("KV-Cache Prefix Normalization Simulation", buffer.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

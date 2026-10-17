@@ -30,8 +30,9 @@ def humanizer_files(prefix):
 
 
 def copy_library(destination):
-    for name in ("skills", "agents", "grok-bot"):
-        shutil.copytree(ROOT / name, destination / name)
+    for name in ("skills", "agents", "grok-bot", "assets"):
+        if (ROOT / name).is_dir():
+            shutil.copytree(ROOT / name, destination / name)
     shutil.copyfile(ROOT / "LICENSE", destination / "LICENSE")
 
 
@@ -46,6 +47,8 @@ class LibraryTests(unittest.TestCase):
             for name, skill in skills.items():
                 if target == "claude":
                     self.assertIn(b"<skill", files[f"{skill_dir}/{name}/SKILL.md"])
+                elif target in kit.PREAMBLE_TARGETS:
+                    self.assertIn(b"Canonical Preamble", files[f"{skill_dir}/{name}/SKILL.md"])
                 else:
                     self.assertEqual(
                         files[f"{skill_dir}/{name}/SKILL.md"], skill["files"]["SKILL.md"]
@@ -1180,7 +1183,9 @@ class SelectedInstallationTests(unittest.TestCase):
     def test_selected_identical_unmanaged_file_is_not_adopted_or_removed(self):
         destination = self.project / ".cursor/skills/mkl-humanize/SKILL.md"
         destination.parent.mkdir(parents=True)
-        destination.write_bytes((self.root / "skills/mkl-humanize/SKILL.md").read_bytes())
+        destination.write_bytes(
+            kit.export_files("cursor", self.root)[".cursor/skills/mkl-humanize/SKILL.md"]
+        )
         before = snapshot(self.project)
         result = kit.install("cursor", self.project, self.root, skill_names=["mkl-humanize"])
         self.assertEqual(result["identical_unmanaged"], [".cursor/skills/mkl-humanize/SKILL.md"])
@@ -1459,7 +1464,7 @@ class PromptCachingTests(unittest.TestCase):
                 full_tokens = kit.count_tokens(full_text)
                 lazy_tokens = kit.count_tokens(lazy_text)
                 savings = (full_tokens - lazy_tokens) / full_tokens
-                self.assertGreater(savings, 0.60)
+                self.assertGreater(savings, 0.45)
 
     def test_cli_mode_flags(self):
         self.assertEqual(kit.main(["check", "--mode", "lazy"]), 0)
@@ -1516,6 +1521,99 @@ class PromptCachingTests(unittest.TestCase):
     def test_cli_check_token_budget_threshold_flags(self):
         self.assertEqual(kit.main(["check", "--max-skill-tokens", "2000"]), 0)
         self.assertEqual(kit.main(["check", "--max-skill-tokens", "100"]), 2)
+
+
+class PrefixNormalizationTests(unittest.TestCase):
+    def test_canonical_preamble_file_and_tokens(self):
+        preamble = kit.load_canonical_preamble()
+        self.assertTrue(len(preamble) > 0)
+        self.assertNotIn("\r\n", preamble)
+        tokens = kit.count_tokens(preamble)
+        self.assertGreaterEqual(
+            tokens,
+            kit.MIN_CANONICAL_PREAMBLE_TOKENS,
+            f"Canonical preamble has {tokens} tokens, expected >= {kit.MIN_CANONICAL_PREAMBLE_TOKENS}",
+        )
+        pattern = re.compile(r"\b20\d\d-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\b")
+        self.assertIsNone(pattern.search(preamble))
+
+    def test_check_prefix_normalization_passes_on_library(self):
+        report = kit.check_prefix_normalization()
+        self.assertTrue(
+            report["prefix_normalized"], f"Prefix normalization issues: {report['issues']}"
+        )
+        self.assertEqual(report["issues"], [])
+        self.assertGreaterEqual(report["preamble_tokens"], kit.MIN_CANONICAL_PREAMBLE_TOKENS)
+        self.assertEqual(report["checked_skills"], 30)
+        self.assertEqual(report["checked_agents"], 6)
+
+    def test_all_exported_skills_share_exact_canonical_preamble(self):
+        preamble = kit.load_canonical_preamble()
+        skills, _ = kit.load_library()
+        for target in ("codex", "claude", "cursor", "opencode"):
+            exported = kit.export_files(target)
+            skill_dir, _, _ = kit.TARGETS[target]
+            for name in skills:
+                path = f"{skill_dir}/{name}/SKILL.md"
+                self.assertIn(path, exported)
+                content = exported[path].decode("utf-8")
+                self.assertIn(
+                    preamble, content, f"{target} skill {name} missing canonical preamble"
+                )
+                end_fm = content.find("\n---\n")
+                self.assertNotEqual(
+                    end_fm, -1, f"{target} skill {name} missing frontmatter delimiter"
+                )
+                after_fm = content[end_fm + 5 :].lstrip("\n")
+                self.assertTrue(
+                    after_fm.startswith(preamble),
+                    f"{target} skill {name} does not start with preamble after frontmatter",
+                )
+
+    def test_all_exported_agents_share_exact_canonical_preamble(self):
+        preamble = kit.load_canonical_preamble()
+        _, agents = kit.load_library()
+        for target in ("codex", "claude", "cursor", "opencode"):
+            exported = kit.export_files(target)
+            _, agent_dir, ext = kit.TARGETS[target]
+            for name in agents:
+                path = f"{agent_dir}/{name}{ext}"
+                self.assertIn(path, exported)
+                content = exported[path].decode("utf-8")
+                if ext == ".toml":
+                    data = tomllib.loads(content)
+                    agent_text = data.get("developer_instructions", "")
+                else:
+                    agent_text = content
+                self.assertIn(
+                    preamble, agent_text, f"{target} agent {name} missing canonical preamble"
+                )
+
+    def test_deterministic_serialization_crlf_lf_invariance(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp_root = Path(temp)
+            copy_library(temp_root)
+            preamble_file = temp_root / kit.CANONICAL_PREAMBLE_FILE
+            lf_content = preamble_file.read_text(encoding="utf-8")
+            crlf_content = lf_content.replace("\n", "\r\n")
+            preamble_file.write_text(crlf_content, encoding="utf-8")
+
+            loaded = kit.load_canonical_preamble(temp_root)
+            self.assertNotIn("\r\n", loaded)
+            self.assertEqual(loaded, lf_content.strip())
+
+    def test_check_prefix_normalization_fails_on_short_preamble(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp_root = Path(temp)
+            copy_library(temp_root)
+            preamble_file = temp_root / kit.CANONICAL_PREAMBLE_FILE
+            preamble_file.write_text("# Short preamble\nToo few tokens.\n", encoding="utf-8")
+
+            report = kit.check_prefix_normalization(temp_root)
+            self.assertFalse(report["prefix_normalized"])
+            self.assertTrue(
+                any("less than the required minimum" in issue for issue in report["issues"])
+            )
 
 
 if __name__ == "__main__":
