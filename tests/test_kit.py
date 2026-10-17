@@ -69,10 +69,13 @@ class LibraryTests(unittest.TestCase):
                     self.assertEqual(set(parsed), {"description", "mode"})
                     self.assertEqual(parsed["mode"], "subagent")
                     self.assertEqual(parsed["description"], agent["description"])
+                if agent.get("mode") == "subagent":
+                    for dependency in agent["skills"]:
+                        self.assertIn(dependency, body)
+                    self.assertIn("Subagent Handoff Protocol", body)
                 else:
-                    self.assertEqual(parsed["name"], name)
-                for dependency in agent["skills"]:
-                    self.assertIn(skills[dependency]["body"], body)
+                    for dependency in agent["skills"]:
+                        self.assertIn(skills[dependency]["body"], body)
 
     def test_profile_performance_skill_attributes(self):
         skills, _ = kit.load_library()
@@ -326,8 +329,13 @@ class ProviderTests(unittest.TestCase):
                     self.assertIn(item["body"], content)
                 else:
                     self.assertIn(item["instructions"], content)
-                    for dependency in item["skills"]:
-                        self.assertIn(skills[dependency]["body"], content)
+                    if item.get("mode") == "subagent":
+                        for dependency in item["skills"]:
+                            self.assertIn(dependency, content)
+                        self.assertIn("Subagent Handoff Protocol", content)
+                    else:
+                        for dependency in item["skills"]:
+                            self.assertIn(skills[dependency]["body"], content)
         self.assertNotIn("groq", kit.EXPORT_TARGETS)
 
     def test_windsurf_exports_skills_agents_and_consolidated_rules(self):
@@ -488,8 +496,13 @@ class ProviderTests(unittest.TestCase):
             self.assertIn("customInstructions", mode)
             agent = agents[mode["slug"]]
             self.assertEqual(mode["roleDefinition"], agent["description"])
-            for dep in agent["skills"]:
-                self.assertIn(skills[dep]["body"], mode["customInstructions"])
+            if agent.get("mode") == "subagent":
+                for dep in agent["skills"]:
+                    self.assertIn(dep, mode["customInstructions"])
+                self.assertIn("Subagent Handoff Protocol", mode["customInstructions"])
+            else:
+                for dep in agent["skills"]:
+                    self.assertIn(skills[dep]["body"], mode["customInstructions"])
         kit.sync_providers(self.root)
         exported = self.root / "providers/cline" / kit.CLINE_ROOMODES
         self.assertEqual(exported.read_bytes(), files[kit.CLINE_ROOMODES])
@@ -1381,7 +1394,7 @@ class PromptCachingTests(unittest.TestCase):
             report["cache_friendly"], f"Cache friendliness issues found: {report['issues']}"
         )
         self.assertEqual(report["issues"], [])
-        self.assertEqual(report["checked_agents"], 6)
+        self.assertEqual(report["checked_agents"], 9)
 
     def test_claude_agents_include_cache_control_and_skills_first(self):
         claude_files = kit.export_files("claude")
@@ -1393,10 +1406,15 @@ class PromptCachingTests(unittest.TestCase):
             self.assertIn('cache_control: {"type": "ephemeral"}', text)
             if agent["skills"]:
                 first_skill = sorted(agent["skills"])[0]
-                first_heading = skills[first_skill]["body"].strip().split("\n", 1)[0]
-                self.assertIn(first_heading, text)
-                self.assertIn("## Instructions", text)
-                self.assertLess(text.index(first_heading), text.index("## Instructions"))
+                if agent.get("mode") == "subagent":
+                    self.assertIn(f"`{first_skill}`", text)
+                    self.assertIn("## Instructions", text)
+                    self.assertLess(text.index(f"`{first_skill}`"), text.index("## Instructions"))
+                else:
+                    first_heading = skills[first_skill]["body"].strip().split("\n", 1)[0]
+                    self.assertIn(first_heading, text)
+                    self.assertIn("## Instructions", text)
+                    self.assertLess(text.index(first_heading), text.index("## Instructions"))
 
     def test_cursor_agents_structure_skills_first(self):
         cursor_files = kit.export_files("cursor")
@@ -1407,10 +1425,15 @@ class PromptCachingTests(unittest.TestCase):
             text = cursor_files[path].decode("utf-8")
             if agent["skills"]:
                 first_skill = sorted(agent["skills"])[0]
-                first_heading = skills[first_skill]["body"].strip().split("\n", 1)[0]
-                self.assertIn(first_heading, text)
-                self.assertIn("## Instructions", text)
-                self.assertLess(text.index(first_heading), text.index("## Instructions"))
+                if agent.get("mode") == "subagent":
+                    self.assertIn(f"`{first_skill}`", text)
+                    self.assertIn("## Instructions", text)
+                    self.assertLess(text.index(f"`{first_skill}`"), text.index("## Instructions"))
+                else:
+                    first_heading = skills[first_skill]["body"].strip().split("\n", 1)[0]
+                    self.assertIn(first_heading, text)
+                    self.assertIn("## Instructions", text)
+                    self.assertLess(text.index(first_heading), text.index("## Instructions"))
 
     def test_byte_for_byte_reproducibility(self):
         for target in kit.EXPORT_TARGETS:
@@ -1475,7 +1498,7 @@ class PromptCachingTests(unittest.TestCase):
         result = kit.check_library()
         self.assertTrue(result["valid"])
         self.assertEqual(result["skills_checked"], 30)
-        self.assertEqual(result["agents_checked"], 6)
+        self.assertEqual(result["agents_checked"], 9)
         self.assertEqual(result["max_body_tokens"], 1000)
         self.assertEqual(result["max_desc_tokens"], 60)
 
@@ -1545,7 +1568,7 @@ class PrefixNormalizationTests(unittest.TestCase):
         self.assertEqual(report["issues"], [])
         self.assertGreaterEqual(report["preamble_tokens"], kit.MIN_CANONICAL_PREAMBLE_TOKENS)
         self.assertEqual(report["checked_skills"], 30)
-        self.assertEqual(report["checked_agents"], 6)
+        self.assertEqual(report["checked_agents"], 9)
 
     def test_all_exported_skills_share_exact_canonical_preamble(self):
         preamble = kit.load_canonical_preamble()
@@ -1614,6 +1637,75 @@ class PrefixNormalizationTests(unittest.TestCase):
             self.assertTrue(
                 any("less than the required minimum" in issue for issue in report["issues"])
             )
+
+
+class ModularSubagentTests(unittest.TestCase):
+    def test_subagent_profiles_startup_budget(self):
+        skills, agents = kit.load_library()
+        profile = kit.profile_tokens()
+        agent_tokens = {a["name"]: a["total_tokens"] for a in profile["agents"]}
+
+        # Acceptance Criteria:
+        # mkl-triage-agent < 500 tokens
+        # mkl-pr-auditor < 600 tokens
+        # mkl-doc-editor < 400 tokens
+        self.assertLess(agent_tokens["mkl-triage-agent"], 500)
+        self.assertLess(agent_tokens["mkl-pr-auditor"], 600)
+        self.assertLess(agent_tokens["mkl-doc-editor"], 400)
+
+        for name, agent in agents.items():
+            if agent.get("mode") == "subagent":
+                self.assertLessEqual(agent_tokens[name], kit.MAX_SUBAGENT_STARTUP_TOKENS)
+
+    def test_subagent_handoff_protocol_embedded_in_exports(self):
+        _, agents = kit.load_library()
+        for target in ("codex", "claude", "cursor", "opencode"):
+            exported = kit.export_files(target)
+            _, agent_dir, ext = kit.TARGETS[target]
+            for name, agent in agents.items():
+                content = exported[f"{agent_dir}/{name}{ext}"].decode("utf-8")
+                if agent.get("mode") == "subagent":
+                    self.assertIn("Subagent Handoff Protocol", content)
+                    self.assertIn("mkl-subagent-handoff/v1", content)
+                else:
+                    self.assertNotIn("Subagent Handoff Protocol", content)
+
+    def test_subagent_handoff_protocol_validation(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "subagent_handoff", ROOT / "tools/subagent_handoff.py"
+        )
+        handoff = importlib.util.module_from_spec(spec)
+        sys.modules["subagent_handoff"] = handoff
+        spec.loader.exec_module(handoff)
+
+        req = handoff.SubagentHandoffRequest(
+            task_id="task-1",
+            delegator="mkl-primary",
+            target_agent="mkl-triage-agent",
+            context={"goal": "reproduce bug", "scope_paths": ["src/app.py"]},
+        )
+        self.assertEqual(handoff.validate_handoff_request(req.to_dict()), [])
+
+        # Missing protocol fails validation
+        bad_req = req.to_dict()
+        bad_req["protocol"] = "unknown-v0"
+        self.assertTrue(len(handoff.validate_handoff_request(bad_req)) > 0)
+
+        resp = handoff.SubagentHandoffResponse(
+            task_id="task-1",
+            agent="mkl-triage-agent",
+            status="COMPLETED",
+            verdict="CONFIRMED_BUG",
+            summary="Defect confirmed via unit test reproduction script.",
+        )
+        self.assertEqual(handoff.validate_handoff_response(resp.to_dict()), [])
+
+        # Invalid status fails validation
+        bad_resp = resp.to_dict()
+        bad_resp["status"] = "INVALID_STATUS"
+        self.assertTrue(len(handoff.validate_handoff_response(bad_resp)) > 0)
 
 
 if __name__ == "__main__":

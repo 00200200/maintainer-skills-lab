@@ -35,7 +35,7 @@ Prompts across all skills and agent profiles are structured into three distinct 
 
 ### Tier 1: Canonical Static Preamble (`assets/canonical_preamble.md`)
 - **Tokens**: 660 tokens (exceeding the 512-token provider caching block threshold).
-- **Invariance**: Immutable across all 30 skills and 6 agent profiles.
+- **Invariance**: Immutable across all 30 skills and 9 agent profiles.
 - **Position**: Positioned immediately after the YAML frontmatter boundary (`\n---\n\n`) in skills, and at the head of developer instructions in agents.
 - **Content**: Covers evidence-based maintainership, surgical minimal diffs, stdlib-first engineering, Conventional Commits, observation masking to `.scratch/`, and untrusted input isolation.
 
