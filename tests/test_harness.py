@@ -112,7 +112,6 @@ class TestHarnessCLI(unittest.TestCase):
             content = out_file.read_text(encoding="utf-8")
             self.assertIn("MaintainerSkillsLab Token & Cost Benchmark Report", content)
 
-
     def test_simulate_prefix_caching(self):
         from evals.harness import simulate_prefix_caching
 

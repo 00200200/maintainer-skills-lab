@@ -1557,9 +1557,13 @@ class PrefixNormalizationTests(unittest.TestCase):
                 path = f"{skill_dir}/{name}/SKILL.md"
                 self.assertIn(path, exported)
                 content = exported[path].decode("utf-8")
-                self.assertIn(preamble, content, f"{target} skill {name} missing canonical preamble")
+                self.assertIn(
+                    preamble, content, f"{target} skill {name} missing canonical preamble"
+                )
                 end_fm = content.find("\n---\n")
-                self.assertNotEqual(end_fm, -1, f"{target} skill {name} missing frontmatter delimiter")
+                self.assertNotEqual(
+                    end_fm, -1, f"{target} skill {name} missing frontmatter delimiter"
+                )
                 after_fm = content[end_fm + 5 :].lstrip("\n")
                 self.assertTrue(
                     after_fm.startswith(preamble),
@@ -1607,9 +1611,10 @@ class PrefixNormalizationTests(unittest.TestCase):
 
             report = kit.check_prefix_normalization(temp_root)
             self.assertFalse(report["prefix_normalized"])
-            self.assertTrue(any("less than the required minimum" in issue for issue in report["issues"]))
+            self.assertTrue(
+                any("less than the required minimum" in issue for issue in report["issues"])
+            )
 
 
 if __name__ == "__main__":
     unittest.main()
-
