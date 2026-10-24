@@ -1,43 +1,31 @@
-<div align="center">
-  <img src="assets/hero.svg" alt="Maintainer Skills Lab" width="80%">
+# Maintainer Skills Lab
 
-  <h1>Maintainer Skills Lab</h1>
-  <p><b>Level up your agentic workflows with 17 specialized skills for Codex, Claude Code, Cursor, OpenCode, and Grok Bot.</b></p>
+Shared skills and agent profiles for code review, bug investigation, documentation,
+and ML debugging. Edit the source in `skills/` and `agents/`; `tools/kit.py sync`
+generates the client-specific files.
 
-  <p>
-    <a href="https://github.com/00200200/maintainer-skills-lab/stargazers"><img src="https://img.shields.io/github/stars/00200200/maintainer-skills-lab?style=flat&color=bced85&label=stars" alt="Stars"></a>
-    <a href="https://github.com/00200200/maintainer-skills-lab/network/members"><img src="https://img.shields.io/github/forks/00200200/maintainer-skills-lab?style=flat&color=83d2e9" alt="Forks"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-bced85" alt="License"></a>
-  </p>
-
-  <p>
-    <a href="#quick-start"><b>Quick Start</b></a> •
-    <a href="#the-skills"><b>The Skills</b></a> •
-    <a href="providers/README.md"><b>Supported Clients</b></a> •
-    <a href="docs/task-gallery.md"><b>Prompt Gallery</b></a>
-  </p>
-</div>
+[Quick start](#quick-start) · [Skills](#the-skills-library) ·
+[Client formats](providers/README.md) · [Task examples](docs/task-gallery.md)
 
 ---
 
-## 🌟 Why Maintainer Skills Lab?
+## Workflows
 
-Write better documentation, debug faster, and code smarter. We provide a single Markdown source for powerful agent workflows, auto-generated for your favorite AI clients.
+The library provides instructions and local tools for coding assistants:
 
-- **Write like a pro**: Humanize stiff drafts while preserving facts and code.
-- **Fix bugs with evidence**: Reproduce bugs and verify fixes locally.
-- **Debug ML like magic**: Diagnose PyTorch, Lightning, and TensorFlow issues instantly.
-- **Review with confidence**: Get actionable insights on PRs and dependency updates.
-- **Write once, run anywhere**: `edit one source → sync → native files for each client`.
+- Rewrite drafts while checking that facts, code, and caveats survive the edit.
+- Reproduce reported bugs and compare behavior before and after a fix.
+- Investigate shapes, losses, gradients, and other ML training failures.
+- Review pull requests and dependency updates against concrete failure cases.
 
-<div align="center">
-  <!-- Placeholder for a compelling asciinema recording or GIF -->
-  <img src="https://via.placeholder.com/800x450.png?text=✨+Watch+Maintainer+Skills+Lab+in+Action+(GIF/Asciinema)" alt="Demo Animation">
-</div>
+Generated files are checked against their source. That validates the export, not
+the behavior of every client or model. See the [evaluation guide](evals/README.md)
+for the distinction between fixtures and recorded agent runs.
 
-## 🚀 Quick Start
+## Quick start
 
-Get started in seconds! Install a specific skill or the entire library.
+Start with one skill, or install the full library. The
+[installation guide](docs/install.md) covers client-specific paths and removal.
 
 ### 1. Claude Code
 ```bash
@@ -45,68 +33,52 @@ Get started in seconds! Install a specific skill or the entire library.
 /plugin install mkl-humanize@maintainer-skills-lab
 ```
 
-### 2. Cursor, OpenCode, or Codex
-Install globally with the Skills CLI (Requires Node.js 22+):
+### 2. Codex, Cursor, or OpenCode
+From your destination project directory, use the Skills CLI with Node.js 22.20.0+ and Git:
 ```bash
-npx skills@1.5.26 add 00200200/maintainer-skills-lab --skill mkl-humanize --agent claude-code --copy
+npx skills@1.5.26 add 00200200/maintainer-skills-lab --skill mkl-humanize --agent codex --copy
 ```
-*(Replace `--agent claude-code` with `cursor`, `opencode`, or `codex`)*
+Use `--agent cursor` or `--agent opencode` for those clients. This installs a
+project-local copy, not a global skill.
 
 ### 3. Python Setup
-Want everything at once? Use our Python installer:
+With Python 3.11+, install the full library into an existing project:
 ```bash
 git clone https://github.com/00200200/maintainer-skills-lab.git
 cd maintainer-skills-lab
 python3 tools/kit.py install --target claude --project /path/to/your/repo
 ```
 
-## 🛠️ The Skills Library
+## The skills library
 
-Choose from 17 specialized skills and 6 agent profiles tailored for maintainers.
+The source library currently contains 30 skills and 9 agent profiles.
 
 | Skill | What it does |
 |:---|:---|
-| 🤖 **[Humanize](skills/mkl-humanize/SKILL.md)** | Rewrite stiff drafts naturally without losing facts. |
-| 🐛 **[Reproduce & Fix](skills/mkl-reproduce-bug/SKILL.md)** | Get a verifiable bug reproduction and fix validation. |
-| 🔬 **[Debug ML](skills/mkl-debug-ml-training/SKILL.md)** | Root out NaNs, shape errors, and convergence issues. |
-| 🔍 **[Review PR](skills/mkl-review-pr/SKILL.md)** | Catch subtle logic errors before you merge. |
-| 📖 **[Write README](skills/mkl-write-readme/SKILL.md)** | Auto-generate clear, concise READMEs from your code. |
+| [Humanize](skills/mkl-humanize/SKILL.md) | Edit drafts and check for changed facts or technical details. |
+| [Reproduce bug](skills/mkl-reproduce-bug/SKILL.md) | Build a minimal reproduction with observable results. |
+| [Verify fix](skills/mkl-verify-fix/SKILL.md) | Compare the regression before and after a change. |
+| [Debug ML](skills/mkl-debug-ml-training/SKILL.md) | Investigate NaNs, shape errors, and convergence problems. |
+| [Review PR](skills/mkl-review-pr/SKILL.md) | Identify defects with concrete inputs and consequences. |
+| [Write README](skills/mkl-write-readme/SKILL.md) | Document features, setup, and limitations supported by the code. |
 
-**[Browse all 17 skills and 6 agents →](providers/README.md)**
+[Browse the full catalogue and client formats](providers/README.md).
 
-<div align="center">
-  <!-- Placeholder for workflow animation -->
-  <img src="https://via.placeholder.com/800x250.png?text=🔄+One+Source,+Five+Clients+(Workflow+Animation)" alt="Workflow Animation">
-</div>
+## Development checks
 
-## 💖 Support the Project
-
-If these skills save you time, **please star the repository on GitHub!** ⭐ 
-Your support helps us build more tools for the open-source community.
-
-<details>
-<summary><b>Development & Testing</b></summary>
+These checks validate sources, generated files, and local fixtures. They do not
+start a model session or establish live-client behavior.
 
 ```bash
-# Sync generated skill files
-python3 tools/kit.py sync
-
-# Profile token consumption across skills and agent profiles
-python3 tools/kit.py tokens
-
-# Resilient search/replace patch applicator
-python3 tools/patch_applier.py apply --file <file> --patch <patch>
-
-# Zero-dependency local BM25 symbol search
-python3 tools/local_symbol_search.py search "<query>" --project .
-
-# Dynamic token budget allocator
-python3 tools/budget_allocator.py --model claude-3-7-sonnet --used-tokens 85000
-
-# Run tests
+python3 tools/kit.py check
+python3 tools/kit.py sync --check
 python3 -m unittest discover -s tests -v
+python3 examples/bugfix/run.py
+python3 tools/kit.py build
 ```
-</details>
+
+After editing shared skills or agents, run `python3 tools/kit.py sync` and include
+the generated outputs in the same change. Do not edit provider copies directly.
 
 ## Contribute
 
@@ -116,5 +88,5 @@ or [propose a token or latency optimization](https://github.com/00200200/maintai
 You can also browse [help-wanted](https://github.com/00200200/maintainer-skills-lab/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
 and [good first issues](https://github.com/00200200/maintainer-skills-lab/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22).
 
-## 📄 License
+## License
 [MIT](LICENSE). This is an independent community project.
