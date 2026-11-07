@@ -15,19 +15,3 @@ updates:
       github-actions:
         patterns:
           - "*"
-
-  # Maintain Python dependencies
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    commit-message:
-      prefix: "deps(python)"
-    labels:
-      - "dependencies"
-    groups:
-      python-deps:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
