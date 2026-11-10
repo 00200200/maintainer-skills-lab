@@ -64,6 +64,19 @@ The source library currently contains 30 skills and 9 agent profiles.
 
 [Browse the full catalogue and client formats](providers/README.md).
 
+## Terminal dashboard
+
+Run `python3 tools/dashboard.py` in an interactive terminal with Python's standard
+`curses` module. The overview refreshes every five seconds and shows skills,
+agents, token estimates, warnings, and available provider exports. Startup only
+reads library data.
+
+Use `s` to sync generated providers, `c` to check sources and exports, and `t` to
+profile tokens. Action results and errors appear in a separate view; press Tab to
+switch back to the library. Scroll either view with arrows, Page Up/Down, or
+Home/End. Terminal resizing is supported. Exit with `q` or Ctrl+C. Outside an
+interactive TTY the dashboard prints a message and exits without running actions.
+
 ## Development checks
 
 These checks validate sources, generated files, and local fixtures. They do not
