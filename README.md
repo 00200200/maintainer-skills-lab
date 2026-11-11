@@ -49,6 +49,24 @@ cd maintainer-skills-lab
 python3 tools/kit.py install --target claude --project /path/to/your/repo
 ```
 
+## Maintainer Studio
+
+With Python 3.11+, explore the library in a local, read-only dashboard:
+
+```sh
+python3 tools/kit.py studio
+```
+
+The command serves the bundled React frontend and API at `http://127.0.0.1:8765`
+and opens your browser. Use `--no-browser` for a headless environment or `--port`
+to choose another local port. Stop the server with Ctrl+C.
+
+Production assets are included in `apps/studio/static/`; Node.js and npm are not
+needed to run Studio. Charts describe static token estimates, including explicitly
+labelled heuristic counts, rather than actual agent-session usage. Studio does
+not edit, sync or install skills. See [Studio setup and build instructions](docs/studio.md)
+for rebuilding missing assets, development, security and limitations.
+
 ## The skills library
 
 The source library currently contains 30 skills and 9 agent profiles.

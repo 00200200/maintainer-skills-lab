@@ -1958,6 +1958,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="List source skills and native agents")
+    studio_parser = commands.add_parser("studio", help="Open the local read-only Maintainer Studio")
+    studio_parser.add_argument("--port", type=int, default=8765)
+    studio_parser.add_argument(
+        "--no-browser", action="store_true", help="Print the URL without opening a browser"
+    )
     check_parser = commands.add_parser(
         "check", help="Validate this library and generate exports in memory"
     )
@@ -2074,7 +2079,22 @@ def main(argv: list[str] | None = None) -> int:
     if getattr(args, "target", None) in {"roo", "roomodes"}:
         args.target = "cline"
     try:
-        if args.command == "list":
+        if args.command == "studio":
+            previous_bytecode_policy = sys.dont_write_bytecode
+            sys.dont_write_bytecode = True
+            try:
+                if __package__:
+                    from . import studio_server
+                else:
+                    import studio_server
+                return studio_server.main(
+                    ["--port", str(args.port)],
+                    open_browser=not args.no_browser,
+                    require_frontend=True,
+                )
+            finally:
+                sys.dont_write_bytecode = previous_bytecode_policy
+        elif args.command == "list":
             skills, agents = load_library()
             print(
                 json.dumps(
