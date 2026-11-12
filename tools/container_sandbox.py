@@ -80,6 +80,8 @@ def build_container_args(
     allow_network: bool = False,
     memory: str = "512m",
     cpus: str = "1.0",
+    pull_never: bool = False,
+    container_name: str | None = None,
 ) -> list[str]:
     """Assembles container CLI command with strict security and isolation flags."""
     args = [
@@ -88,6 +90,10 @@ def build_container_args(
         "--rm",
         "--interactive",
     ]
+    if pull_never:
+        args.append("--pull=never")
+    if container_name is not None:
+        args.extend(["--name", container_name])
 
     # 1. Network isolation
     if allow_network:
@@ -146,6 +152,8 @@ def execute_sandbox(
     memory: str = "512m",
     cpus: str = "1.0",
     runtime_override: str | None = None,
+    pull_never: bool = False,
+    container_name: str | None = None,
 ) -> SandboxResult:
     """Executes target script or command inside an ephemeral micro-container."""
     runtime = runtime_override or detect_container_runtime()
@@ -190,6 +198,8 @@ def execute_sandbox(
         allow_network=allow_network,
         memory=memory,
         cpus=cpus,
+        pull_never=pull_never,
+        container_name=container_name,
     )
 
     start_time = time.time()
