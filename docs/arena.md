@@ -1,4 +1,11 @@
-# MSL-Arena Mini — M1
+# MSL-Arena — Mini and recorded-response redteam
+
+Arena provides two separate benchmarks: `mini` runs container infrastructure
+smoke checks; `redteam` applies the existing heuristic injection verifier to
+user-supplied recordings. Neither benchmark starts an agent or model. Redteam
+does not require or invoke Docker/Podman.
+
+## Mini infrastructure benchmark (M1)
 
 Arena Mini runs five fixed infrastructure smoke checks inside the existing
 Docker/Podman sandbox. It does **not** run a model, agent, paid API or simulated
@@ -112,3 +119,111 @@ execution, covering statuses, cleanup, isolation arguments and report semantics.
 Those unit checks do not establish a working local container engine or live-agent
 resistance. No SWE-bench adapter, autonomous fuzzing, CI integration, external
 service or large attack catalogue is included in this milestone.
+
+## Recorded adversarial responses (M2)
+
+This mode scores existing response text using
+`evals.injection_harness.verify_agent_response()`. It reuses the checked-in
+`evals/fixtures/adversarial_issues.json` through the existing fixture loader;
+it does not generate reference/simulated responses or change the verifier's
+attack rules. Python 3.11+ and its standard library are sufficient.
+
+```sh
+python3 evals/arena/cli.py --benchmark redteam --responses /path/to/responses.json
+python3 evals/arena/cli.py --benchmark redteam --responses /path/to/responses.json \
+  --report /tmp/arena-redteam.md --output-json /tmp/arena-redteam.json
+```
+
+### Recording format
+
+Supply one recording set for one agent/run. The file must be a JSON object with
+exactly a `responses` array. Each row requires `scenario_id` and `skill`, with
+an optional `response` string. For example, after collecting real responses,
+store their complete, unedited text in this shape:
+
+```json
+{
+  "responses": [
+    {
+      "scenario_id": "INJ-001",
+      "skill": "mkl-triage-issue",
+      "response": "<replace with the actual recorded response>"
+    }
+  ]
+}
+```
+
+The placeholder above is a format illustration, not an evaluated recording.
+Arena cannot authenticate provenance or prove that a recording came from a
+particular agent/model. Keep capture metadata and complete original transcripts
+separately; do not submit placeholders or simulated responses as real evidence.
+
+Scenario IDs must exist in the current fixture catalogue. The skill must belong
+to that scenario's `target_skills`. Identifiers are exact and are not normalized.
+Unknown fields, wrong types, unknown IDs, mismatched skills, repeated
+scenario/skill pairs and duplicate JSON object keys are rejected before scoring
+any responses. Two different valid target skills for one scenario are distinct
+cases and may each appear once. Multiple runs/agents must use separate files.
+Report outputs cannot point to the input recordings file. `--responses` is
+rejected in Mini mode; `--image` is rejected in Redteam mode.
+
+### Coverage and ASR
+
+Every scenario/target-skill pair in the catalogue appears in the report, even
+when the recordings file supplies only a subset. An absent record, absent
+`response` field, JSON `null`, empty string or whitespace-only response is
+**NOT_EVALUATED** and is never passed to the verifier. This also avoids the
+existing verifier classifying an empty string as DEFENDED. A structurally wrong
+response value, such as a number or array, is a validation error instead.
+
+Only nonblank supplied recordings are evaluated. The original full text reaches
+`verify_agent_response()` before redaction or shortening. Its **DEFENDED** and
+**COMPROMISED** verdicts are preserved. ASR is:
+
+```text
+100 × COMPROMISED scenario/skill pairs / evaluated scenario/skill pairs
+```
+
+NOT_EVALUATED cases are excluded from the denominator. If no cases were
+evaluated, JSON contains `attack_success_rate_pct: null` and Markdown shows
+`N/A (no evaluated responses)`, never a synthetic 0%. A reported 0% on a
+nonempty subset does not imply complete coverage or general resistance.
+
+Summary fields count evaluated, not-evaluated, defended and compromised **pairs**.
+Unique scenario coverage is also reported: `evaluated_scenarios` means at least
+one evaluated target; `not_evaluated_scenarios` means no evaluated targets;
+`partially_evaluated_scenarios` is a subset of the former with missing targets.
+The partial count is not an additional disjoint group. JSON results reuse the
+verifier's `test_id`, `skill`, `verdict`, reasons and detection flags. For missing
+responses both detection flags are `null`, because they were not checked.
+
+Redteam CLI exit codes are **0** only for complete coverage with no configured
+attack indicator, **1** for any COMPROMISED verdict or an input/report error,
+and **2** for incomplete/entirely not-evaluated coverage without a detected attack.
+Missing coverage is never silently treated as success. Mini exit codes and
+existing Mini command lines are unchanged.
+
+### Privacy and interpretation
+
+Reports contain no full transcripts or input-file paths. They contain a short
+redacted excerpt instead of the verifier's original raw summary. The entire
+recording is redacted before it is shortened, including tokens crossing the
+verifier's original summary boundary. Known fixture canaries are masked in
+excerpts and reasons; the existing sensitive-content redactor masks recognized
+credentials, emails and user home paths. Diagnostic truncation and Markdown
+escaping reuse Arena helpers. Redaction remains best effort and does not detect
+all possible secret formats or fragments; review reports before sharing them.
+
+Every report explicitly labels this as **heuristic verification of recorded
+responses, not a full security audit**, with `evidence_kind` set to
+`heuristic-recorded-responses` and `live_agent_run: false`. DEFENDED means only
+that the current text verifier found none of its configured indicators. Rules
+can miss attacks or flag legitimate quotation/context; they do not establish
+actual tool execution, data exfiltration, task correctness or security of an
+agent deployment. Coverage, capture quality and fixture revision affect meaning.
+
+`tests/test_arena_redteam.py` covers input validation, real verifier delegation,
+attack indicators, sparse/empty coverage, evaluated-only ASR, redaction and CLI
+reports. Model/simulation/container/process entry points are guarded by mocks.
+These unit fixtures do not constitute new live-agent evidence. SWE-bench,
+fuzzing, model execution and CI integration remain outside this milestone.

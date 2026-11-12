@@ -193,23 +193,26 @@ def run_mini(image: str = DEFAULT_IMAGE) -> ArenaReport:
     return report
 
 
-def markdown_report(report: ArenaReport) -> str:
-    def cell(value: str) -> str:
-        # Diagnostics are data, not executable HTML or Markdown report structure.
-        escaped = html.escape(value, quote=False).replace("\r", " ").replace("\n", " ")
-        return escaped.translate(
-            str.maketrans(
-                {
-                    "|": "&#124;",
-                    "`": "&#96;",
-                    "[": "&#91;",
-                    "]": "&#93;",
-                    "*": "&#42;",
-                    "_": "&#95;",
-                    "\\": "&#92;",
-                }
-            )
+def markdown_cell(value: str) -> str:
+    """Render diagnostic text without interpreting it as report markup."""
+    escaped = html.escape(value, quote=False).replace("\r", " ").replace("\n", " ")
+    return escaped.translate(
+        str.maketrans(
+            {
+                "|": "&#124;",
+                "`": "&#96;",
+                "[": "&#91;",
+                "]": "&#93;",
+                "*": "&#42;",
+                "_": "&#95;",
+                "\\": "&#92;",
+            }
         )
+    )
+
+
+def markdown_report(report: ArenaReport) -> str:
+    cell = markdown_cell
 
     counts = " | ".join(f"{status}: {count}" for status, count in report.summary.items())
     lines = [

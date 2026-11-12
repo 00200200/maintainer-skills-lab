@@ -1,1 +1,1 @@
-"""MSL-Arena Mini: container infrastructure smoke checks, not agent evaluation."""
+"""Arena smoke checks and heuristic verification of recorded adversarial responses."""
