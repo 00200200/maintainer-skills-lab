@@ -21,6 +21,13 @@ except ModuleNotFoundError:  # New in Python 3.11; older interpreters would show
         f"Run it with a newer interpreter, for example: python3.13 {sys.argv[0]}"
     )
 
+try:
+    from msl_core import minify_markdown as _native_minify_markdown
+except ModuleNotFoundError as exc:
+    if exc.name != "msl_core":
+        raise  # An installed extension with a missing dependency is broken, not absent.
+    _native_minify_markdown = None
+
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
     "codex": (".agents/skills", ".codex/agents", ".toml"),
@@ -116,6 +123,13 @@ def _minify_markdown_segment(text: str) -> str:
 
 def minify_markdown(text: str) -> str:
     """Shrink markdown for LLM prompts; keep fenced code blocks byte-for-byte."""
+    if _native_minify_markdown is not None:
+        return _native_minify_markdown(text)
+    return _minify_markdown_python(text)
+
+
+def _minify_markdown_python(text: str) -> str:
+    """Reference implementation, also used when the optional extension is absent."""
     lines = text.split("\n")
     offsets: list[int] = []
     position = 0
@@ -170,9 +184,10 @@ def _maybe_minify_markdown_bytes(data: bytes, relative: str, minify: bool) -> by
     if not minify or not relative.endswith(".md"):
         return data
     try:
-        return minify_markdown(data.decode("utf-8")).encode("utf-8")
+        text = data.decode("utf-8")
     except UnicodeDecodeError:
         return data
+    return minify_markdown(text).encode("utf-8")
 
 
 def markdown_to_xml(
@@ -506,16 +521,67 @@ def approximate_tokens(text: str) -> int:
     return max(1, (len(text) + 3) // 4)
 
 
-def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
-    """Calculate token count using tiktoken if installed, or approximate_tokens."""
-    if not text:
-        return 0
+def _native_token_backend():
+    """Load lazily so minifier-only callers keep their existing import behavior."""
+    try:
+        import msl_core
+    except ModuleNotFoundError as exc:
+        if exc.name != "msl_core":
+            raise
+        return None
+    exports = vars(msl_core)
+    names = ("count_tokens", "DisallowedSpecialTokenError")
+    if not any(name in exports for name in names):
+        return None  # M1/M2 extensions have no BPE backend.
+    if not all(name in exports for name in names):
+        raise ImportError("msl_core has an incomplete tokenizer API")
+    return msl_core.count_tokens, msl_core.DisallowedSpecialTokenError
+
+
+def _python_token_backend(encoding: str):
+    """Resolve Python BPE without hiding broken imports or initialization errors."""
     try:
         import tiktoken
+    except ModuleNotFoundError as exc:
+        if exc.name != "tiktoken":
+            raise
+        return None
+    try:
+        return tiktoken.get_encoding(encoding)
+    except ValueError as exc:
+        # tiktoken has no dedicated exception type for unknown encodings.
+        if not str(exc).startswith("Unknown encoding "):
+            raise
+        return None
 
-        return len(tiktoken.get_encoding(encoding).encode(text))
-    except Exception:
-        return approximate_tokens(text)
+
+def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
+    """Use Python tiktoken, native BPE, or the existing size-budget heuristic."""
+    if not text:
+        return 0
+    python_backend = _python_token_backend(encoding)
+    if python_backend is not None:
+        try:
+            return len(python_backend.encode(text))
+        except ValueError as exc:
+            # Preserve the legacy policy for expected special-token rejection,
+            # while allowing unexpected backend failures to surface.
+            if not str(exc).startswith(
+                "Encountered text corresponding to disallowed special token"
+            ):
+                raise
+            return approximate_tokens(text)
+    if encoding in ("cl100k_base", "o200k_base"):
+        backend = _native_token_backend()
+        if backend is not None:
+            native_count_tokens, disallowed_special = backend
+            try:
+                return native_count_tokens(text, encoding)
+            except disallowed_special:
+                # Preserve the legacy heuristic for rejected special tokens;
+                # all other native errors propagate instead of hiding failures.
+                return approximate_tokens(text)
+    return approximate_tokens(text)
 
 
 def skill_metadata(path: Path) -> tuple[dict[str, str], str]:
@@ -1654,14 +1720,9 @@ def profile_tokens(
 ) -> dict:
     skills, agents = load_library(root)
 
-    tiktoken_active = False
-    try:
-        import tiktoken
-
-        tiktoken.get_encoding(encoding)
-        tiktoken_active = True
-    except Exception:
-        pass
+    tiktoken_active = _python_token_backend(encoding) is not None or (
+        encoding in ("cl100k_base", "o200k_base") and _native_token_backend() is not None
+    )
 
     skills_data = []
     total_skills_tokens = 0
