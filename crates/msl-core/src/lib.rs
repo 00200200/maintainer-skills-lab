@@ -216,8 +216,17 @@ fn minify_markdown<'py>(text: &Bound<'py, PyString>) -> PyResult<Bound<'py, PySt
     Ok(decoded.cast_into::<PyString>()?)
 }
 
+/// Hash exact bytes with BLAKE3 and return a 64-character lowercase hex digest.
+#[pyfunction]
+fn blake3_hash(data: &Bound<'_, PyBytes>) -> String {
+    let bytes = data.as_bytes();
+    data.py()
+        .detach(|| blake3::hash(bytes).to_hex().to_string())
+}
+
 #[pymodule]
 fn msl_core(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(wrap_pyfunction!(blake3_hash, module)?)?;
     module.add_function(wrap_pyfunction!(minify_markdown, module)?)?;
     module.add_function(wrap_pyfunction!(walker::walk_project, module)?)?;
     module.add_function(wrap_pyfunction!(tokenizer::count_tokens, module)?)?;

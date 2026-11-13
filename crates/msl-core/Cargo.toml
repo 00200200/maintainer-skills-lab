@@ -11,6 +11,7 @@ name = "msl_core"
 crate-type = ["cdylib"]
 
 [dependencies]
+blake3 = "=1.5.5"
 ignore = "=0.4.23"
 pyo3 = { version = "=0.27.2", features = ["extension-module", "abi3-py311"] }
 tiktoken-rs = { version = "=0.6.0", default-features = false }

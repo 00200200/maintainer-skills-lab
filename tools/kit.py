@@ -1339,6 +1339,113 @@ def provider_path(relative: str) -> bool:
     return rest.startswith("grok-bot/") and len(path.parts) >= 3
 
 
+_SYNC_CACHE_FILE = ".msl/sync-cache.json"
+_SYNC_CACHE_VERSION = 1
+
+
+def _sync_hash_backend():
+    """Older optional wheels may lack M5; broken imports/calls still propagate."""
+    try:
+        import msl_core
+    except ModuleNotFoundError as exc:
+        if exc.name != "msl_core":
+            raise
+        return "sha256", lambda data: hashlib.sha256(data).hexdigest()
+    if "blake3_hash" not in vars(msl_core):
+        return "sha256", lambda data: hashlib.sha256(data).hexdigest()
+    return "blake3", msl_core.blake3_hash
+
+
+def _sync_cache_key(root: Path, *, minify: bool, mode: str) -> str | None:
+    """Hash all source bytes, never trusting mtimes or file sizes as identity."""
+    algorithm, hash_bytes = _sync_hash_backend()
+    try:
+        inputs = []
+        for directory in ("skills", "agents", "grok-bot", "assets"):
+            for name, data in source_files(root / directory).items():
+                inputs.append((f"{directory}/{name}", hash_bytes(data)))
+        # The generator is the running kit, not necessarily root/tools/kit.py.
+        implementation = hash_bytes(Path(__file__).read_bytes())
+        minifier = "python"
+        if minify and _native_minify_markdown is not None:
+            if not _native_minify_markdown.__module__.startswith("msl_core"):
+                return None  # Unknown/custom minifiers cannot safely reuse exports.
+            # maturin may wrap the extension in a Python package. Include both
+            # wrapper and loaded binary, not just the package's __init__.py.
+            minifier = []
+            for name, module in sorted(list(sys.modules.items())):
+                if name == "msl_core" or name.startswith("msl_core."):
+                    filename = getattr(module, "__file__", None)
+                    if filename is not None:
+                        minifier.append((name, hash_bytes(Path(filename).read_bytes())))
+            if not minifier:
+                return None
+        payload = json.dumps(
+            {
+                "schema_version": _SYNC_CACHE_VERSION,
+                "implementation": implementation,
+                "python": sys.version,
+                "minifier": minifier,
+                "minify": minify,
+                "mode": mode,
+                "inputs": inputs,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return f"{algorithm}:{hash_bytes(payload)}"
+    except (OSError, KitError):
+        # Cache identity is optional; normal generation retains source validation.
+        return None
+
+
+def _read_sync_cache(root: Path) -> dict | None:
+    try:
+        path = checked_path(root, _SYNC_CACHE_FILE)
+        if not path.is_file() or path.stat().st_size > 4096:
+            return None
+        state = json.loads(path.read_text(encoding="utf-8"))
+        if (
+            not isinstance(state, dict)
+            or set(state) != {"schema_version", "key", "manifest_sha256"}
+            or type(state["schema_version"]) is not int
+            or state["schema_version"] != _SYNC_CACHE_VERSION
+            or not isinstance(state["key"], str)
+            or re.fullmatch(r"(?:sha256|blake3):[a-f0-9]{64}", state["key"]) is None
+            or not isinstance(state["manifest_sha256"], str)
+            or SHA256.fullmatch(state["manifest_sha256"]) is None
+        ):
+            return None
+        return state
+    except (OSError, ValueError, RecursionError, KitError):
+        return None
+
+
+def _write_sync_cache(root: Path, key: str, manifest_bytes: bytes) -> None:
+    data = (
+        json.dumps(
+            {
+                "schema_version": _SYNC_CACHE_VERSION,
+                "key": key,
+                "manifest_sha256": digest(manifest_bytes),
+            },
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
+    try:
+        path = checked_path(root, _SYNC_CACHE_FILE)
+        if path.exists():
+            if not path.is_file():
+                return
+            if path.stat().st_size <= 4096 and path.read_bytes() == data:
+                return
+        atomic_write(path, data)
+    except (OSError, KitError):
+        pass  # A non-writable/unsafe cache must not prevent ordinary sync.
+
+
 def sync_providers(
     root: Path = ROOT, check: bool = False, *, minify: bool = False, mode: str = "full"
 ) -> dict:
@@ -1346,7 +1453,6 @@ def sync_providers(
     destination = checked_path(root, "providers")
     if destination.exists() and not destination.is_dir():
         raise KitError("providers must be a directory")
-    desired = provider_files(root, minify=minify, mode=mode)
     manifest = checked_path(root, "providers/.manifest.json")
     old = {}
     if manifest.exists():
@@ -1359,6 +1465,29 @@ def sync_providers(
             for name, sha in old.items()
         ):
             raise KitError("Invalid provider manifest paths or hashes")
+    # --check always regenerates: a cache is never an authority for source truth.
+    key = _sync_cache_key(root, minify=minify, mode=mode) if not check else None
+    cached = _read_sync_cache(root) if key is not None else None
+    if (
+        cached is not None
+        and cached["key"] == key
+        and manifest.is_file()
+        and cached["manifest_sha256"] == digest(manifest.read_bytes())
+        and all(
+            current_digest(checked_path(root, f"providers/{name}")) == sha
+            for name, sha in old.items()
+        )
+    ):
+        # Keep current tokenizer-dependent validation even on a cache hit.
+        load_library(root)
+        return {
+            "up_to_date": True,
+            "check": False,
+            "written": [],
+            "removed": [],
+            "manifest_changed": False,
+        }
+    desired = provider_files(root, minify=minify, mode=mode)
     writes, removals = {}, []
     for relative in sorted(set(desired) | set(old)):
         if not provider_path(relative):
@@ -1402,6 +1531,8 @@ def sync_providers(
                 except OSError:
                     break
                 directory = directory.parent
+        if key is not None and key == _sync_cache_key(root, minify=minify, mode=mode):
+            _write_sync_cache(root, key, state_bytes)
     return {
         "up_to_date": not check or not (writes or removals or manifest_changed),
         "check": check,

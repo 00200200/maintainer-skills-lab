@@ -1,10 +1,11 @@
-# Optional native helpers (M1/M2/M3/M4)
+# Optional native helpers (M1/M2/M3/M4/M5)
 
 `msl_core.minify_markdown(text: str) -> str` implements the existing `tools/kit.py`
 algorithm in Rust with PyO3. It is a literal compatibility port, not a CommonMark
 parser. M2 adds the separate `walk_project()` API and M3 adds exact BPE token
-counting. M4 adds standalone Tree-sitter symbol extraction. There is no
-dependency graph, incremental hasher or CI.
+counting. M4 adds standalone Tree-sitter symbol extraction; M5 adds BLAKE3 byte
+hashing and a conservative no-change synchronization cache. There is no
+dependency graph or new CI.
 Python-only users need no Rust tools or additional Python packages.
 
 ## Build and install (opt-in)
@@ -40,6 +41,9 @@ disabled. The checked-in lockfile already includes the M1–M3 dependencies.
 
 M4 adds Tree-sitter 0.24.7 and pinned ABI-compatible language grammars.
 The committed `Cargo.lock` includes these dependencies.
+
+M5 adds `blake3 = 1.5.5`. Resolve and review this addition in `Cargo.lock` before
+a locked build (`cargo generate-lockfile --manifest-path crates/msl-core/Cargo.toml`).
 
 Building M4 also requires the C toolchain used by Tree-sitter's grammar build
 scripts. No separate Tree-sitter CLI, grammar download or compiler is needed at
@@ -282,3 +286,21 @@ The benchmark creates a fixed multilingual corpus, validates symbol counts and
 checks repeatability. It records hashes, versions, corpus sizes, samples and
 median times. It does not establish a speedup over the existing Python tools,
 which have different extraction semantics. M1–M3 behavior is unchanged.
+
+## BLAKE3 and synchronization cache (M5)
+
+`msl_core.blake3_hash(data: bytes) -> str` returns the lowercase 64-character
+BLAKE3 digest of the exact bytes, with the GIL released. It does not normalize
+line endings. `tools.kit.digest()` and provider/install manifests still use their
+existing canonical SHA-256 semantics.
+
+Regular `kit.py sync` can skip export generation on a validated no-change cache
+hit. Python-only installations and older wheels work with SHA-256 fingerprints.
+`sync --check` always regenerates and never writes the cache. See
+[cache safety, limitations and benchmark instructions](../../docs/sync-cache.md).
+
+```sh
+python -m unittest discover -s tests -p 'test_sync_cache.py' -v
+python tools/benchmark_sync.py --repeat 3
+python tools/benchmark_sync.py --repeat 3 --minify --mode lazy
+```

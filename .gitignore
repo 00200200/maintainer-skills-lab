@@ -13,3 +13,4 @@ htmlcov/
 !.env.example
 .scratch/
 .msl/scratch/
+.msl/sync-cache.json
