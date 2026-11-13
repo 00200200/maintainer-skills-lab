@@ -1,8 +1,9 @@
-# Optional native Markdown minifier (M1)
+# Optional native helpers (M1/M2)
 
 `msl_core.minify_markdown(text: str) -> str` implements the existing `tools/kit.py`
 algorithm in Rust with PyO3. It is a literal compatibility port, not a CommonMark
-parser. There is no tokenizer, AST, directory scanner, incremental hasher or CI.
+parser. M2 adds the separate `walk_project()` API described below. There is no
+tokenizer, AST, incremental hasher or CI.
 Python-only users need no Rust tools or additional Python packages.
 
 ## Build and install (opt-in)
@@ -32,6 +33,14 @@ not committed to the repository. The `crates/msl-core/Cargo.lock` file is
 included to pin Rust dependencies for reproducible builds and benchmarks.
 Update the lockfile deliberately when changing dependencies. MSRV describes the
 crate/PyO3 baseline; newly resolved transitive dependencies may need newer Rust.
+
+M2 adds `ignore = 0.4.23`. The existing M1 lockfile has not been regenerated as
+part of this change. Before building or recording benchmark results, resolve
+and review the added dependency graph:
+
+```sh
+cargo generate-lockfile --manifest-path crates/msl-core/Cargo.toml
+```
 
 Packaging follows the [maturin pure Rust layout](https://www.maturin.rs/project_layout.html).
 See the [PyO3 versioned sources](https://github.com/PyO3/pyo3/tree/v0.27.2) and
@@ -91,3 +100,80 @@ corpus; it does not establish a general speedup. Missing native support exits 2
 without reporting a comparison; a parity mismatch exits 1 before timing.
 
 No performance measurements or acceleration claims are supplied with M1.
+
+## Project file walker (M2)
+
+```python
+import msl_core
+
+paths = msl_core.walk_project("/absolute/project/path", ["*.log", "/scratch/"])
+```
+
+`walk_project(root: str, ignore_patterns: list[str]) -> list[str]` discovers text
+file candidates using the Rust [`ignore` crate](https://docs.rs/ignore/0.4.23/ignore/).
+Scanning uses its parallel walker with two to eight workers, depending on CPU
+availability, and releases the Python GIL. Results are unique, sorted relative
+paths with `/` separators on every platform. Unicode filenames retain their
+spelling. Empty trees return `[]`; directory entries themselves are not returned.
+The root must be a directory with no symlink components.
+
+Ignore semantics are deliberately independent of `tools.kit.source_files()`:
+
+- `.gitignore` works without a Git repository. Nested `.gitignore` and
+  `.mklignore` files use the crate's Gitignore syntax and directory scoping;
+  `.mklignore` has higher priority than `.gitignore`.
+- Additional patterns are rooted at the project and use Gitignore syntax:
+  `*.log` excludes matching files, `/scratch/` excludes that root directory, and
+  `!keep.log` can undo a preceding additional rule. They are a subtractive layer:
+  they cannot restore entries excluded by local ignore files or descend into
+  already excluded directories.
+- Ancestor/global Git rules, `.git/info/exclude`, and `.ignore` are disabled.
+  Hidden files are eligible; `.git` entries are always excluded. Rule files
+  themselves are eligible unless ignored by a rule.
+- File/directory symlinks, broken links, and non-regular files such as FIFOs are
+  skipped. A symlink or non-regular `.gitignore`/`.mklignore` in a visited
+  directory is rejected before loading its rules.
+
+Binary filtering reads at most the first 8 KiB of each eligible regular file.
+A NUL byte or invalid UTF-8 excludes the file; an incomplete UTF-8 character at
+the sample boundary is allowed if more bytes exist. Empty files are included.
+This is a bounded heuristic, not a complete binary classifier: legacy text
+encodings may be excluded, and binary data outside the sample may go unnoticed.
+Filename extensions do not determine whether content is text.
+
+Invalid roots, traversal/read failures, and rule-file errors raise `OSError`;
+malformed additional patterns (including embedded line breaks or NULs), empty
+roots, and non-UTF-8 result paths raise `ValueError`. Python binding type errors
+remain `TypeError`. Errors never return a partial list. When simultaneous
+failures occur, the first reported diagnostic can vary with scheduling.
+
+Keep the project tree stable during a call. Entry metadata is checked before
+opening files, but this API does not provide race-proof filesystem isolation
+against concurrent renames or symlink replacement. It does not read full file
+contents, normalize Unicode, or make snapshots. Python strings containing lone
+surrogates are unsupported for walker arguments.
+
+The walker is not wired into `kit.py`: its existing `source_files()` includes
+binary files, excludes Python caches, and rejects symlinks instead of skipping
+them. M1 minifier behavior and optional Python fallback are unchanged.
+
+After rebuilding the optional extension, run the contract tests and benchmark:
+
+```sh
+python -m unittest discover -s tests -p 'test_native_walk.py' -v
+python tools/benchmark_walk.py --files 2000 --repeat 5
+```
+
+Tests skip only when `msl_core` is absent; an installed M1-only extension needs
+rebuilding and does not silently skip M2 checks. Symlink/permission-specific
+cases skip when the platform or executing user cannot exercise them.
+
+The benchmark creates a fixed temporary tree containing nested text, ignored
+files and binary samples. It verifies expected paths before timing and checks
+every repetition. JSON records corpus/path SHA-256 hashes, file counts, Python
+and platform versions, native package version, samples and median seconds.
+Tree creation/imports are excluded; traversal, ignore parsing, sample reads,
+sorting and binding conversion are included. Caches are warmed first. Compare
+runs only with the same parameters, machine, toolchain, dependency lockfile and
+release build. It does not compare against `source_files()` because the contracts
+differ. No measurements or speedup claims are supplied with M2.
