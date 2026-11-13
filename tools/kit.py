@@ -21,6 +21,13 @@ except ModuleNotFoundError:  # New in Python 3.11; older interpreters would show
         f"Run it with a newer interpreter, for example: python3.13 {sys.argv[0]}"
     )
 
+try:
+    from msl_core import minify_markdown as _native_minify_markdown
+except ModuleNotFoundError as exc:
+    if exc.name != "msl_core":
+        raise  # An installed extension with a missing dependency is broken, not absent.
+    _native_minify_markdown = None
+
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
     "codex": (".agents/skills", ".codex/agents", ".toml"),
@@ -116,6 +123,13 @@ def _minify_markdown_segment(text: str) -> str:
 
 def minify_markdown(text: str) -> str:
     """Shrink markdown for LLM prompts; keep fenced code blocks byte-for-byte."""
+    if _native_minify_markdown is not None:
+        return _native_minify_markdown(text)
+    return _minify_markdown_python(text)
+
+
+def _minify_markdown_python(text: str) -> str:
+    """Reference implementation, also used when the optional extension is absent."""
     lines = text.split("\n")
     offsets: list[int] = []
     position = 0
@@ -170,9 +184,10 @@ def _maybe_minify_markdown_bytes(data: bytes, relative: str, minify: bool) -> by
     if not minify or not relative.endswith(".md"):
         return data
     try:
-        return minify_markdown(data.decode("utf-8")).encode("utf-8")
+        text = data.decode("utf-8")
     except UnicodeDecodeError:
         return data
+    return minify_markdown(text).encode("utf-8")
 
 
 def markdown_to_xml(
