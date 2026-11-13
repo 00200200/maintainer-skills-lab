@@ -1,9 +1,9 @@
-# Optional native helpers (M1/M2)
+# Optional native helpers (M1/M2/M3)
 
 `msl_core.minify_markdown(text: str) -> str` implements the existing `tools/kit.py`
 algorithm in Rust with PyO3. It is a literal compatibility port, not a CommonMark
-parser. M2 adds the separate `walk_project()` API described below. There is no
-tokenizer, AST, incremental hasher or CI.
+parser. M2 adds the separate `walk_project()` API and M3 adds exact BPE token
+counting. There is no AST, incremental hasher or CI.
 Python-only users need no Rust tools or additional Python packages.
 
 ## Build and install (opt-in)
@@ -34,13 +34,8 @@ included to pin Rust dependencies for reproducible builds and benchmarks.
 Update the lockfile deliberately when changing dependencies. MSRV describes the
 crate/PyO3 baseline; newly resolved transitive dependencies may need newer Rust.
 
-M2 adds `ignore = 0.4.23`. The existing M1 lockfile has not been regenerated as
-part of this change. Before building or recording benchmark results, resolve
-and review the added dependency graph:
-
-```sh
-cargo generate-lockfile --manifest-path crates/msl-core/Cargo.toml
-```
+M2 uses `ignore = 0.4.23`; M3 uses `tiktoken-rs = 0.6.0` with optional features
+disabled. The checked-in lockfile includes both dependencies and is up to date.
 
 Packaging follows the [maturin pure Rust layout](https://www.maturin.rs/project_layout.html).
 See the [PyO3 versioned sources](https://github.com/PyO3/pyo3/tree/v0.27.2) and
@@ -177,3 +172,87 @@ sorting and binding conversion are included. Caches are warmed first. Compare
 runs only with the same parameters, machine, toolchain, dependency lockfile and
 release build. It does not compare against `source_files()` because the contracts
 differ. No measurements or speedup claims are supplied with M2.
+
+## BPE token counting (M3)
+
+```python
+import msl_core
+
+msl_core.count_tokens("hello world")  # cl100k_base, 2 tokens
+msl_core.count_tokens("hello world", encoding="o200k_base")
+```
+
+`count_tokens(text: str, encoding: str = "cl100k_base") -> int` supports exactly
+`cl100k_base` and `o200k_base`. It uses the embedded vocabularies and BPE engine
+from [tiktoken-rs 0.6.0](https://docs.rs/tiktoken-rs/0.6.0/tiktoken_rs/).
+No vocabulary download or network access is needed at runtime. Each encoding is
+initialized lazily once per process and reused across threads. Tokenization runs
+with the Python GIL released. Counts concern the supplied text only; they do not
+include chat envelopes, tool schemas, or actual agent session usage.
+
+The reference is Python `tiktoken.get_encoding(encoding).encode(text)` with its
+default arguments. Empty text returns zero. Known special-token spellings are
+rejected with `msl_core.DisallowedSpecialTokenError`, a `ValueError` subclass;
+there is no implicit `allowed_special="all"` behavior. The special set depends on
+the encoding: for example, `<|fim_prefix|>` is rejected for `cl100k_base` and
+encoded as ordinary text for `o200k_base`. Unknown encodings raise `ValueError`,
+even for empty text. Non-string arguments raise `TypeError`. Unicode is not
+normalized. Surrogate pairs/lone surrogates receive the same UTF-16 repair and
+replacement as Python tiktoken before BPE encoding.
+
+`tools.kit.count_tokens()` retains its signature and legacy fallback policy:
+
+- Python tiktoken is preferred when installed and supports the requested encoding.
+  Missing packages and recognized unknown-encoding errors allow fallback; real
+  import, initialization and execution failures in the selected backend propagate.
+- If Python BPE is unavailable for that encoding, native BPE is tried for
+  `cl100k_base` and `o200k_base`. M1/M2 extensions missing both tokenizer exports
+  count as no BPE backend. An extension exposing only one export is broken and
+  raises an error when native BPE is needed. An unused native backend is not probed.
+- If neither backend supports the requested encoding, the existing size-budget
+  heuristic is used. Recognized special-token rejection also uses that heuristic;
+  unexpected `ValueError` and other execution failures are not suppressed.
+- The existing empty-input shortcut still returns zero before resolving a backend,
+  including when the encoding name is unknown. Direct native calls validate the
+  encoding first, like `tiktoken.get_encoding()`.
+
+The profiler keeps its JSON schema and checks Python BPE before native BPE using
+the same selection order. Its encoding label describes backend availability,
+as before; individual inputs containing rejected special tokens still use the
+legacy heuristic. Minifier dispatch and walker behavior are unchanged.
+
+Rebuild the optional wheel using the instructions above, then run:
+
+```sh
+python -m unittest discover -s tests -p 'test_native_tokens.py' -v
+python tools/benchmark_tokens.py --encoding cl100k_base --size 64 --repeat 5 --iterations 10
+python tools/benchmark_tokens.py --encoding o200k_base --size 64 --repeat 5 --iterations 10
+```
+
+Python tiktoken is optional for normal use but required for differential tests
+and this benchmark. Its first `get_encoding()` may fetch vocabulary files if its
+cache is cold; prepare that cache beforehand for offline comparison. Native
+contract tests skip if the extension is absent or is an M1/M2 version without
+BPE exports; a partial native API fails instead of skipping. Parity tests require
+both BPE backends. Mocked dispatch/fallback tests run without either dependency.
+
+The benchmark reuses the fixed minifier corpus, validates every block's counts
+before timing, warms both engines and alternates execution order. JSON records
+the encoding, corpus SHA-256/byte count, token counts, parameters, versions,
+samples and median times. Imports and first-time vocabulary initialization are
+excluded; conversion across the binding boundary is included. The Python side
+measures `len(encoding.encode(text))`; native counts do not transfer token IDs to
+Python. Keep toolchain, lockfile, release build, Python tiktoken version, machine
+and corpus parameters fixed when comparing runs.
+
+Reported measurements on the benchmark corpus found native Rust BPE slower than
+Python tiktoken:
+
+| Encoding | Rust elapsed time / Python elapsed time |
+| --- | --- |
+| `cl100k_base` | 1.55× (Rust slower) |
+| `o200k_base` | 2.13× (Rust slower) |
+
+These corpus-specific results motivate preferring Python tiktoken. They do not
+establish a general performance ratio across machines or inputs. Native BPE
+remains an optional exact-count fallback when Python BPE is unavailable.

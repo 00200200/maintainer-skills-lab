@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 
+mod tokenizer;
 mod walker;
 
 // All buffers are Python UTF-8 with surrogatepass. Keeping bytes lets us round-trip
@@ -218,6 +219,13 @@ fn minify_markdown<'py>(text: &Bound<'py, PyString>) -> PyResult<Bound<'py, PySt
 fn msl_core(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(minify_markdown, module)?)?;
     module.add_function(wrap_pyfunction!(walker::walk_project, module)?)?;
+    module.add_function(wrap_pyfunction!(tokenizer::count_tokens, module)?)?;
+    module.add(
+        "DisallowedSpecialTokenError",
+        module
+            .py()
+            .get_type::<tokenizer::DisallowedSpecialTokenError>(),
+    )?;
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
