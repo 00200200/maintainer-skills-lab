@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 
+mod symbols;
 mod tokenizer;
 mod walker;
 
@@ -220,6 +221,8 @@ fn msl_core(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(minify_markdown, module)?)?;
     module.add_function(wrap_pyfunction!(walker::walk_project, module)?)?;
     module.add_function(wrap_pyfunction!(tokenizer::count_tokens, module)?)?;
+    module.add_class::<symbols::Symbol>()?;
+    module.add_function(wrap_pyfunction!(symbols::extract_ast_symbols, module)?)?;
     module.add(
         "DisallowedSpecialTokenError",
         module

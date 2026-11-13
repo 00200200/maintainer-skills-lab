@@ -1,9 +1,10 @@
-# Optional native helpers (M1/M2/M3)
+# Optional native helpers (M1/M2/M3/M4)
 
 `msl_core.minify_markdown(text: str) -> str` implements the existing `tools/kit.py`
 algorithm in Rust with PyO3. It is a literal compatibility port, not a CommonMark
 parser. M2 adds the separate `walk_project()` API and M3 adds exact BPE token
-counting. There is no AST, incremental hasher or CI.
+counting. M4 adds standalone Tree-sitter symbol extraction. There is no
+dependency graph, incremental hasher or CI.
 Python-only users need no Rust tools or additional Python packages.
 
 ## Build and install (opt-in)
@@ -35,7 +36,14 @@ Update the lockfile deliberately when changing dependencies. MSRV describes the
 crate/PyO3 baseline; newly resolved transitive dependencies may need newer Rust.
 
 M2 uses `ignore = 0.4.23`; M3 uses `tiktoken-rs = 0.6.0` with optional features
-disabled. The checked-in lockfile includes both dependencies and is up to date.
+disabled. The checked-in lockfile already includes the M1–M3 dependencies.
+
+M4 adds Tree-sitter 0.24.7 and pinned ABI-compatible language grammars.
+The committed `Cargo.lock` includes these dependencies.
+
+Building M4 also requires the C toolchain used by Tree-sitter's grammar build
+scripts. No separate Tree-sitter CLI, grammar download or compiler is needed at
+runtime; the generated parsers are linked into the optional extension.
 
 Packaging follows the [maturin pure Rust layout](https://www.maturin.rs/project_layout.html).
 See the [PyO3 versioned sources](https://github.com/PyO3/pyo3/tree/v0.27.2) and
@@ -256,3 +264,21 @@ Python tiktoken:
 These corpus-specific results motivate preferring Python tiktoken. They do not
 establish a general performance ratio across machines or inputs. Native BPE
 remains an optional exact-count fallback when Python BPE is unavailable.
+
+## AST symbol extraction (M4)
+
+`msl_core.extract_ast_symbols(file_path, code)` returns read-only `Symbol` objects
+for Python, JavaScript/TypeScript, Rust, Go, C++ and Java. It consumes supplied
+source text, uses the path only to select a grammar, and never reads files.
+See [the API contract and limitations](../../docs/native-symbols.md) for fields,
+line numbering, supported declarations, public markers and parsing errors.
+
+```sh
+python -m unittest discover -s tests -p 'test_native_symbols.py' -v
+python tools/benchmark_symbols.py --size 100 --repeat 5
+```
+
+The benchmark creates a fixed multilingual corpus, validates symbol counts and
+checks repeatability. It records hashes, versions, corpus sizes, samples and
+median times. It does not establish a speedup over the existing Python tools,
+which have different extraction semantics. M1–M3 behavior is unchanged.
