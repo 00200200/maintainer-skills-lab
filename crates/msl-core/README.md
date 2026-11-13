@@ -1,11 +1,12 @@
-# Optional native helpers (M1/M2/M3/M4/M5)
+# Optional native helpers (M1–M6)
 
 `msl_core.minify_markdown(text: str) -> str` implements the existing `tools/kit.py`
 algorithm in Rust with PyO3. It is a literal compatibility port, not a CommonMark
 parser. M2 adds the separate `walk_project()` API and M3 adds exact BPE token
 counting. M4 adds standalone Tree-sitter symbol extraction; M5 adds BLAKE3 byte
-hashing and a conservative no-change synchronization cache. There is no
-dependency graph or new CI.
+hashing and a conservative no-change synchronization cache. M6 builds and tests
+optional native distribution packages in a separate CI workflow. There is no
+dependency graph.
 Python-only users need no Rust tools or additional Python packages.
 
 ## Build and install (opt-in)
@@ -303,3 +304,78 @@ python -m unittest discover -s tests -p 'test_sync_cache.py' -v
 python tools/benchmark_sync.py --repeat 3
 python tools/benchmark_sync.py --repeat 3 --minify --mode lazy
 ```
+
+## Cross-platform packages and CI (M6)
+
+The separate [native workflow](../../.github/workflows/native.yml) builds release
+wheels with maturin 1.9.6, stable Rust and `--locked` dependencies. It runs for
+native sources, kit integration, native tests and workflow changes, or through
+`workflow_dispatch`. The existing Python-only workflow is unchanged and requires
+no Rust toolchain, maturin or native wheel.
+
+| Package | Build target / baseline | Runtime tests |
+| --- | --- | --- |
+| Linux x86_64 glibc | `manylinux_2_28_x86_64`, glibc 2.28+ | Ubuntu x86_64 |
+| Linux x86_64 musl | `musllinux_1_2_x86_64`, musl 1.2+ | Alpine x86_64 |
+| macOS universal2 | Both `x86_64` and `aarch64`, macOS 11+ | Separate Intel and Apple Silicon runners |
+| Windows x86_64 | `x86_64-pc-windows-msvc`, `win_amd64` | Windows x86_64 |
+
+Each wheel uses PyO3 `abi3-py311`; CI installs the same artifact on standard
+CPython 3.11 and 3.13. These jobs do not establish PyPy, free-threaded CPython,
+Linux ARM64 or Windows ARM64 support. Universal2 is one wheel tested on both
+architectures, not separate untested architecture wheels.
+
+CI checks package metadata with `twine check --strict`, wheel CRC integrity,
+native payload presence and matching filename/metadata ABI/platform tags.
+Maturin audits Linux wheel compatibility in the matching manylinux/musllinux
+build environment. Installing uses `--only-binary`, `--no-deps` and `--no-index`
+against the downloaded artifacts. Runtime smoke checks exercise every M1–M5 API
+and verify the module belongs to the installed distribution.
+
+`tools/native_ci.py test --arch x86_64` (or `arm64`) requires all native exports,
+Python tiktoken, and every M1–M5 test group. Unexpected skips fail the job,
+including missing-extension, missing-reference and whole-feature skips. Only
+specific Windows filesystem limitations and permission checks that root cannot
+exercise are allowed. Those skips remain visible in the test output. Normal
+Python-only discovery retains its existing optional-native skips.
+
+The musl runtime is a `python:<version>-alpine3.22` container. It installs and
+smoke-tests the native wheel, then installs pinned Python `tiktoken==0.12.0`
+with `--only-binary=:all:`. Ready-made musllinux wheels cover CPython 3.11 and
+3.13, so the runtime tests require no Rust/C build tools. Missing binary packages
+fail installation instead of triggering a source build or skipping BPE parity.
+Reference vocabulary files may be downloaded into a temporary CI cache.
+
+The source job builds an sdist and validates its paths, metadata, Rust sources
+and lockfile. It explicitly rebuilds a wheel from the `.tar.gz` using PEP 517,
+pinned maturin and `MATURIN_PEP517_ARGS=--locked`, then installs/tests that rebuilt
+wheel. This round trip catches missing source-package files. Wheels and sdist
+are uploaded as workflow artifacts for 14 days; this workflow does not publish
+to PyPI or create a release.
+
+### Local packaging commands
+
+Use the opt-in environment and compiler prerequisites above. A native host build
+and sdist can be produced with:
+
+```sh
+python -m pip install maturin==1.9.6 twine==6.2.0
+maturin build --release --locked --sdist --manifest-path crates/msl-core/Cargo.toml --out dist/native
+python -m twine check --strict dist/native/*
+python tools/native_ci.py sdist dist/native
+```
+
+`maturin build --sdist` creates both formats; the separate CI PEP 517 rebuild is
+what verifies building from the source archive. For universal2 on macOS, install
+both Rust targets and set the deployment baseline:
+
+```sh
+rustup target add x86_64-apple-darwin aarch64-apple-darwin
+MACOSX_DEPLOYMENT_TARGET=11.0 maturin build --release --locked --target universal2-apple-darwin --manifest-path crates/msl-core/Cargo.toml --out dist/native
+```
+
+Linux portable wheels require the matching manylinux/musllinux build containers;
+an ordinary host `linux_x86_64` wheel is not a portable manylinux distribution.
+Use the workflow's container/target settings instead of renaming wheel files.
+The build jobs validate current code on their next CI run; editing this workflow
+alone is not evidence that the remote platform builds/tests have passed.

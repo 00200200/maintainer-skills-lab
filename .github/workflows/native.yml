@@ -1,0 +1,207 @@
+name: Native msl-core packages
+
+on:
+  push:
+    paths:
+      - '.github/workflows/native.yml'
+      - 'crates/msl-core/**'
+      - 'tools/kit.py'
+      - 'tools/native_ci.py'
+      - 'tests/test_native*.py'
+      - 'tests/test_sync_cache.py'
+  pull_request:
+    paths:
+      - '.github/workflows/native.yml'
+      - 'crates/msl-core/**'
+      - 'tools/kit.py'
+      - 'tools/native_ci.py'
+      - 'tests/test_native*.py'
+      - 'tests/test_sync_cache.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  wheels:
+    name: Build ${{ matrix.package }} wheel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: manylinux-x86_64
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            compatibility: '2_28'
+            platform: manylinux_2_28_x86_64
+            interpreter: python3.11
+          - package: musllinux-x86_64
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            compatibility: musllinux_1_2
+            platform: musllinux_1_2_x86_64
+            interpreter: python3.11
+          - package: macos-universal2
+            os: macos-15
+            target: universal2-apple-darwin
+            compatibility: auto
+            platform: macosx_11_0_universal2
+            interpreter: python
+          - package: windows-x86_64
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
+            compatibility: auto
+            platform: win_amd64
+            interpreter: python
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: PyO3/maturin-action@v1
+        with:
+          maturin-version: v1.9.6
+          rust-toolchain: stable
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.compatibility }}
+          args: >-
+            --release --locked --strip --interpreter ${{ matrix.interpreter }}
+            --manifest-path crates/msl-core/Cargo.toml --out dist/native
+      - name: Validate metadata, archive integrity and ABI/platform tags
+        shell: bash
+        run: |
+          python -m pip install twine==6.2.0
+          python -m twine check --strict dist/native/*.whl
+          python tools/native_ci.py wheel dist/native --platform ${{ matrix.platform }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: native-${{ matrix.package }}
+          path: dist/native/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+  test-wheels:
+    name: Test ${{ matrix.runtime.package }} / ${{ matrix.runtime.arch }} / Python ${{ matrix.python }}
+    needs: wheels
+    runs-on: ${{ matrix.runtime.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+        # Each macOS architecture installs the exact same universal2 artifact.
+        runtime:
+          - {package: manylinux-x86_64, os: ubuntu-24.04, arch: x86_64}
+          - {package: macos-universal2, os: macos-15, arch: arm64}
+          - {package: macos-universal2, os: macos-15-intel, arch: x86_64}
+          - {package: windows-x86_64, os: windows-2022, arch: x86_64}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: native-${{ matrix.runtime.package }}
+          path: dist/native
+      - name: Install the built wheel without rebuilding or runtime dependencies
+        shell: bash
+        run: |
+          python -m pip install --no-index --no-deps --only-binary=:all: --find-links dist/native msl-core
+          python tools/native_ci.py smoke --arch ${{ matrix.runtime.arch }}
+      - name: Run required M1-M5 tests with Python tiktoken parity
+        shell: bash
+        env:
+          TIKTOKEN_CACHE_DIR: ${{ runner.temp }}/tiktoken-cache
+        run: |
+          python -m pip install tiktoken==0.12.0
+          python tools/native_ci.py test --arch ${{ matrix.runtime.arch }}
+
+  test-musl:
+    name: Test musllinux / Python ${{ matrix.python }}
+    needs: wheels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: native-musllinux-x86_64
+          path: dist/native
+      - name: Install and test native and reference BPE wheels on musl
+        shell: bash
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/io" -w /io \
+            -e PYTHONDONTWRITEBYTECODE=1 -e TIKTOKEN_CACHE_DIR=/tmp/tiktoken-cache \
+            python:${{ matrix.python }}-alpine3.22 sh -ec '
+              python -m pip install --no-index --no-deps --only-binary=:all: --find-links dist/native msl-core
+              python tools/native_ci.py smoke --arch x86_64
+              python -m pip install --only-binary=:all: tiktoken==0.12.0
+              python tools/native_ci.py test --arch x86_64
+            '
+
+  sdist:
+    name: Build and validate sdist round trip
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Build source archive with locked dependencies
+        uses: PyO3/maturin-action@v1
+        with:
+          maturin-version: v1.9.6
+          rust-toolchain: stable
+          target: x86_64-unknown-linux-gnu
+          manylinux: '2_28'
+          args: >-
+            --sdist --release --locked --interpreter python3.11
+            --manifest-path crates/msl-core/Cargo.toml --out dist/native
+      - name: Validate source contents and both package formats
+        shell: bash
+        run: |
+          python -m pip install twine==6.2.0
+          python -m twine check --strict dist/native/*
+          python tools/native_ci.py sdist dist/native
+          python tools/native_ci.py wheel dist/native --platform manylinux_2_28_x86_64
+      - name: Rebuild a wheel from the source archive in isolation from the checkout
+        shell: bash
+        env:
+          MATURIN_PEP517_ARGS: --locked
+        run: |
+          rustup update stable --no-self-update
+          rustup default stable
+          python -m pip install maturin==1.9.6
+          python -m pip wheel --no-deps --no-build-isolation --wheel-dir dist/rebuilt dist/native/*.tar.gz
+          python -m twine check --strict dist/rebuilt/*.whl
+          python tools/native_ci.py wheel dist/rebuilt --platform linux_x86_64
+      - name: Test the wheel rebuilt from sdist
+        env:
+          TIKTOKEN_CACHE_DIR: ${{ runner.temp }}/tiktoken-cache
+        run: |
+          python -m pip install --no-index --no-deps --only-binary=:all: --find-links dist/rebuilt msl-core
+          python tools/native_ci.py smoke --arch x86_64
+          python -m pip install tiktoken==0.12.0
+          python tools/native_ci.py test --arch x86_64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: native-sdist-roundtrip
+          path: |
+            dist/native/*.tar.gz
+            dist/rebuilt/*.whl
+          if-no-files-found: error
+          retention-days: 14
