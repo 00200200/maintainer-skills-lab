@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import platform
+import re
 import sys
 import tarfile
 import tempfile
@@ -182,7 +183,18 @@ def validate_wheel(path: Path, expected_platform: str) -> None:
         metadata = BytesParser().parsebytes(archive.read(wheels[0]))
         if metadata.get("Root-Is-Purelib", "").lower() != "false":
             raise ValueError("Native wheel is incorrectly marked pure Python")
-        if f"cp311-abi3-{expected_platform}" not in metadata.get_all("Tag", []):
+        metadata_platforms = set()
+        for tag in metadata.get_all("Tag", []):
+            parts = tag.split("-")
+            if (
+                len(parts) != 3
+                or parts[:2] != ["cp311", "abi3"]
+                or not all(re.fullmatch(r"[a-z0-9_]+", value) for value in parts[2].split("."))
+            ):
+                raise ValueError("Wheel metadata tags do not match the requested platform")
+            # A WHEEL Tag header may compress several platforms into one field.
+            metadata_platforms.update(parts[2].split("."))
+        if expected_platform not in metadata_platforms:
             raise ValueError("Wheel metadata tags do not match the requested platform")
         if not any(name.endswith((".so", ".pyd")) for name in names):
             raise ValueError("Wheel contains no native extension")

@@ -93,13 +93,16 @@ class NativePackageValidationTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
 
-    def wheel(self, platform="manylinux_2_28_x86_64", *, binary=True):
+    def wheel(self, platform="manylinux_2_28_x86_64", *, binary=True, tags=None):
         path = self.root / f"msl_core-0.1.0-cp311-abi3-{platform}.whl"
         prefix = "msl_core-0.1.0.dist-info/"
+        if tags is None:
+            tags = [f"cp311-abi3-{platform}"]
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr(
                 prefix + "WHEEL",
-                f"Wheel-Version: 1.0\nRoot-Is-Purelib: false\nTag: cp311-abi3-{platform}\n",
+                "Wheel-Version: 1.0\nRoot-Is-Purelib: false\n"
+                + "".join(f"Tag: {tag}\n" for tag in tags),
             )
             archive.writestr(
                 prefix + "METADATA", "Metadata-Version: 2.4\nName: msl-core\nVersion: 0.1.0\n"
@@ -123,6 +126,35 @@ class NativePackageValidationTests(unittest.TestCase):
             archive.writestr("../escaped", "invalid")
         with self.assertRaisesRegex(ValueError, "paths"):
             native_ci.validate_wheel(path, "manylinux_2_28_x86_64")
+
+    def test_universal2_accepts_compressed_and_expanded_platform_tags(self):
+        platforms = ["macosx_11_0_x86_64", "macosx_11_0_arm64", "macosx_11_0_universal2"]
+        for tags in [
+            ["cp311-abi3-" + ".".join(platforms)],
+            [f"cp311-abi3-{platform}" for platform in platforms],
+        ]:
+            with self.subTest(tags=tags):
+                path = self.wheel("macosx_11_0_universal2", tags=tags)
+                native_ci.validate_wheel(path, "macosx_11_0_universal2")
+
+    def test_universal2_rejects_wrong_or_malformed_metadata_tags(self):
+        platform = "macosx_11_0_universal2"
+        valid = f"cp311-abi3-{platform}"
+        for tags in [
+            [],
+            [f"cp310-abi3-{platform}"],
+            [f"cp311-none-{platform}"],
+            [f"cp311.cp312-abi3-{platform}"],
+            [f"cp311-abi3.cp311-{platform}"],
+            ["cp311-abi3-macosx_11_0_x86_64.macosx_11_0_arm64"],
+            [valid + "."],
+            [valid + ".invalid platform"],
+            [valid + ".invalid/platform"],
+            [valid + "-extra"],
+            [valid, f"cp310-abi3-{platform}"],
+        ]:
+            with self.subTest(tags=tags), self.assertRaisesRegex(ValueError, "metadata tags"):
+                native_ci.validate_wheel(self.wheel(platform, tags=tags), platform)
 
     def sdist(self, *, missing=None, unsafe=False):
         path = self.root / "msl_core-0.1.0.tar.gz"

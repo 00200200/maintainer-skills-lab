@@ -186,14 +186,14 @@ jobs:
           rustup update stable --no-self-update
           rustup default stable
           python -m pip install maturin==1.9.6
-          python -m pip wheel --no-deps --no-build-isolation --wheel-dir dist/rebuilt dist/native/*.tar.gz
-          python -m twine check --strict dist/rebuilt/*.whl
-          python tools/native_ci.py wheel dist/rebuilt --platform linux_x86_64
+          python -m pip wheel --no-deps --no-build-isolation --wheel-dir "$RUNNER_TEMP/msl-core-rebuilt" dist/native/*.tar.gz
+          python -m twine check --strict "$RUNNER_TEMP/msl-core-rebuilt/"*.whl
+          python tools/native_ci.py wheel "$RUNNER_TEMP/msl-core-rebuilt" --platform linux_x86_64
       - name: Test the wheel rebuilt from sdist
         env:
           TIKTOKEN_CACHE_DIR: ${{ runner.temp }}/tiktoken-cache
         run: |
-          python -m pip install --no-index --no-deps --only-binary=:all: --find-links dist/rebuilt msl-core
+          python -m pip install --no-index --no-deps --only-binary=:all: --find-links "$RUNNER_TEMP/msl-core-rebuilt" msl-core
           python tools/native_ci.py smoke --arch x86_64
           python -m pip install tiktoken==0.12.0
           python tools/native_ci.py test --arch x86_64
@@ -202,6 +202,6 @@ jobs:
           name: native-sdist-roundtrip
           path: |
             dist/native/*.tar.gz
-            dist/rebuilt/*.whl
+            ${{ runner.temp }}/msl-core-rebuilt/*.whl
           if-no-files-found: error
           retention-days: 14
