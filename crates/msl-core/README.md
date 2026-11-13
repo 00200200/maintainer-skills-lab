@@ -42,8 +42,7 @@ disabled. The checked-in lockfile already includes the M1–M3 dependencies.
 M4 adds Tree-sitter 0.24.7 and pinned ABI-compatible language grammars.
 The committed `Cargo.lock` includes these dependencies.
 
-M5 adds `blake3 = 1.5.5`. Resolve and review this addition in `Cargo.lock` before
-a locked build (`cargo generate-lockfile --manifest-path crates/msl-core/Cargo.toml`).
+M5 adds `blake3 = 1.5.5`. The committed `Cargo.lock` includes this dependency.
 
 Building M4 also requires the C toolchain used by Tree-sitter's grammar build
 scripts. No separate Tree-sitter CLI, grammar download or compiler is needed at

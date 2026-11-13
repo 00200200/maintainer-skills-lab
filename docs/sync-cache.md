@@ -109,10 +109,31 @@ once. The generator SHA-256 was
 the input-source SHA-256 was
 `7fdb436573392139d558eda7bb87d48bbc23463713379a3a59b822c26586aad2`.
 
-These measurements justify the limited warm fast path on this corpus, not a
-general speedup. Native BLAKE3 was not measured: the new extension was not built
-because compilation/installations were excluded. Unit tests and formatters were
-not run. Re-measure both native and Python-only setups on the target machine.
+These SHA-256 fallback measurements show a warm-cache improvement on this
+corpus, not a general speedup.
+
+Additional measurements used the release-built native BLAKE3 extension with
+Python 3.11.18 on Linux x86_64 and five repetitions per configuration
+(`--repeat 5`):
+
+| Options | Phase | Cached median (ms) | Uncached median (ms) | Uncached / cached |
+| --- | --- | ---: | ---: | ---: |
+| full, no minification | cold | 185.10 | 183.22 | 0.99× |
+| full, no minification | warm | 61.89 | 140.40 | **2.27×** |
+| full, no minification | changed | 150.32 | 141.91 | 0.94× |
+| lazy, minified | cold | 205.75 | 183.81 | 0.89× |
+| lazy, minified | warm | 68.32 | 148.09 | **2.17×** |
+| lazy, minified | changed | 170.47 | 150.03 | 0.88× |
+
+The native BLAKE3 runs also verified identical provider output bytes, manifests,
+and public sync results, expected generation counts, and independent `--check`
+behavior. On this corpus, warm sync was faster, while cold and changed runs
+incurred additional fingerprinting overhead.
+
+Verification completed successfully: 17 M5 cache/hash tests and 562 full-suite
+Python tests passed. Checks also covered `cargo check`, `cargo test --locked`,
+Clippy with `-D warnings`, Rust formatting, a maturin release build, native
+`blake3_hash()` execution, Ruff, `kit.py check`, and `kit.py sync --check`.
 
 This is deliberately a whole-library no-change fast path, not a per-provider
 dependency graph or mtime memoization. Each run still reads/hashes source bytes,
