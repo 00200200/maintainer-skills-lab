@@ -135,8 +135,11 @@ class RedteamReport:
         return {**data, "status": self.status, "summary": self.summary}
 
 
-def run_redteam(path: Path) -> RedteamReport:
-    cases = injection.load_fixtures()
+def run_redteam(
+    path: Path, *, cases: list[injection.AdversarialTestCase] | None = None
+) -> RedteamReport:
+    if cases is None:
+        cases = injection.load_fixtures()
     records = load_responses(path, cases)
     canaries = sorted(
         {case.canary_token for case in cases if case.canary_token}, key=len, reverse=True

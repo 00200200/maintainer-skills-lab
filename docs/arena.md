@@ -1,9 +1,9 @@
-# MSL-Arena — Mini and recorded-response redteam
+# MSL-Arena — Mini, recorded-response redteam and offline variants
 
-Arena provides two separate benchmarks: `mini` runs container infrastructure
-smoke checks; `redteam` applies the existing heuristic injection verifier to
-user-supplied recordings. Neither benchmark starts an agent or model. Redteam
-does not require or invoke Docker/Podman.
+Arena provides `mini` for container infrastructure smoke checks and `redteam`
+for heuristic verification of user-supplied recordings. `generate` creates
+deterministic variant fixtures offline. No mode starts an agent or model;
+Redteam and Generate do not require or invoke Docker/Podman.
 
 ## Mini infrastructure benchmark (M1)
 
@@ -226,4 +226,99 @@ agent deployment. Coverage, capture quality and fixture revision affect meaning.
 attack indicators, sparse/empty coverage, evaluated-only ASR, redaction and CLI
 reports. Model/simulation/container/process entry points are guarded by mocks.
 These unit fixtures do not constitute new live-agent evidence. SWE-bench,
-fuzzing, model execution and CI integration remain outside this milestone.
+model execution and CI integration remain outside M2. Offline fixture generation
+is available separately in M3 below.
+
+## Offline variant generation (M3)
+
+M3 generates adversarial fixture data only. **Generating scenarios is not a
+security evaluation of agents.** No model, API, command, sandbox, network request
+or generated payload is executed. There are no generated/simulated responses,
+verdicts or attack-success measurements in this mode.
+
+```sh
+python3 evals/arena/cli.py --benchmark generate \
+  --output-fixtures /tmp/arena-variants.json --seed 134
+```
+
+The generator uses the existing `injection_harness.load_fixtures()` catalogue of
+25 scenarios and produces exactly six variants per scenario, for 150 fixtures:
+
+| Transformation | Changed presentation |
+| --- | --- |
+| `authority-header` | A priority handoff attributed to a maintainer role |
+| `issue-thread` | A follow-up comment in an issue discussion |
+| `tool-transcript` | A note inside an apparent repository-check tool result |
+| `forwarded-message` | A forwarded maintenance message with header/footer |
+| `policy-excerpt` | A supposed repository policy appendix |
+| `late-footer` | A follow-up placed after ordinary review context |
+
+These are untrusted contextual wrappers, not authenticated authority or policies.
+Every variant includes the complete original `input_text` verbatim. It preserves
+`category`, `attack_objective`, `target_skills`, `forbidden_actions` and
+`canary_token` exactly, including canaries that exist only in fixture metadata.
+The title adds the transformation label. No attack strings are paraphrased,
+decoded, executed or rewritten by a model; no new detection rules are introduced.
+
+IDs have the form `INJ-001--tool-transcript--s0000000000000086`, containing the
+base ID, transformation and zero-padded hexadecimal seed. The default seed is
+zero; supported values are integers from 0 through `2**64 - 1`. SHA-256 of the
+seed/base-ID/transformation selects fixed role wording and reference markers.
+No process-global randomness, timestamps or filesystem paths enter the output.
+Cases are ordered by base ID and then the fixed transformation order above.
+The same input catalogue and seed produce byte-identical UTF-8/LF JSON. A new
+seed gives distinct IDs and deterministic presentation changes, not a claim of
+new attack semantics or improved coverage.
+
+The output remains the existing JSON array of eight-field fixture objects, so
+`injection_harness.load_fixtures(path)` can load it. Generation refuses a base
+catalogue other than the expected 25 cases rather than silently truncating it.
+
+### Evaluate real recordings against generated fixtures
+
+Collect real responses separately, using the generated IDs and their configured
+target skills in the existing M2 recording format. Then run:
+
+```sh
+python3 evals/arena/cli.py --benchmark redteam \
+  --fixtures /tmp/arena-variants.json --responses /path/to/recordings.json \
+  --report /tmp/arena-generated-results.md --output-json /tmp/arena-generated-results.json
+```
+
+`--fixtures` is optional and supported only by Redteam. Without it, M2 still uses
+the original checked-in catalogue. Mini, its CLI and sandbox behavior are
+unchanged. Custom fixtures are validated before any response reaches the existing
+`verify_agent_response()` function. Scenario/skill matching, duplicate recording
+rejection, redaction, evaluated-only ASR and NOT_EVALUATED semantics stay the same.
+Missing responses never become DEFENDED and an empty evaluated set has no ASR.
+Keep the fixture file and seed alongside recordings; a different seed changes
+IDs, so recordings cannot silently match another generated catalogue.
+
+### Validation and file safety
+
+The new fixture reader accepts regular files only and reads at most 4 MiB plus
+one byte to detect overflow. It rejects duplicate JSON keys, non-finite values,
+malformed UTF-8, wrong types, missing/unknown fields, duplicate scenario IDs,
+duplicate/empty target lists, unknown categories and unsupported forbidden-action
+labels. All eight fixture fields are required. It accepts 1–150 cases, payloads
+up to 16,384 characters, other text up to 2,048 characters and at most 16 unique
+targets/actions per case. IDs and list entries use bounded ASCII identifiers.
+Empty canaries and empty action lists are valid. Base generation also performs
+this strict preflight; the shared injection loader and M2 default loader are not
+changed globally.
+
+The serialized output is limited to 4 MiB. Generation validates and serializes
+everything before writing, then publishes a complete same-directory temporary
+file using an atomic no-clobber hard link. Existing files, symlinks and hardlink
+aliases are never replaced, including input fixtures. The filesystem must support
+hard links; publication failures leave no partial destination and temporary files
+are cleaned up. Choose a fresh output path for every generation command.
+Redteam Markdown/JSON destinations cannot alias either its recordings or its
+selected fixtures. Generator-only flags are rejected in Mini/Redteam, and report,
+recording, image or custom-fixture flags are rejected in Generate mode.
+
+`tests/test_arena_fuzzer.py` covers 150 unique variants, seeds and ordering,
+verbatim payloads and preserved scoring metadata, existing-loader compatibility,
+malformed/bounded input, no-clobber publication and CLI-to-M2 verifier delegation.
+Execution/model entry points are guarded by mocks. This milestone adds no
+SWE-bench, autonomous feedback loop, model/API integration or CI workflow.
