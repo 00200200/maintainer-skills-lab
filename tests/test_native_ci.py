@@ -86,6 +86,29 @@ class NativeCIGuardTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "unexpected skipped"):
                 native_ci.run_tests("x86_64")
 
+    def test_non_utf8_filesystem_skip_requires_exact_test_and_reason(self):
+        test = (
+            "test_native_walk.NativeWalkTests."
+            "test_non_utf8_filename_is_rejected_without_lossy_conversion"
+        )
+        reason = "Filesystem rejects non-UTF-8 filenames (EILSEQ)"
+        for system in ("darwin", "linux"):
+            with self.subTest(system=system):
+                self.assertTrue(native_ci.skip_allowed(test, reason, system))
+                for other_reason in (
+                    "Optional extension is not installed",
+                    "Filesystem rejects non-UTF-8 filenames (EACCES)",
+                    reason + " unexpectedly",
+                ):
+                    self.assertFalse(native_ci.skip_allowed(test, other_reason, system))
+                self.assertFalse(native_ci.skip_allowed(test + "_other", reason, system))
+                self.assertFalse(
+                    native_ci.skip_allowed(
+                        "test_native_tokens.NativeTokenParityTests.test_example", reason, system
+                    )
+                )
+        self.assertFalse(native_ci.skip_allowed(test, reason, "win32"))
+
 
 class NativePackageValidationTests(unittest.TestCase):
     def setUp(self):

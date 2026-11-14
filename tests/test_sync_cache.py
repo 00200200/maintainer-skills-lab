@@ -41,7 +41,10 @@ class SyncCacheTests(unittest.TestCase):
         self.assertTrue(kit.sync_providers(self.root, check=True, **options)["up_to_date"])
         expected = kit.provider_files(self.root, **options)
         manifest = json.loads(before.pop(".manifest.json"))
-        self.assertEqual(before, expected)
+        self.assertEqual(
+            {name: kit.canonical_bytes(data) for name, data in before.items()},
+            {name: kit.canonical_bytes(data) for name, data in expected.items()},
+        )
         self.assertEqual(
             manifest["files"], {name: kit.digest(data) for name, data in expected.items()}
         )
@@ -114,6 +117,45 @@ class SyncCacheTests(unittest.TestCase):
             with patch.object(kit, "provider_files", wraps=kit.provider_files) as generate:
                 kit.sync_providers(self.root)
             generate.assert_called_once()
+
+    def test_parameter_changes_preserve_equivalent_crlf_exports(self):
+        resource = self.root / "skills/mkl-humanize/cache-newlines.md"
+        resource.write_bytes(b"| a | b |\r\n")
+        kit.sync_providers(self.root)
+        relative = "codex/.agents/skills/mkl-humanize/cache-newlines.md"
+        generated = self.providers / relative
+        self.assertEqual(generated.read_bytes(), b"| a | b |\r\n")
+        kit.sync_providers(self.root, minify=True)
+        expected = kit.provider_files(self.root, minify=True)
+        self.assertEqual(expected[relative], b"| a | b |\n")
+        # Canonical SHA-256 agrees, so sync intentionally keeps the existing CRLF bytes.
+        self.assertEqual(generated.read_bytes(), b"| a | b |\r\n")
+        self.assert_uncached_equivalent(minify=True)
+
+    def test_equivalence_comparison_rejects_content_and_manifest_changes(self):
+        resource = self.root / "skills/mkl-humanize/cache-binary.bin"
+        resource.write_bytes(b"\x00binary\r\n\xff")
+        kit.sync_providers(self.root)
+        original = snapshot(self.providers)
+        binary = "codex/.agents/skills/mkl-humanize/cache-binary.bin"
+        for relative, changed in (
+            ("README.md", original["README.md"] + b"Unexpected content\n"),
+            (binary, original[binary].replace(b"\r\n", b"\n")),
+        ):
+            with self.subTest(relative=relative):
+                path = self.providers / relative
+                path.write_bytes(changed)
+                # Exercise the comparison itself independently of --check's guard.
+                with patch.object(kit, "sync_providers", return_value={"up_to_date": True}):
+                    with self.assertRaises(AssertionError):
+                        self.assert_uncached_equivalent()
+                path.write_bytes(original[relative])
+        state = json.loads(original[".manifest.json"])
+        state["files"]["README.md"] = "0" * 64
+        (self.providers / ".manifest.json").write_text(json.dumps(state), encoding="utf-8")
+        with patch.object(kit, "sync_providers", return_value={"up_to_date": True}):
+            with self.assertRaises(AssertionError):
+                self.assert_uncached_equivalent()
 
     def test_assets_and_recipe_edits_invalidate(self):
         kit.sync_providers(self.root)

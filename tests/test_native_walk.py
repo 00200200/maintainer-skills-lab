@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import mock_open, patch
 
 try:
     import msl_core
@@ -13,6 +15,48 @@ except ModuleNotFoundError as error:
     if error.name != "msl_core":
         raise
     msl_core = None
+
+
+def create_non_utf8_fixture(root):
+    """Skip only when the filesystem rejects the byte-valued filename itself."""
+    try:
+        stream = open(os.fsencode(root) + b"/bad-\xff.txt", "wb")
+    except OSError as error:
+        if error.errno == errno.EILSEQ:
+            raise unittest.SkipTest("Filesystem rejects non-UTF-8 filenames (EILSEQ)") from error
+        raise
+    with stream:
+        stream.write(b"text")
+
+
+class NativeFilenameFixtureTests(unittest.TestCase):
+    def test_creation_eilseq_is_a_specific_filesystem_skip(self):
+        with patch("builtins.open", side_effect=OSError(errno.EILSEQ, "Illegal byte sequence")):
+            with self.assertRaisesRegex(unittest.SkipTest, r"non-UTF-8 filenames \(EILSEQ\)"):
+                create_non_utf8_fixture(Path("project"))
+
+    def test_other_creation_errors_propagate(self):
+        for code in (errno.EACCES, errno.ENOENT, errno.ENOSPC, errno.EIO, errno.EINVAL):
+            error = OSError(code, "Creation failed")
+            with self.subTest(errno=code), patch("builtins.open", side_effect=error):
+                with self.assertRaises(OSError) as caught:
+                    create_non_utf8_fixture(Path("project"))
+                self.assertIs(caught.exception, error)
+
+    def test_supported_filename_creates_the_exact_byte_fixture(self):
+        opened = mock_open()
+        with patch("builtins.open", opened):
+            create_non_utf8_fixture(Path("project"))
+        opened.assert_called_once_with(os.fsencode(Path("project")) + b"/bad-\xff.txt", "wb")
+        opened().write.assert_called_once_with(b"text")
+
+    def test_write_eilseq_is_not_treated_as_a_filename_skip(self):
+        opened = mock_open()
+        error = OSError(errno.EILSEQ, "Write failed")
+        opened().write.side_effect = error
+        with patch("builtins.open", opened), self.assertRaises(OSError) as caught:
+            create_non_utf8_fixture(Path("project"))
+        self.assertIs(caught.exception, error)
 
 
 @unittest.skipIf(msl_core is None, "Optional msl_core extension is not installed")
@@ -234,8 +278,7 @@ class NativeWalkTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", "Requires byte-valued filenames")
     def test_non_utf8_filename_is_rejected_without_lossy_conversion(self):
-        with open(os.fsencode(self.root) + b"/bad-\xff.txt", "wb") as stream:
-            stream.write(b"text")
+        create_non_utf8_fixture(self.root)
         with self.assertRaises(ValueError):
             self.walk()
 

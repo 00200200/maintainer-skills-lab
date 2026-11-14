@@ -38,9 +38,12 @@ PERMISSION_TESTS = {
     "test_native_walk.NativeWalkTests.test_unreadable_file_fails_instead_of_returning_partial_results",
     "test_native_walk.NativeWalkTests.test_unreadable_directory_and_rule_file_fail",
 }
+NON_UTF8_FILENAME_TEST = (
+    "test_native_walk.NativeWalkTests.test_non_utf8_filename_is_rejected_without_lossy_conversion"
+)
 WINDOWS_SKIPS = PERMISSION_TESTS | {
     "test_native_walk.NativeWalkTests.test_special_files_are_not_opened",
-    "test_native_walk.NativeWalkTests.test_non_utf8_filename_is_rejected_without_lossy_conversion",
+    NON_UTF8_FILENAME_TEST,
     "test_native_walk.NativeWalkTests.test_symlink_files_directories_and_broken_links_are_skipped",
     "test_native_walk.NativeWalkTests.test_symlink_root_and_root_components_are_rejected",
     "test_native_walk.NativeWalkTests.test_symlink_ignore_files_are_rejected_before_loading",
@@ -98,6 +101,12 @@ def smoke(expected_arch: str) -> None:
 
 def skip_allowed(test_id: str, reason: str, system: str) -> bool:
     test_id = test_id.split(" (", 1)[0]  # unittest subtest parameters are not part of the ID.
+    if (
+        system != "win32"
+        and test_id == NON_UTF8_FILENAME_TEST
+        and reason == "Filesystem rejects non-UTF-8 filenames (EILSEQ)"
+    ):
+        return True  # Fixture creation proved this filesystem rejects the name.
     if test_id in PERMISSION_TESTS and reason.startswith("Current user can read "):
         return True  # Root in the musl container cannot exercise permission-denied cases.
     return (

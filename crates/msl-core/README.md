@@ -335,8 +335,9 @@ and verify the module belongs to the installed distribution.
 `tools/native_ci.py test --arch x86_64` (or `arm64`) requires all native exports,
 Python tiktoken, and every M1–M5 test group. Unexpected skips fail the job,
 including missing-extension, missing-reference and whole-feature skips. Only
-specific Windows filesystem limitations and permission checks that root cannot
-exercise are allowed. Those skips remain visible in the test output. Normal
+specific Windows filesystem limitations, fixture creation rejected with `EILSEQ`
+for non-UTF-8 filenames, and permission checks that root cannot exercise are
+allowed. Those skips remain visible in the test output. Normal
 Python-only discovery retains its existing optional-native skips.
 
 The musl runtime is a `python:<version>-alpine3.22` container. It installs and
