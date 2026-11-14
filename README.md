@@ -80,6 +80,10 @@ python3 tools/kit.py build
 After editing shared skills or agents, run `python3 tools/kit.py sync` and include
 the generated outputs in the same change. Do not edit provider copies directly.
 
+Optional [native helpers and package builds](crates/msl-core/README.md) use a
+separate CI workflow for manylinux/musllinux x86_64, macOS universal2 and Windows
+x86_64. Python-only setup and checks do not require Rust.
+
 ## Contribute
 
 See the [contributor guide](CONTRIBUTING.md), [suggest a workflow](https://github.com/00200200/maintainer-skills-lab/issues/new?template=workflow.yml),

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "msl-core"
+version = "0.1.0"
+description = "Optional native Markdown minification for Maintainer Skills Lab"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+
+[tool.maturin]
+bindings = "pyo3"
+module-name = "msl_core"
+include = [{ path = "Cargo.lock", format = "sdist" }]

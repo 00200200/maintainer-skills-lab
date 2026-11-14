@@ -21,6 +21,13 @@ except ModuleNotFoundError:  # New in Python 3.11; older interpreters would show
         f"Run it with a newer interpreter, for example: python3.13 {sys.argv[0]}"
     )
 
+try:
+    from msl_core import minify_markdown as _native_minify_markdown
+except ModuleNotFoundError as exc:
+    if exc.name != "msl_core":
+        raise  # An installed extension with a missing dependency is broken, not absent.
+    _native_minify_markdown = None
+
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
     "codex": (".agents/skills", ".codex/agents", ".toml"),
@@ -116,6 +123,13 @@ def _minify_markdown_segment(text: str) -> str:
 
 def minify_markdown(text: str) -> str:
     """Shrink markdown for LLM prompts; keep fenced code blocks byte-for-byte."""
+    if _native_minify_markdown is not None:
+        return _native_minify_markdown(text)
+    return _minify_markdown_python(text)
+
+
+def _minify_markdown_python(text: str) -> str:
+    """Reference implementation, also used when the optional extension is absent."""
     lines = text.split("\n")
     offsets: list[int] = []
     position = 0
@@ -170,9 +184,10 @@ def _maybe_minify_markdown_bytes(data: bytes, relative: str, minify: bool) -> by
     if not minify or not relative.endswith(".md"):
         return data
     try:
-        return minify_markdown(data.decode("utf-8")).encode("utf-8")
+        text = data.decode("utf-8")
     except UnicodeDecodeError:
         return data
+    return minify_markdown(text).encode("utf-8")
 
 
 def markdown_to_xml(
@@ -506,16 +521,67 @@ def approximate_tokens(text: str) -> int:
     return max(1, (len(text) + 3) // 4)
 
 
-def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
-    """Calculate token count using tiktoken if installed, or approximate_tokens."""
-    if not text:
-        return 0
+def _native_token_backend():
+    """Load lazily so minifier-only callers keep their existing import behavior."""
+    try:
+        import msl_core
+    except ModuleNotFoundError as exc:
+        if exc.name != "msl_core":
+            raise
+        return None
+    exports = vars(msl_core)
+    names = ("count_tokens", "DisallowedSpecialTokenError")
+    if not any(name in exports for name in names):
+        return None  # M1/M2 extensions have no BPE backend.
+    if not all(name in exports for name in names):
+        raise ImportError("msl_core has an incomplete tokenizer API")
+    return msl_core.count_tokens, msl_core.DisallowedSpecialTokenError
+
+
+def _python_token_backend(encoding: str):
+    """Resolve Python BPE without hiding broken imports or initialization errors."""
     try:
         import tiktoken
+    except ModuleNotFoundError as exc:
+        if exc.name != "tiktoken":
+            raise
+        return None
+    try:
+        return tiktoken.get_encoding(encoding)
+    except ValueError as exc:
+        # tiktoken has no dedicated exception type for unknown encodings.
+        if not str(exc).startswith("Unknown encoding "):
+            raise
+        return None
 
-        return len(tiktoken.get_encoding(encoding).encode(text))
-    except Exception:
-        return approximate_tokens(text)
+
+def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
+    """Use Python tiktoken, native BPE, or the existing size-budget heuristic."""
+    if not text:
+        return 0
+    python_backend = _python_token_backend(encoding)
+    if python_backend is not None:
+        try:
+            return len(python_backend.encode(text))
+        except ValueError as exc:
+            # Preserve the legacy policy for expected special-token rejection,
+            # while allowing unexpected backend failures to surface.
+            if not str(exc).startswith(
+                "Encountered text corresponding to disallowed special token"
+            ):
+                raise
+            return approximate_tokens(text)
+    if encoding in ("cl100k_base", "o200k_base"):
+        backend = _native_token_backend()
+        if backend is not None:
+            native_count_tokens, disallowed_special = backend
+            try:
+                return native_count_tokens(text, encoding)
+            except disallowed_special:
+                # Preserve the legacy heuristic for rejected special tokens;
+                # all other native errors propagate instead of hiding failures.
+                return approximate_tokens(text)
+    return approximate_tokens(text)
 
 
 def skill_metadata(path: Path) -> tuple[dict[str, str], str]:
@@ -1273,6 +1339,113 @@ def provider_path(relative: str) -> bool:
     return rest.startswith("grok-bot/") and len(path.parts) >= 3
 
 
+_SYNC_CACHE_FILE = ".msl/sync-cache.json"
+_SYNC_CACHE_VERSION = 1
+
+
+def _sync_hash_backend():
+    """Older optional wheels may lack M5; broken imports/calls still propagate."""
+    try:
+        import msl_core
+    except ModuleNotFoundError as exc:
+        if exc.name != "msl_core":
+            raise
+        return "sha256", lambda data: hashlib.sha256(data).hexdigest()
+    if "blake3_hash" not in vars(msl_core):
+        return "sha256", lambda data: hashlib.sha256(data).hexdigest()
+    return "blake3", msl_core.blake3_hash
+
+
+def _sync_cache_key(root: Path, *, minify: bool, mode: str) -> str | None:
+    """Hash all source bytes, never trusting mtimes or file sizes as identity."""
+    algorithm, hash_bytes = _sync_hash_backend()
+    try:
+        inputs = []
+        for directory in ("skills", "agents", "grok-bot", "assets"):
+            for name, data in source_files(root / directory).items():
+                inputs.append((f"{directory}/{name}", hash_bytes(data)))
+        # The generator is the running kit, not necessarily root/tools/kit.py.
+        implementation = hash_bytes(Path(__file__).read_bytes())
+        minifier = "python"
+        if minify and _native_minify_markdown is not None:
+            if not _native_minify_markdown.__module__.startswith("msl_core"):
+                return None  # Unknown/custom minifiers cannot safely reuse exports.
+            # maturin may wrap the extension in a Python package. Include both
+            # wrapper and loaded binary, not just the package's __init__.py.
+            minifier = []
+            for name, module in sorted(list(sys.modules.items())):
+                if name == "msl_core" or name.startswith("msl_core."):
+                    filename = getattr(module, "__file__", None)
+                    if filename is not None:
+                        minifier.append((name, hash_bytes(Path(filename).read_bytes())))
+            if not minifier:
+                return None
+        payload = json.dumps(
+            {
+                "schema_version": _SYNC_CACHE_VERSION,
+                "implementation": implementation,
+                "python": sys.version,
+                "minifier": minifier,
+                "minify": minify,
+                "mode": mode,
+                "inputs": inputs,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return f"{algorithm}:{hash_bytes(payload)}"
+    except (OSError, KitError):
+        # Cache identity is optional; normal generation retains source validation.
+        return None
+
+
+def _read_sync_cache(root: Path) -> dict | None:
+    try:
+        path = checked_path(root, _SYNC_CACHE_FILE)
+        if not path.is_file() or path.stat().st_size > 4096:
+            return None
+        state = json.loads(path.read_text(encoding="utf-8"))
+        if (
+            not isinstance(state, dict)
+            or set(state) != {"schema_version", "key", "manifest_sha256"}
+            or type(state["schema_version"]) is not int
+            or state["schema_version"] != _SYNC_CACHE_VERSION
+            or not isinstance(state["key"], str)
+            or re.fullmatch(r"(?:sha256|blake3):[a-f0-9]{64}", state["key"]) is None
+            or not isinstance(state["manifest_sha256"], str)
+            or SHA256.fullmatch(state["manifest_sha256"]) is None
+        ):
+            return None
+        return state
+    except (OSError, ValueError, RecursionError, KitError):
+        return None
+
+
+def _write_sync_cache(root: Path, key: str, manifest_bytes: bytes) -> None:
+    data = (
+        json.dumps(
+            {
+                "schema_version": _SYNC_CACHE_VERSION,
+                "key": key,
+                "manifest_sha256": digest(manifest_bytes),
+            },
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
+    try:
+        path = checked_path(root, _SYNC_CACHE_FILE)
+        if path.exists():
+            if not path.is_file():
+                return
+            if path.stat().st_size <= 4096 and path.read_bytes() == data:
+                return
+        atomic_write(path, data)
+    except (OSError, KitError):
+        pass  # A non-writable/unsafe cache must not prevent ordinary sync.
+
+
 def sync_providers(
     root: Path = ROOT, check: bool = False, *, minify: bool = False, mode: str = "full"
 ) -> dict:
@@ -1280,7 +1453,6 @@ def sync_providers(
     destination = checked_path(root, "providers")
     if destination.exists() and not destination.is_dir():
         raise KitError("providers must be a directory")
-    desired = provider_files(root, minify=minify, mode=mode)
     manifest = checked_path(root, "providers/.manifest.json")
     old = {}
     if manifest.exists():
@@ -1293,6 +1465,29 @@ def sync_providers(
             for name, sha in old.items()
         ):
             raise KitError("Invalid provider manifest paths or hashes")
+    # --check always regenerates: a cache is never an authority for source truth.
+    key = _sync_cache_key(root, minify=minify, mode=mode) if not check else None
+    cached = _read_sync_cache(root) if key is not None else None
+    if (
+        cached is not None
+        and cached["key"] == key
+        and manifest.is_file()
+        and cached["manifest_sha256"] == digest(manifest.read_bytes())
+        and all(
+            current_digest(checked_path(root, f"providers/{name}")) == sha
+            for name, sha in old.items()
+        )
+    ):
+        # Keep current tokenizer-dependent validation even on a cache hit.
+        load_library(root)
+        return {
+            "up_to_date": True,
+            "check": False,
+            "written": [],
+            "removed": [],
+            "manifest_changed": False,
+        }
+    desired = provider_files(root, minify=minify, mode=mode)
     writes, removals = {}, []
     for relative in sorted(set(desired) | set(old)):
         if not provider_path(relative):
@@ -1336,6 +1531,8 @@ def sync_providers(
                 except OSError:
                     break
                 directory = directory.parent
+        if key is not None and key == _sync_cache_key(root, minify=minify, mode=mode):
+            _write_sync_cache(root, key, state_bytes)
     return {
         "up_to_date": not check or not (writes or removals or manifest_changed),
         "check": check,
@@ -1654,14 +1851,9 @@ def profile_tokens(
 ) -> dict:
     skills, agents = load_library(root)
 
-    tiktoken_active = False
-    try:
-        import tiktoken
-
-        tiktoken.get_encoding(encoding)
-        tiktoken_active = True
-    except Exception:
-        pass
+    tiktoken_active = _python_token_backend(encoding) is not None or (
+        encoding in ("cl100k_base", "o200k_base") and _native_token_backend() is not None
+    )
 
     skills_data = []
     total_skills_tokens = 0
