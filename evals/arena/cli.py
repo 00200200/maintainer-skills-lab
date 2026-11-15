@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run smoke checks, score recorded responses, or generate offline adversarial fixtures."""
+"""Run smoke checks or isolated agents, score recordings, and generate offline fixtures."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 if __name__ == "__main__" and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from evals.arena import fuzzer, redteam
+from evals.arena import agent_runner, fuzzer, redteam
 from evals.arena.runner import DEFAULT_IMAGE, markdown_report, run_mini, safe_text
 
 
@@ -23,7 +23,9 @@ def _same_file(left: Path, right: Path) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--benchmark", choices=["mini", "redteam", "generate"], required=True)
+    parser.add_argument(
+        "--benchmark", choices=["mini", "redteam", "generate", "agent"], required=True
+    )
     parser.add_argument(
         "--image", help="Mini only: already-present local Python image; never pulled"
     )
@@ -31,7 +33,15 @@ def main(argv: list[str] | None = None) -> int:
         "--responses", type=Path, help="Redteam only: JSON file of recorded responses"
     )
     parser.add_argument(
-        "--fixtures", type=Path, help="Redteam only: alternate JSON fixture catalogue"
+        "--fixtures", type=Path, help="Redteam/Agent: alternate JSON fixture catalogue"
+    )
+    parser.add_argument(
+        "--agent-image", help="Agent only: trusted, already-present local adapter image"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        help="Agent only: maximum scenario/skill pairs (default 5, maximum 100)",
     )
     parser.add_argument("--output-fixtures", type=Path, help="Generate only: new JSON fixture file")
     parser.add_argument(
@@ -44,12 +54,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.benchmark == "redteam" and args.responses is None:
         parser.error("--benchmark redteam requires --responses")
-    if args.benchmark == "redteam" and args.image is not None:
+    if args.benchmark in {"redteam", "agent"} and args.image is not None:
         parser.error("--image is only supported by --benchmark mini")
-    if args.benchmark == "mini" and args.responses is not None:
+    if args.benchmark in {"mini", "agent"} and args.responses is not None:
         parser.error("--responses requires --benchmark redteam")
-    if args.fixtures is not None and args.benchmark != "redteam":
-        parser.error("--fixtures requires --benchmark redteam")
+    if args.fixtures is not None and args.benchmark not in {"redteam", "agent"}:
+        parser.error("--fixtures requires --benchmark redteam or agent")
+    if args.benchmark == "agent" and args.agent_image is None:
+        parser.error("--benchmark agent requires --agent-image")
+    if args.benchmark != "agent" and (args.agent_image is not None or args.limit is not None):
+        parser.error("--agent-image and --limit require --benchmark agent")
     if args.benchmark != "generate" and (args.output_fixtures is not None or args.seed is not None):
         parser.error("--output-fixtures and --seed require --benchmark generate")
     if args.benchmark == "generate":
@@ -77,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
             for output in (args.report, args.output_json)
         ):
             parser.error("Report outputs must not overwrite the responses file")
-        if args.benchmark == "redteam":
+        if args.benchmark in {"redteam", "agent"}:
             fixtures_path = args.fixtures if args.fixtures is not None else fuzzer.DEFAULT_FIXTURES
             if any(
                 output is not None and _same_file(output, fixtures_path)
@@ -87,6 +101,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.benchmark == "mini":
             report = run_mini(image=DEFAULT_IMAGE if args.image is None else args.image)
             markdown = markdown_report(report)
+        elif args.benchmark == "agent":
+            report = agent_runner.run_agent(
+                args.agent_image,
+                fixtures=args.fixtures,
+                limit=agent_runner.DEFAULT_LIMIT if args.limit is None else args.limit,
+            )
+            markdown = agent_runner.markdown_report(report)
         else:
             if args.fixtures is None:
                 report = redteam.run_redteam(args.responses)
@@ -106,6 +127,10 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError) as exc:
         print(f"Arena error: {safe_text(str(exc))}", file=sys.stderr)
         return 1
+    if args.benchmark == "agent":
+        if report.status in {"FAILED", "TIMEOUT"} or report.scoring.status == "COMPROMISED":
+            return 1
+        return 0 if report.status == "COMPLETED" and report.scoring.status == "DEFENDED" else 2
     if args.benchmark == "redteam":
         if report.status == "DEFENDED":
             return 0

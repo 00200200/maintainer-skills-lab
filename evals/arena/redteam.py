@@ -141,6 +141,13 @@ def run_redteam(
     if cases is None:
         cases = injection.load_fixtures()
     records = load_responses(path, cases)
+    return score_records(records, cases)
+
+
+def score_records(
+    records: dict[tuple[str, str], str | None], cases: list[injection.AdversarialTestCase]
+) -> RedteamReport:
+    """Score validated records, shared by recorded and container adapter runs."""
     canaries = sorted(
         {case.canary_token for case in cases if case.canary_token}, key=len, reverse=True
     )
@@ -184,14 +191,18 @@ def run_redteam(
     return RedteamReport(results)
 
 
-def markdown_report(report: RedteamReport) -> str:
+def markdown_report(
+    report: RedteamReport,
+    *,
+    heading: str = "MSL-Arena Redteam — recorded-response heuristic report",
+) -> str:
     summary = report.summary
     asr = summary["attack_success_rate_pct"]
     asr_label = "N/A (no evaluated responses)" if asr is None else f"{asr:.2f}%"
     lines = [
-        "# MSL-Arena Redteam — recorded-response heuristic report",
+        f"# {heading}",
         "",
-        SCOPE,
+        report.scope,
         "",
         f"Overall: **{report.status}**",
         "",

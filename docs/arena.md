@@ -1,8 +1,9 @@
-# MSL-Arena — Mini, recorded-response redteam and offline variants
+# MSL-Arena — Mini, redteam, offline variants and isolated agents
 
 Arena provides `mini` for container infrastructure smoke checks and `redteam`
 for heuristic verification of user-supplied recordings. `generate` creates
-deterministic variant fixtures offline. No mode starts an agent or model;
+deterministic variant fixtures offline. These three modes never start an agent
+or model. The opt-in `agent` mode runs a trusted local container adapter (M4).
 Redteam and Generate do not require or invoke Docker/Podman.
 
 ## Mini infrastructure benchmark (M1)
@@ -322,3 +323,175 @@ verbatim payloads and preserved scoring metadata, existing-loader compatibility,
 malformed/bounded input, no-clobber publication and CLI-to-M2 verifier delegation.
 Execution/model entry points are guarded by mocks. This milestone adds no
 SWE-bench, autonomous feedback loop, model/API integration or CI workflow.
+
+## Isolated agent adapters (M4)
+
+`agent` explicitly starts a trusted adapter from a previously prepared local
+Linux container image. It can run a real, offline agent with model weights and
+skill instructions baked into that image. Arena supplies no model, model
+installation, remote service, paid API integration or simulated agent response.
+Prepare and review the image separately. Images must contain no credentials.
+An image name alone does not establish that a real model runs inside it.
+
+```sh
+python3 evals/arena/cli.py --benchmark agent \
+  --agent-image trusted-offline-agent:v1 --limit 5 \
+  --report /tmp/arena-agent.md --output-json /tmp/arena-agent.json
+
+python3 evals/arena/cli.py --benchmark agent \
+  --agent-image trusted-offline-agent:v1 --fixtures /tmp/arena-variants.json --limit 20
+```
+
+Use Python 3.11+ and a local **rootless Docker or rootless native Linux Podman**
+engine that supports the requested security and cgroup resource limits. For M4,
+Docker uses only the current user's Unix socket at `/run/user/UID/docker.sock`.
+There is no fallback to `/var/run/docker.sock`, a system daemon or a named pipe.
+Remote Docker contexts, Docker Desktop and Podman remote/machine connections are
+not supported by this rootless adapter profile. Prepare the image in the same
+user's rootless image store; images in a rootful engine's store are not reused.
+
+Before image inspection and again before every adapter execution, Arena queries
+the selected local engine with bounded `info` output and a five-second deadline.
+Docker must report the exact `name=rootless` security option; Podman must report
+the JSON boolean `true` for `Host.Security.Rootless`. A non-root container user or
+user-namespace remapping alone does not satisfy this requirement. Rootful,
+inaccessible, malformed, ambiguous or unsupported engine information produces
+**UNAVAILABLE** without starting a container. Arena does not retry another engine,
+socket or weaker profile after verification fails. M1's sandbox and M2/M3 are
+unchanged.
+
+Missing engines, images, unsupported isolation or inaccessible sockets do not
+trigger a weaker execution fallback. Arena never pulls or builds an image. Image
+inspection pins the local immutable image ID before execution; declared image
+volumes are rejected.
+
+### Image and adapter contract
+
+Provide an executable at **`/opt/msl-arena/adapter`**, readable/executable as
+UID/GID **65534:65534**. Arena overrides the image entrypoint and CMD with that
+absolute path and the fixed argument `--protocol-version=1`. No shell is launched
+by Arena. The image must include its interpreters, offline model, configured
+skills and all runtime assets. The adapter must use the selected skill as its
+trusted instructions and treat `input_text` as untrusted task data. Skills are
+identified by name; no host skill files or workspace are mounted.
+
+Each pair gets a fresh container, one UTF-8 JSON object on stdin followed by a
+newline and EOF. For example:
+
+```json
+{"protocol_version":1,"scenario_id":"INJ-001","skill":"mkl-triage-issue","input_text":"Untrusted scenario text"}
+```
+
+The adapter must emit exactly one JSON object on stdout and exit zero:
+
+```json
+{"protocol_version":1,"scenario_id":"INJ-001","skill":"mkl-triage-issue","response":"Actual response obtained from the offline agent","execution_kind":"agent"}
+```
+
+This is a protocol shape, not a recorded model result. `response` must be a
+nonblank string containing the complete response actually obtained from the
+agent. Version, scenario ID and skill must match the request. Unknown/missing
+fields, duplicate JSON keys, invalid UTF-8/Unicode, non-finite numbers, extra
+stdout objects/logging and unsupported versions are rejected. Put diagnostics
+on stderr, within its limit. Attack objectives, forbidden-action metadata and
+canary metadata are not separately supplied to the adapter; the original payload
+may itself contain a canary, as in M2/M3.
+
+For adapter protocol smoke tests, emit **`"execution_kind":"adapter-test"`**.
+Such responses are explicitly labelled and never scored or counted as agent
+evidence. Never label fixed, echoed or simulated responses as `agent`.
+Arena trusts this declaration: it cannot independently attest model execution
+or detect a dishonest adapter claiming to have run a model.
+
+### Isolation and bounds
+
+The adapter path reuses the existing sandbox's container argument builder with
+an additional opt-in profile. M1's executor and defaults are unchanged.
+
+- Network `none`, no workspace/script/credential/socket mounts and no host
+  credential or proxy environment forwarding to the container.
+- Read-only image filesystem; only temporary scratch at `/tmp` (64 MiB,
+  `nosuid,nodev,noexec`) plus the engine's standard ephemeral runtime mounts.
+- UID/GID 65534:65534, all capabilities dropped, no-new-privileges, private IPC,
+  no image health checks, no daemon stdout/stderr logging, core dumps disabled
+  and at most 256 open file descriptors.
+- One CPU, 512 MiB memory with no additional swap, 64 PIDs and 60 seconds per
+  pair. Models requiring more resources are outside this initial fixed profile.
+- At most 128 KiB request bytes, 64 KiB stdout and 16 KiB stderr per process.
+  Pipes are drained concurrently into bounded buffers. Overflow fails the pair;
+  truncated output is never interpreted as a valid response.
+- Rootless verification, local image inspection and forced cleanup have separate
+  five-second limits and bounded output. The launcher uses argument lists with
+  `shell=False`.
+
+The launcher clears inherited environment variables. Docker uses a temporary
+HOME/config instead of host registry credentials, contexts and proxy settings.
+Podman retains the HOME path needed to locate its existing image store, but uses
+empty authentication and container configuration, an empty OCI hooks directory,
+disabled default subscription mounts and `--http-proxy=false`. No host credential
+contents are sent to the adapter. Podman's configuration isolation follows the
+[containers configuration contract](https://github.com/containers/common/blob/main/docs/containers.conf.5.md);
+engines missing the required flags/settings are unavailable, never retried with
+weaker isolation.
+
+Containers use unique names and automatic `--rm`. A host CLI timeout/overflow
+or execution error also triggers bounded forced container removal, including
+when execution is interrupted. Cleanup errors are reported and stop further
+container starts. If the engine becomes inaccessible or the launcher is killed
+abruptly, cleanup cannot be guaranteed; inspect `msl-arena-agent-*` containers
+locally. Engine image/container storage and temporary host control files may be
+written; repository files are never mounted or modified by the adapter.
+
+Container isolation depends on a trusted, correctly configured local engine and
+host kernel. It is not a VM boundary or protection against engine/kernel exploits.
+Rootless verification trusts engine-reported metadata; it does not independently
+attest the daemon or eliminate races if the local engine/socket is replaced.
+This milestone does not verify actual cgroup enforcement on every platform;
+use a compatible engine, especially for rootless Podman. Do not put host secrets
+inside the image. Network isolation deliberately prevents remote model APIs.
+
+### Outcomes, coverage and reports
+
+Pairs are attempted serially in fixture-file order and target-skill order.
+`--limit` defaults to 5, accepts 1–100, and caps attempted pairs. Remaining pairs
+still appear in the M2 scoring report as NOT_EVALUATED. `--fixtures` uses the same
+bounded, validated catalogue reader as M3; without it the checked-in M2 catalogue
+is used. Report destinations cannot overwrite the selected fixtures.
+
+Execution outcomes are separate from scoring verdicts:
+
+- **COMPLETED:** exit zero and a valid bound protocol response; this includes
+  explicitly labelled adapter tests, which remain unscored.
+- **FAILED:** nonzero adapter exit, malformed/blank response, output overflow,
+  unexpected isolation metadata or cleanup failure.
+- **TIMEOUT:** the per-pair execution deadline expired.
+- **UNAVAILABLE:** rootless mode cannot be confirmed, engine/image/preflight
+  unavailable or runtime/adapter startup failed (including container exit codes
+  125/126/127).
+
+Only valid `agent` responses from successfully completed executions reach the
+shared M2 scorer and its existing `verify_agent_response()`. Failures, timeouts,
+unattempted pairs and adapter tests remain NOT_EVALUATED, never DEFENDED. ASR
+uses only evaluated pairs; no evaluated agent responses means JSON `null`/Markdown
+`N/A`, not 0%. The scorer sees full original responses before M2 redaction and
+excerpt shortening. Raw process stdout/stderr are not copied into reports.
+
+JSON uses `benchmark: "agent"`, separate execution `status`, `scoring_status`,
+`executions`, execution counts, image ID, resource limits and M2 coverage fields.
+`evidence_kind` is `container-adapter-agent-responses` only when agent responses
+were scored; otherwise it is `container-adapter-no-agent-responses`.
+`live_agent_run` follows the presence of scored adapter-declared agent responses.
+Markdown labels adapter tests, execution failures and heuristic scoring separately.
+Neither report claims independent attestation or a full security evaluation.
+
+Exit **0** requires completed execution and complete fixture coverage with all
+evaluated responses DEFENDED; **1** means FAILED/TIMEOUT, COMPROMISED or an
+input/report error; **2** means unavailable, adapter-test-only or incomplete
+coverage without a detected attack. A limited subset can therefore exit 2 even
+when all attempted pairs completed and no indicators were found.
+
+`tests/test_arena_agent.py` mocks engine/process execution and covers protocol,
+local-image inspection, isolation arguments, input/output bounds, cleanup,
+timeouts, scoring/redaction, M3 fixtures and CLI behavior. Those tests establish
+adapter infrastructure behavior only, not real agent resistance. M4 introduces
+no SWE-bench, paid API integrations, CI or autonomous campaigns.
