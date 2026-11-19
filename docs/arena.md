@@ -959,3 +959,255 @@ and worker selection, rootless/API/dependency/resource preflight, stale-run
 protection, argv/environment, process/log bounds, interruptions and cleanup.
 They start no real harness, engine, model or repository tests and establish no
 actual benchmark performance or live-platform compatibility.
+
+## Offline leaderboards and regression reporting (M6a)
+
+`reporting` reads existing local JSON files. It never runs an agent, container,
+benchmark, scorer or harness, and does not follow paths stored inside reports to
+reopen transcripts or harness artifacts. Python 3.11+ and the standard library
+are sufficient. There is no GitHub Actions integration in M6a.
+
+```sh
+# Inventory and separate leaderboards for comparable, eligible results.
+python3 evals/arena/cli.py --benchmark reporting \
+  --reports /path/to/run-a.json /path/to/run-b.json \
+  --output-json /tmp/arena-summary.json --report /tmp/arena-summary.md
+
+# A comparison also includes baseline/head automatically in the inventory.
+python3 evals/arena/cli.py --benchmark reporting \
+  --baseline /path/to/baseline.json --head /path/to/head.json \
+  --provenance /path/to/provenance.json \
+  --asr-increase-pp 2 --resolution-drop-pp 1 --infrastructure-drop-pp 0 \
+  --output-json /tmp/arena-comparison.json --report /tmp/arena-comparison.md
+```
+
+Baseline and head must be supplied together. Without them the output is a summary,
+not a regression verdict. Reports are validated before outputs are written.
+Destinations must differ and cannot alias input reports or the provenance file,
+including symlink/hardlink aliases. With no output flags only Markdown is printed.
+Reporting/execution options are rejected outside their respective CLI modes.
+
+### Input profiles and evidence boundaries
+
+The reader accepts the current Arena **schema version 1** profiles below and
+rejects unknown benchmarks, unsupported versions, malformed JSON/UTF-8, duplicate
+JSON object members, invalid types, duplicate case IDs/pairs, inconsistent counts,
+contradictory statuses/flags/hashes and non-finite numbers. A structurally invalid
+file aborts aggregation; it is not silently converted into an empty passing run.
+Valid source ERROR/NOT_EVALUATED/INCOMPLETE results remain visible as such.
+
+| Input | Treatment |
+| --- | --- |
+| M1 `mini` | Infrastructure outcomes only; complete, declared comparable runs can use `infrastructure_pass_pct` |
+| M2 `redteam` | Source-reported heuristic response outcomes; eligible comparisons use evaluated ASR, never a general security score |
+| M3 fixture JSON array | Validated with the existing fixture validator; preparation only, no evaluated agent cases |
+| M4 `agent` | Execution outcomes and scoring coverage checked separately; adapter tests never count as agent responses |
+| M5a `swebench` | Existing manifest/task validation reused; preparation only, private task sections omitted |
+| M5b `swebench-predictions` | Prediction/run bindings validated; preparation only, no resolution metric |
+| M5b `swebench-results` | Per-task outcomes, hash bindings, confirmation and all summary counts/rates checked for consistency |
+| M5c `swebench-run` | PREVIEW/COMPLETED/failure/cleanup states retained; even exit zero has no model score or resolution metric |
+
+Each row retains its source status, phase, evaluation coverage and reliability.
+Response reports retain separate outcome counts and scoring status; harness
+execution failures are also counted separately in the aggregate summary.
+Partial coverage is never promoted to a complete run. Source-declared synthetic
+evidence has zero trusted evaluated coverage, with its original source counts
+available separately as `reported_coverage`. No private responses, patches,
+problem statements, canaries, test identifiers or host commands are copied into
+the aggregate. Display labels are escaped as data in Markdown.
+
+Inputs are capped at 100 files, 64 MiB each and 256 MiB total; provenance is capped
+at 1 MiB. At most 2,400 scenario/skill pairs or 50 SWE-bench tasks are accepted per
+report. Identical **byte-content** reports are deduplicated by SHA-256, retaining
+their sorted paths. Different byte encodings/formatting have different identities.
+File order does not affect the aggregate. JSON uses sorted keys and LF endings;
+no timestamps, random state or execution durations are added to the summary.
+
+### Declared provenance for legacy reports
+
+M1/M2/M4 JSON does not bind the report to fixture contents and evaluator code.
+Matching scenario IDs alone cannot prove matching payloads, skills or detection
+rules. Those reports remain visible but have no eligible metric, rank or delta
+without a SHA-256-bound provenance declaration. This preserves old formats; no
+producer or old report needs to be edited.
+
+The optional `--provenance` file has exactly `schema_version: 1` and a `reports`
+array. This is a template; replace every placeholder with the actual value:
+
+```json
+{
+  "schema_version": 1,
+  "reports": [
+    {
+      "report_sha256": "<SHA-256 of exact report bytes>",
+      "origin": "recorded-agent",
+      "evaluation_set_sha256": "<evaluation-set fingerprint>",
+      "evaluator_sha256": "<evaluator/version fingerprint>",
+      "model_id": "model-display-label",
+      "run_id": "recorded-run-id"
+    }
+  ]
+}
+```
+
+`report_sha256` and `origin` are required. Fingerprints must be 64 lowercase hex
+characters, with one declaration per supplied report hash; duplicate or unmatched
+declarations are rejected. The two evaluation fingerprints are required for
+M1/M2/M4 eligibility. Define the evaluation-set fingerprint to cover scenario
+payloads, target skills/instruction revisions, canaries and forbidden actions;
+the evaluator fingerprint must cover the verifier/harness implementation and its
+configuration. Record how those fingerprints were produced with the experiment.
+They are explicit caller assertions, not inferred from filenames or scenario IDs.
+
+Origins are `infrastructure`, `recorded-agent`, `container-agent`,
+`official-harness`, `preparation`, `harness-execution`, `synthetic` or `unknown`.
+An origin must match the benchmark phase, except `synthetic`/`unknown`, which
+always suppress metrics. Optional `model_id` is a bounded nonblank display label;
+`run_id` is a bounded identifier and must agree with a run ID already in the
+report. Neither controls paths or execution. Declarations cannot turn adapter
+tests, missing cases, preparation or failed execution into eligible evidence.
+On performance reports the reader also honors an explicit boolean top-level
+`synthetic` annotation; true cannot be overridden by a positive declaration.
+Use the sidecar for unchanged strict manifests and raw fixture arrays.
+
+M5b already carries source/manifest hashes, task IDs, format and user confirmation.
+Complete, consistent, user-confirmed harness result reports can therefore be
+eligible without the sidecar. An unconfirmed report remains unverified, and an
+`official-harness` declaration cannot supply its missing M5b confirmation. Mark
+synthetic fixtures explicitly; Arena cannot discover fabricated evidence from
+otherwise plausible JSON or prove that a caller's declaration is true.
+
+### Comparability, rankings and regression thresholds
+
+Leaderboards are separate groups keyed by benchmark, scenario/skill or task scope
+and evaluation bindings. They never pool ASR, infrastructure pass rate and
+SWE-bench resolution into a global score. M2 recordings and M4 container runs
+remain different benchmarks even though both can expose ASR. Mini infrastructure
+tables are explicitly labelled and never described as agent performance.
+
+Legacy comparison keys include their declared evaluation/evaluator fingerprints
+and exact scope. M4 additionally binds execution limits/runtime; Mini binds its
+image ID, runtime and isolation limits. M5b binds exact M5a manifest/source hashes,
+task IDs and supported result format. Different model identities, prediction
+hashes or run IDs are expected across baseline/head and are not evaluation-set
+identity. Reformatting an M5a manifest changes its byte hash, so it is conservatively
+incomparable even when a caller believes the tasks are equivalent.
+
+Comparison is **INCOMPARABLE**, with reasons and an empty delta list, when
+benchmarks, scopes, evaluation bindings or settings differ, or either side lacks
+complete reliable evidence. Missing, unverified, synthetic, adapter-test-only,
+partial and errored evidence has no ranked value or metric delta. Status/coverage
+information is still shown. Rankings sort eligible ASR ascending and resolution
+or infrastructure pass rate descending. Ties share a rank, with stable SHA-256
+ordering. For SWE-bench only the resolution percentage is ranked; Pass@1 is not
+counted again as an additional independent metric.
+
+Baseline and head must be distinct reports with different SHA-256 `report_id`
+values. Comparing a file with itself, or two filenames with identical bytes,
+is **INCOMPARABLE** with a diagnostic reason and no metric delta. Ordinary
+aggregation and leaderboard construction still deduplicate identical content.
+
+Thresholds are finite values from 0 to 100 **percentage points**, all defaulting
+to zero. A regression requires degradation **strictly greater** than the threshold:
+
+- `--asr-increase-pp`: head ASR minus baseline ASR.
+- `--resolution-drop-pp`: baseline resolution percentage minus head percentage.
+- `--infrastructure-drop-pp`: baseline infrastructure percentage minus head percentage.
+
+For example, a change from 10% to 12% ASR is +2 pp; with threshold 2 it is not a
+regression. Accepted comparisons are `REGRESSION` or `NO_REGRESSION`, with source
+values, signed head-minus-baseline deltas and thresholds. No changes are calculated
+from missing/null values or an observed subset alone. Thresholds do not change
+the underlying M1–M5 scoring or completeness rules.
+
+CLI exit **0** means a valid summary or comparable result without a regression,
+**1** means a regression or input/report error, and **2** means INCOMPARABLE.
+A summary exit zero is not benchmark or agent success. Offline schema validation
+and caller-declared provenance cannot establish live agent behavior, authenticity,
+cache freshness or a full security audit. M5b's original cache/provenance cautions
+continue to apply. `tests/test_arena_reporting.py` uses only synthetic schema
+fixtures and mocked execution entry points to cover validation, grouping,
+determinism, thresholds, incomplete/untrusted data, Markdown safety and CLI input
+protection. It establishes no actual model ranking or benchmark performance.
+
+## M6b: manual offline regression reporting in GitHub Actions
+
+The separate `arena-regression.yml` workflow compares existing reports through
+M6a's `reporting.aggregate()` and renders its Markdown without running an Arena
+benchmark. It has only a `workflow_dispatch` trigger: there is no schedule until
+a trusted report source exists. `ci.yml` continues to validate the library and
+exports; `token-regression.yml` continues to check library token/prompt changes.
+Neither workflow is replaced or modified by this integration.
+
+To run a comparison:
+
+1. Review and commit publishable baseline/head JSON and, when required for M6a
+   eligibility, a provenance sidecar under `evals/arena/reports/` on the default
+   branch. Use the supported report profiles and provenance schema above.
+   Do not commit credentials, private task data, raw transcripts or gold patches.
+2. Open **Actions → Arena offline regression reporting → Run workflow** and select
+   the repository's default branch. Dispatching another branch fails; checkout
+   always selects the default branch and does not persist credentials.
+3. Set `baseline` and `head` to relative filenames such as
+   `experiment/baseline.json` and `experiment/head.json`. Set `provenance` to a
+   relative sidecar filename, or leave it blank. These are existing reviewed
+   files, not URLs, artifact IDs or instructions for generating new evidence.
+4. Read the Actions summary and download the run's
+   `arena-regression-<run_id>-<attempt>` artifact. No trusted report pair is
+   supplied by default; missing inputs fail rather than fabricate a comparison.
+
+Baseline/head filenames must identify distinct report contents, not copies of
+the same report. Identical SHA-256 inputs retain diagnostic JSON/Markdown
+artifacts but fail the workflow gate as INCOMPARABLE, including when both inputs
+name the same file.
+
+The fixed input root is `evals/arena/reports/`. Filenames must end in `.json`,
+contain at most eight slash-separated components and total at most 512
+characters. Each component starts with an ASCII letter/digit and otherwise uses
+ASCII letters, digits, `_`, `-` or `.`, with a maximum of 128 characters.
+Absolute paths, `.`/`..`, backslashes, URLs, shell syntax and globs are rejected.
+Every component, including the trusted directory itself, must be a regular
+directory/file: symlinks are rejected even when pointing inside the input root.
+M6a still validates JSON schemas, bounds, hashes, provenance and comparability.
+Workflow inputs travel through environment variables, never shell interpolation.
+
+The bridge writes `report.json`, `report.md` and a small SHA-256 receipt
+`result.json` to a fresh directory under `RUNNER_TEMP`, outside the repository.
+The artifact retains these files for seven days. Completed reports are uploaded
+**before** enforcing the comparison, including when the outcome is REGRESSION or
+INCOMPARABLE. The gate requires the current reporting step to have succeeded,
+matching status outputs and unchanged report hashes; an old receipt or partial
+output cannot supply a passing result. Failure to deliver the Actions summary
+also fails the job, even if valid report artifacts were already produced.
+
+| Outcome | Workflow result | Meaning |
+| --- | --- | --- |
+| `NO_REGRESSION` | Success (gate exit 0) | Eligible, comparable evidence has no degradation above M6a's default zero percentage-point thresholds. |
+| `REGRESSION` | Failure (gate exit 1) | An eligible comparison exceeds its threshold; completed reports are retained. |
+| `INCOMPARABLE` | Failure (gate exit 2) | Scope, provenance or completeness prevents comparison; no metric delta or success is inferred. |
+| Input/report/delivery error | Failure (exit 1) | Missing, malformed or inconsistent data cannot produce a successful gate. |
+
+Thresholds are the existing M6a defaults; this small workflow adds no threshold
+overrides or scoring rules. `NOT_EVALUATED`, `INCOMPLETE` and `ERROR` evidence
+retains M6a's meaning. Infrastructure smoke results remain infrastructure results,
+and neither fixture generation nor harness process completion becomes model success.
+
+The job uses Python 3.11 standard library, `contents: read` and a five-minute
+timeout. It installs no project dependencies, consumes no secrets, writes no
+repository files and posts no PR comments. It downloads no report artifacts and
+starts no models, containers, SWE-bench harness or benchmark runs. Checkout,
+Python setup and artifact upload still require GitHub infrastructure; “offline”
+describes the report analysis, not an air-gapped Actions runner.
+
+Trust depends on review and protection of the default branch and the curated
+directory. Provenance remains a caller assertion, not authentication of a model
+run; the earlier cache freshness and evidence limitations still apply.
+**TokenConsumption and SafetyScore from the original issue are not yet full
+MSL-Arena metrics because verified input data is missing.** Library token
+profiles/diffs are estimates rather than measured agent session consumption,
+and heuristic ASR is not a validated composite safety score.
+
+`tests/test_arena_regression.py` covers path/configuration validation, offline
+delegation, artifact integrity, status propagation and the restricted workflow
+contract using synthetic reports and mocked execution entry points. These tests
+do not establish actual GitHub Actions execution or agent benchmark performance.

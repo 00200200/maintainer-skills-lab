@@ -11,7 +11,15 @@ from pathlib import Path
 if __name__ == "__main__" and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from evals.arena import agent_runner, fuzzer, redteam, swebench, swebench_eval, swebench_runner
+from evals.arena import (
+    agent_runner,
+    fuzzer,
+    redteam,
+    reporting,
+    swebench,
+    swebench_eval,
+    swebench_runner,
+)
 from evals.arena.runner import DEFAULT_IMAGE, markdown_report, run_mini, safe_text
 
 
@@ -216,6 +224,80 @@ def _swebench_run_main(args, parser: argparse.ArgumentParser) -> int:
     return 130 if status == "INTERRUPTED" else 1
 
 
+def _reporting_main(args, parser: argparse.ArgumentParser) -> int:
+    if (
+        args.execute
+        or args.confirm_harness_run
+        or any(
+            value is not None
+            for value in (
+                args.image,
+                args.responses,
+                args.fixtures,
+                args.agent_image,
+                args.tasks,
+                args.limit,
+                args.output_fixtures,
+                args.seed,
+                args.manifest,
+                args.predictions,
+                args.run_id,
+                args.output_predictions,
+                args.run_manifest,
+                args.harness_results,
+                args.results_format,
+                args.prediction_export,
+                args.work_dir,
+                args.harness_python,
+                args.engine,
+                args.max_workers,
+                args.timeout,
+                args.test_timeout,
+                args.log_limit_mib,
+            )
+        )
+    ):
+        parser.error("Offline reporting does not accept execution, generation or evaluation flags")
+    sources = list(args.reports or [])
+    sources.extend(path for path in (args.baseline, args.head, args.provenance) if path is not None)
+    outputs = [path for path in (args.report, args.output_json) if path is not None]
+    try:
+        if len(outputs) == 2 and _same_file(*outputs):
+            parser.error("Reporting outputs must use different files")
+        if any(_same_file(output, source) for output in outputs for source in sources):
+            parser.error("Reporting outputs must not overwrite input reports or provenance")
+        thresholds = reporting.Thresholds(
+            0 if args.asr_increase_pp is None else args.asr_increase_pp,
+            0 if args.resolution_drop_pp is None else args.resolution_drop_pp,
+            0 if args.infrastructure_drop_pp is None else args.infrastructure_drop_pp,
+        )
+        data = reporting.aggregate(
+            list(args.reports or []),
+            baseline=args.baseline,
+            head=args.head,
+            provenance=args.provenance,
+            thresholds=thresholds,
+        )
+        markdown = reporting.markdown_report(data)
+        serialized = (json.dumps(data, indent=2, sort_keys=True, allow_nan=False) + "\n").encode(
+            "utf-8"
+        )
+        for path, content in (
+            (args.report, markdown.encode("utf-8")),
+            (args.output_json, serialized),
+        ):
+            if path is not None:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+        print(markdown)
+    except (OSError, ValueError) as error:
+        print(f"Arena reporting error: {safe_text(str(error))}", file=sys.stderr)
+        return 1
+    if data["status"] == "REGRESSION":
+        return 1
+    return 2 if data["status"] == "INCOMPARABLE" else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -229,6 +311,7 @@ def main(argv: list[str] | None = None) -> int:
             "swebench-predictions",
             "swebench-results",
             "swebench-run",
+            "reporting",
         ],
         required=True,
     )
@@ -315,7 +398,45 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--log-limit-mib", type=int, help="swebench-run: total harness log budget (default 128 MiB)"
     )
+    parser.add_argument(
+        "--reports", nargs="+", type=Path, help="Reporting only: local Arena JSON reports"
+    )
+    parser.add_argument("--baseline", type=Path, help="Reporting only: baseline report")
+    parser.add_argument("--head", type=Path, help="Reporting only: head report")
+    parser.add_argument(
+        "--provenance", type=Path, help="Reporting only: SHA-256-bound provenance declarations"
+    )
+    parser.add_argument(
+        "--asr-increase-pp",
+        type=float,
+        help="Reporting only: tolerated ASR increase in percentage points (default 0)",
+    )
+    parser.add_argument(
+        "--resolution-drop-pp",
+        type=float,
+        help="Reporting only: tolerated resolution rate drop in percentage points (default 0)",
+    )
+    parser.add_argument(
+        "--infrastructure-drop-pp",
+        type=float,
+        help="Reporting only: tolerated infrastructure pass-rate drop in percentage points (default 0)",
+    )
     args = parser.parse_args(argv)
+    if args.benchmark == "reporting":
+        return _reporting_main(args, parser)
+    if any(
+        value is not None
+        for value in (
+            args.reports,
+            args.baseline,
+            args.head,
+            args.provenance,
+            args.asr_increase_pp,
+            args.resolution_drop_pp,
+            args.infrastructure_drop_pp,
+        )
+    ):
+        parser.error("Reporting options require --benchmark reporting")
     if args.benchmark == "swebench-run":
         return _swebench_run_main(args, parser)
     if args.execute or any(

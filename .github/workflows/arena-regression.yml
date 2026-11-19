@@ -1,0 +1,67 @@
+name: Arena offline regression reporting
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Baseline JSON relative to evals/arena/reports/'
+        required: true
+        type: string
+      head:
+        description: 'Head JSON relative to evals/arena/reports/'
+        required: true
+        type: string
+      provenance:
+        description: 'Optional provenance JSON relative to evals/arena/reports/'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  offline-reporting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ARENA_BASELINE: ${{ inputs.baseline }}
+      ARENA_HEAD: ${{ inputs.head }}
+      ARENA_PROVENANCE: ${{ inputs.provenance }}
+    steps:
+      - name: Require a default-branch dispatch
+        if: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+        run: exit 1
+      - name: Checkout trusted default-branch files
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Collect the offline comparison and Actions summary
+        id: reporting
+        run: python3 -B tools/arena_regression.py collect
+      - name: Preserve completed reports before gate enforcement
+        if: ${{ always() && steps.reporting.outputs.reporting_completed == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: arena-regression-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.reporting.outputs.artifact_dir }}/report.json
+            ${{ steps.reporting.outputs.artifact_dir }}/report.md
+            ${{ steps.reporting.outputs.artifact_dir }}/result.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce the completed comparison result
+        if: ${{ always() }}
+        env:
+          ARENA_REPORTING_COMPLETED: ${{ steps.reporting.outputs.reporting_completed }}
+          ARENA_REPORTING_OUTCOME: ${{ steps.reporting.outcome }}
+          ARENA_RESULT_STATUS: ${{ steps.reporting.outputs.result_status }}
+        run: python3 -B tools/arena_regression.py enforce
